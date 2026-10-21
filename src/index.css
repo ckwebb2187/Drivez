@@ -1,0 +1,93 @@
+@import 'leaflet/dist/leaflet.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 8% 7%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 8% 7%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 195 100% 50%;
+    --primary-foreground: 240 10% 4%;
+    --secondary: 240 6% 11%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 6% 11%;
+    --muted-foreground: 240 5% 50%;
+    --accent: 113 100% 50%;
+    --accent-foreground: 240 10% 4%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 6% 14%;
+    --input: 240 6% 14%;
+    --ring: 195 100% 50%;
+    --radius: 0.75rem;
+    --font-heading: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-body: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-display: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', ui-monospace, monospace;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer utilities {
+  .speed-font {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .glass {
+    background: rgba(20, 20, 32, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
+.leaflet-container {
+  background: #0A0A0F !important;
+  font-family: var(--font-body);
+}
+.map-dark .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9) saturate(0.6);
+}
+.leaflet-control-attribution {
+  background: rgba(10, 10, 15, 0.7) !important;
+  color: #8b8b9f !important;
+  font-size: 9px !important;
+}
+.leaflet-control-attribution a { color: #8b8b9f !important; }
+
+input[type=range] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+input[type=range]::-webkit-slider-runnable-track {
+  height: 4px;
+  background: hsl(240 6% 14%);
+  border-radius: 2px;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  margin-top: -6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: hsl(195 100% 50%);
+}
