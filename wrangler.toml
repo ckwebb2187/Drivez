@@ -11,7 +11,7 @@ run_worker_first = ["/api/*"]
 [[d1_databases]]
 binding = "DB"
 database_name = "drivez"
-database_id = "REPLACE_WITH_D1_ID"
+database_id = "5af0f8b5-4530-4d5a-ad01-bfbbbee89c43"
 
 [triggers]
 crons = ["17 * * * *"]
