@@ -189,6 +189,12 @@ export function AppProvider({ children }) {
     setPlaces(prev => prev.filter(p => p.id !== id));
   };
 
+  const renamePlace = async (id, name) => {
+    const rec = await base44.entities.Place.update(id, { name });
+    setPlaces(prev => prev.map(p => p.id === id ? { ...p, name: rec.name ?? name } : p));
+    return rec;
+  };
+
   // Home and Work (like Waze): one of each, stored as saved places.
   const home = useMemo(() => places.find(p => p.kind === 'home') || null, [places]);
   const work = useMemo(() => places.find(p => p.kind === 'work') || null, [places]);
@@ -210,7 +216,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       user, stats, weeklyStats, vehicles, trips, savedRoutes, loading, activeVehicle, myCar, setPrimaryVehicle,
       toggleGhostMode, updateUser, addVehicle, removeVehicle, addTrip,
-      addRoute, deleteRoute, shareRouteWithFriends, places, addPlace, deletePlace, home, work, setHomeWork, refreshData: loadData
+      addRoute, deleteRoute, shareRouteWithFriends, places, addPlace, deletePlace, renamePlace, home, work, setHomeWork, refreshData: loadData
     }}>
       {children}
     </AppContext.Provider>

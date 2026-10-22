@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import SetPlaceModal from '@/components/SetPlaceModal';
+import NamePlaceSheet from '@/components/NamePlaceSheet';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Search, Star, Trash2, Navigation, Upload, MapPin, Home, Briefcase } from 'lucide-react';
+import { ChevronLeft, Search, Star, Navigation, Upload, MapPin, Home, Briefcase, Pencil } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 
 export default function PlacesPage() {
   const navigate = useNavigate();
-  const { places, deletePlace, home, work } = useApp();
+  const { places, deletePlace, renamePlace, home, work } = useApp();
+  const [renaming, setRenaming] = useState(null);
   const [setting, setSetting] = useState(null);
   const [pos, setPos] = useState(null);
   useEffect(() => {
@@ -70,6 +72,10 @@ export default function PlacesPage() {
           </div>
         )}
 
+        {renaming && (
+          <NamePlaceSheet title="Rename place" initialName={renaming.name} address={renaming.address}
+            onSave={(n) => renamePlace(renaming.id, n)} onRemove={() => deletePlace(renaming.id)} onClose={() => setRenaming(null)} />
+        )}
         {setting && <SetPlaceModal kind={setting} pos={pos} onClose={() => setSetting(null)} />}
         {places.filter((p) => !p.kind).length === 0 ? (
           <div className="text-center py-12">
@@ -89,7 +95,7 @@ export default function PlacesPage() {
                   </div>
                 </button>
                 <button onClick={() => go(p)} className="w-10 h-10 flex items-center justify-center" aria-label="Directions"><Navigation className="w-4 h-4 text-primary" /></button>
-                <button onClick={() => deletePlace(p.id)} className="w-10 h-10 flex items-center justify-center mr-1" aria-label="Remove"><Trash2 className="w-4 h-4 text-muted-foreground" /></button>
+                <button onClick={() => setRenaming(p)} className="w-10 h-10 flex items-center justify-center mr-1" aria-label="Rename"><Pencil className="w-4 h-4 text-muted-foreground" /></button>
               </div>
             ))}
             {shown.length > 300 && <p className="text-center text-[11px] text-muted-foreground py-2">Showing 300 of {shown.length.toLocaleString()}. Search to narrow it down.</p>}

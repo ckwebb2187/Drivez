@@ -8,6 +8,7 @@ import { useReports } from '@/lib/reports';
 import MusicButton from '@/components/MusicButton';
 import { WeatherLayer, WeatherButton, WeatherTimeBadge } from '@/components/Weather';
 import SetPlaceModal from '@/components/SetPlaceModal';
+import NamePlaceSheet from '@/components/NamePlaceSheet';
 import { suggestDrives } from '@/lib/predict';
 import TripCard from '@/components/TripCard';
 import { useApp } from '@/lib/AppContext';
@@ -20,7 +21,8 @@ const FALLBACK_CENTER = [39.8283, -98.5795]; // middle of the US until we know w
 export default function MapHome() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, stats, trips, vehicles, savedRoutes, myCar, places, addPlace, deletePlace, home, work } = useApp();
+  const { user, stats, trips, vehicles, savedRoutes, myCar, places, addPlace, deletePlace, renamePlace, home, work } = useApp();
+  const [naming, setNaming] = useState(false);
   const [setting, setSetting] = useState(null); // 'home' | 'work' while choosing the address
 
   // Your location
@@ -124,10 +126,7 @@ export default function MapHome() {
       .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0)).slice(0, 5);
   }, [places, query, pos]);
   const savedHere = dest ? places.find((p) => Math.abs(p.lat - dest.lat) < 1e-4 && Math.abs(p.lng - dest.lng) < 1e-4) : null;
-  const toggleSave = async () => {
-    if (!dest) return;
-    try { if (savedHere) await deletePlace(savedHere.id); else await addPlace(dest); } catch { /* ignore */ }
-  };
+  const toggleSave = () => { if (dest) setNaming(true); };
 
   const goHomeWork = (kind) => {
     const p = kind === 'home' ? home : work;
@@ -388,6 +387,20 @@ export default function MapHome() {
             </div>
           </div>
         </div>
+      )}
+      {naming && dest && (
+        <NamePlaceSheet
+          title={savedHere ? 'Saved place' : 'Save this place'}
+          initialName={savedHere ? savedHere.name : dest.name}
+          address={dest.address}
+          saveLabel={savedHere ? 'Save name' : 'Save place'}
+          onSave={async (n) => {
+            if (savedHere) await renamePlace(savedHere.id, n); else await addPlace({ ...dest, name: n });
+            setDest((d) => (d ? { ...d, name: n } : d)); setQuery(n);
+          }}
+          onRemove={savedHere && !savedHere.kind ? () => deletePlace(savedHere.id) : undefined}
+          onClose={() => setNaming(false)}
+        />
       )}
       {setting && <SetPlaceModal kind={setting} pos={pos} onClose={() => setSetting(null)} />}
     </div>
