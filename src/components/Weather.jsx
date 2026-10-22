@@ -201,3 +201,21 @@ export function WeatherTimeBadge({ className = '' }) {
     </div>
   );
 }
+
+// Tile settings for the chosen overlay, for the 3D drive map (MapLibre). Radar shows the latest frame.
+export function useWeatherTiles() {
+  const [prefs] = useWeatherPrefs();
+  const accu = useAccuAvailable();
+  const chosen = prefs.layer === 'rv-satellite' ? 'goes-satellite' : prefs.layer;
+  const id = chosen === 'accu-radar' || chosen === 'accu-satellite' ? (accu ? chosen : accu === false ? 'rv-radar' : 'off') : chosen;
+  const rv = useRainViewer(id === 'rv-radar');
+  const opacity = prefs.opacity;
+  if (id === 'accu-radar' || id === 'accu-satellite') {
+    return { key: id, url: `${window.location.origin}/api/wx/accu/${id === 'accu-radar' ? 'radar' : 'satellite'}/{z}/{x}/{y}.png`, maxzoom: 10, opacity };
+  }
+  if (id === 'nexrad') return { key: id, url: 'https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png', maxzoom: 12, opacity };
+  if (id === 'goes-satellite') return { key: id, url: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/default/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png', maxzoom: 6, opacity };
+  const last = rv?.radar?.past?.[rv.radar.past.length - 1];
+  if (id === 'rv-radar' && last) return { key: `rv-${last.path}`, url: `${rv.host}${last.path}/256/{z}/{x}/{y}/2/1_1.png`, maxzoom: 7, opacity };
+  return null;
+}

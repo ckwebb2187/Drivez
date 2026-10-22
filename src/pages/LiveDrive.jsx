@@ -1,18 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X, ChevronUp } from 'lucide-react';
-import { Polyline } from 'react-leaflet';
-import DarkMap from '@/components/DarkMap';
+import { Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X, ChevronUp, Navigation2 } from 'lucide-react';
+import DriveMap from '@/components/DriveMap';
 import { useGpsDrive } from '@/lib/useGpsDrive';
 import { useApp } from '@/lib/AppContext';
 import { formatDuration } from '@/lib/helpers';
 import { useNavigation } from '@/lib/useNavigation';
 import { formatNavDistance, formatEta, arrivalTime } from '@/lib/nav';
-import { LocationMarker, PinMarker, TurnIcon, ReportMarkers, ReportButton } from '@/components/MapBits';
+import { TurnIcon, ReportButton } from '@/components/MapBits';
 import { useReports, useReportAlerts, REPORT_TYPES } from '@/lib/reports';
 import MusicButton from '@/components/MusicButton';
-import { WeatherLayer, WeatherButton, WeatherTimeBadge } from '@/components/Weather';
+import { WeatherButton } from '@/components/Weather';
 
 const MAX_POINTS = 400;
 
@@ -58,7 +57,16 @@ export default function LiveDrive() {
     navigator.geolocation?.getCurrentPosition((p) => setHerePos([p.coords.latitude, p.coords.longitude]), () => {}, { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 });
   }, []);
 
-  const center = drive.currentPosition || herePos || (navPlan ? [navPlan.dest.lat, navPlan.dest.lng] : null) || (guideRoute && guideRoute.route.length > 0 ? guideRoute.route[Math.floor(guideRoute.route.length / 2)] : [39.8283, -98.5795]);
+  // Camera follows you; if you pan the map it waits, then snaps back after a few seconds (like Waze).
+  const [follow, setFollow] = useState(true);
+  const backTimer = useRef(null);
+  const onUserMove = () => {
+    setFollow(false);
+    clearTimeout(backTimer.current);
+    backTimer.current = setTimeout(() => setFollow(true), 12000);
+  };
+  const recenter = () => { clearTimeout(backTimer.current); setFollow(true); };
+  useEffect(() => () => clearTimeout(backTimer.current), []);
 
   useEffect(() => {
     if (drive.status === 'ended' && !tripTitle) {
@@ -119,24 +127,20 @@ export default function LiveDrive() {
     <div className="fixed inset-0 overflow-hidden">
       {/* Map */}
       <div className="absolute inset-0">
-        <DarkMap center={center} zoom={navPlan ? 17 : 16} follow={drive.status === 'driving' || (!!herePos && drive.status === 'idle')}>
-          {nav.active && (
-            <>
-              <Polyline positions={nav.route.coords} pathOptions={{ color: '#1a3d7a', weight: 11, opacity: 0.9 }} />
-              <Polyline positions={nav.route.coords} pathOptions={{ color: '#4285F4', weight: 7, opacity: 1 }} />
-            </>
-          )}
-          {navPlan && <PinMarker pos={[navPlan.dest.lat, navPlan.dest.lng]} />}
-          {guideRoute && guideRoute.route.length > 1 && (
-            <Polyline positions={guideRoute.route} pathOptions={{ color: '#6b6b9f', weight: 3, opacity: 0.6, dashArray: '6 8' }} />
-          )}
-          {drive.route.length > 1 && (
-            <Polyline positions={drive.route.map(p => [p.lat, p.lng])} pathOptions={{ color: '#00BFFF', weight: 4, opacity: 0.9 }} />
-          )}
-          <ReportMarkers reports={roadReports.reports} onVote={roadReports.vote} onRemove={roadReports.remove} />
-          <WeatherLayer />
-          <LocationMarker pos={drive.currentPosition || herePos} heading={drive.heading} car={myCar} />
-        </DarkMap>
+        <DriveMap
+          pos={drive.currentPosition || herePos}
+          heading={drive.heading}
+          speed={drive.currentSpeed}
+          car={myCar}
+          driving={drive.status === 'driving'}
+          routeCoords={nav.active ? nav.route.coords : null}
+          dest={navPlan ? navPlan.dest : null}
+          guide={guideRoute ? guideRoute.route : null}
+          trail={drive.route}
+          reports={roadReports.reports}
+          follow={follow}
+          onUserMove={onUserMove}
+        />
       </div>
 
       <AnimatePresence mode="wait">
@@ -282,9 +286,17 @@ export default function LiveDrive() {
               </div>
             </div>
 
+            {/* Re-center (shows after you move the map) */}
+            {!follow && (
+              <div className={`absolute left-1/2 -translate-x-1/2 ${barOpen ? 'bottom-[160px]' : 'bottom-[156px]'} pointer-events-auto`}>
+                <button onClick={recenter} className="h-11 px-5 rounded-full bg-card/95 backdrop-blur border border-border shadow-2xl text-sm font-bold text-[#8ab4f8] flex items-center gap-2">
+                  <Navigation2 className="w-4 h-4 fill-[#8ab4f8]" /> Re-center
+                </button>
+              </div>
+            )}
+
             {/* Music + report shortcuts */}
             <div className={`absolute right-3 ${barOpen ? 'bottom-[214px]' : 'bottom-[156px]'} transition-all pointer-events-auto flex flex-col gap-3`}>
-              <WeatherTimeBadge className="self-end" />
               <WeatherButton className="!w-[50px] !h-[50px]" />
               <MusicButton size={50} />
               <ReportButton size={50} onReport={(type) => roadReports.report(type, drive.currentPosition)} disabled={!drive.currentPosition} />
