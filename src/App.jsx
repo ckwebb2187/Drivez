@@ -8,7 +8,6 @@ import { AuthProvider } from '@/lib/AuthContext';
 import ScrollToTop from './components/ScrollToTop';
 import { AppProvider } from '@/lib/AppContext';
 import Layout from '@/components/Layout';
-import MapHome from '@/pages/MapHome';
 import History from '@/pages/History';
 import Leaderboard from '@/pages/Leaderboard';
 import Profile from '@/pages/Profile';
@@ -41,8 +40,9 @@ export default function App() {
               <Route path="/u/:username" element={<PublicProfile />} />
               <Route element={<ProtectedRoute />}>
                 <Route element={<Layout />}>
-                  <Route path="/" element={<MapHome />} />
-                  <Route path="/drive" element={null} /> {/* drawn by Layout so it keeps running in the background */}
+                  {/* The drive map is the home screen. Layout draws it so it keeps running in the background. */}
+                  <Route path="/" element={null} />
+                  <Route path="/drive" element={null} />
                   <Route path="/history" element={<History />} />
                   <Route path="/leaderboard" element={<Leaderboard />} />
                   <Route path="/profile" element={<Profile />} />

@@ -1,12 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { MapContainer, Polyline, CircleMarker, Tooltip } from 'react-leaflet';
-import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles, Plus, ArrowUp, ArrowDown, Shuffle, Save, TrafficCone } from 'lucide-react';
-import { BaseLayer } from '@/components/DarkMap';
-import { LocationMarker, PinMarker, FollowMe, FitBounds, CarMarker, ReportMarkers, ReportButton } from '@/components/MapBits';
-import { useReports } from '@/lib/reports';
+import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles, Plus, ArrowUp, ArrowDown, Shuffle, Save, TrafficCone, Play, Bookmark, Trophy } from 'lucide-react';
+import { ReportButton } from '@/components/MapBits';
 import MusicButton from '@/components/MusicButton';
-import { WeatherLayer, TrafficLayer, WeatherButton, WeatherTimeBadge } from '@/components/Weather';
+import { WeatherButton, WeatherTimeBadge } from '@/components/Weather';
 import SetPlaceModal from '@/components/SetPlaceModal';
 import NamePlaceSheet from '@/components/NamePlaceSheet';
 import { suggestDrives } from '@/lib/predict';
@@ -17,25 +14,26 @@ import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
 import { searchPlaces, getRoute, optimizeStops, MAX_STOPS, formatEta, arrivalTime, formatNavDistance, distM } from '@/lib/nav';
 import PlaceSearchSheet from '@/components/PlaceSearchSheet';
-import { AlertsBanner, AlertAreas, RouteConditions } from '@/components/WeatherAlerts';
+import { AlertsBanner, RouteConditions } from '@/components/WeatherAlerts';
 import { useWeatherAlerts } from '@/lib/alerts';
 import { useTrafficEta } from '@/lib/traffic';
 import { getInitials } from '@/lib/helpers';
 
-const FALLBACK_CENTER = [39.8283, -98.5795]; // middle of the US until we know where you are
+const DRIVE_ERRORS = {
+  denied: 'Location permission denied. Turn on location for Kaido Maps in your settings, then try again.',
+  unsupported: 'This browser does not support location tracking.',
+  timeout: 'Could not get a GPS signal. Move somewhere with a clear view of the sky and try again.',
+};
 
-export default function MapHome() {
+// Everything you see on the map before a drive: search, Home/Work, suggestions, and the
+// route preview with Go. It sits on top of the drive map; the map itself lives in LiveDrive.
+export default function TripPlanner({ pos, locError = '', roadReports, onPreview, onGo, onStartDrive, onRecenter, following = true, driveError, guideRoute, onClearGuide }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, scene, activeVehicle, stats, trips, vehicles, savedRoutes, myCar, places, addPlace, deletePlace, renamePlace, home, work, addRoute } = useApp();
   const [naming, setNaming] = useState(false);
   const [setting, setSetting] = useState(null); // 'home' | 'work' while choosing the address
 
-  // Your location
-  const [pos, setPos] = useState(null);
-  const [heading, setHeading] = useState(null);
-  const [locError, setLocError] = useState('');
-  const [follow, setFollow] = useState(true);
 
   // Search + route preview
   const [query, setQuery] = useState('');
@@ -51,22 +49,7 @@ export default function MapHome() {
   const touchY = useRef(0);
   const [friends, setFriends] = useState([]);
   const inputRef = useRef(null);
-  const roadReports = useReports(pos);
   const weatherAlerts = useWeatherAlerts(pos);
-
-  useEffect(() => {
-    if (!('geolocation' in navigator)) { setLocError('Your browser can’t share your location.'); return; }
-    const id = navigator.geolocation.watchPosition(
-      (p) => {
-        setLocError('');
-        setPos([p.coords.latitude, p.coords.longitude]);
-        if (p.coords.heading != null && !Number.isNaN(p.coords.heading) && (p.coords.speed || 0) > 1) setHeading(p.coords.heading);
-      },
-      (e) => { if (e.code === 1) setLocError('Turn on location for Kaido Maps to see where you are.'); },
-      { enableHighAccuracy: true, maximumAge: 5000 }
-    );
-    return () => navigator.geolocation.clearWatch(id);
-  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -106,7 +89,6 @@ export default function MapHome() {
     setRouting(true);
     try {
       setRoute(await getRoute(pos, [place.lat, place.lng], stopList, place.name));
-      setFollow(false);
     } catch (e) {
       setRouteErr(e.message);
     } finally {
@@ -140,10 +122,12 @@ export default function MapHome() {
   }, [pos]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clearSearch = () => {
-    setQuery(''); setDest(null); setStops([]); setRoute(null); setRouteErr(''); setResults([]); setFollow(true);
+    setQuery(''); setDest(null); setStops([]); setRoute(null); setRouteErr(''); setResults([]);
   };
 
-  const go = () => navigate('/drive', { state: { nav: { dest, stops, route } } });
+  // Tell the map what to preview, and start navigating right here on Go.
+  useEffect(() => { onPreview?.(route && dest ? { route, dest, stops } : null); }, [route]); // eslint-disable-line react-hooks/exhaustive-deps
+  const go = () => { const p = { dest, stops, route }; clearSearch(); onGo(p); };
 
   // Live traffic ETA for the planned route (TomTom, when set up).
   const trafficPoints = useMemo(() => (route && pos && dest ? [pos, ...stops.map((x) => [x.lat, x.lng]), [dest.lat, dest.lng]] : null), [route]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -200,42 +184,9 @@ export default function MapHome() {
   const quickRoutes = savedRoutes.slice(0, 3);
 
   return (
-    <div className="fixed inset-0 overflow-hidden">
-      {/* Map */}
-      <div className="absolute inset-0 isolate">
-        <MapContainer center={pos || FALLBACK_CENTER} zoom={pos ? 15 : 4} zoomControl={false} attributionControl style={{ height: '100%', width: '100%' }}>
-          <BaseLayer />
-          <WeatherLayer />
-          <TrafficLayer />
-          <AlertAreas alerts={weatherAlerts} />
-          <FollowMe pos={pos} follow={follow && !route} onUserMove={() => setFollow(false)} />
-          {route && <FitBounds points={route.coords} padding={[40, 150]} paddingBottom={280} />}
-          {route && (
-            <>
-              <Polyline positions={route.coords} pathOptions={{ color: '#1a3d7a', weight: 10, opacity: 0.9 }} />
-              <Polyline positions={route.coords} pathOptions={{ color: '#4285F4', weight: 6, opacity: 1 }} />
-            </>
-          )}
-          {dest && <PinMarker pos={[dest.lat, dest.lng]} />}
-          {stops.map((st, i) => (
-            <CircleMarker key={`stop-${i}`} center={[st.lat, st.lng]} radius={11} pathOptions={{ color: '#fff', weight: 2, fillColor: '#4285F4', fillOpacity: 1 }}>
-              <Tooltip permanent direction="center" className="dz-stop-num">{i + 1}</Tooltip>
-            </CircleMarker>
-          ))}
-          <ReportMarkers reports={roadReports.reports} onVote={roadReports.vote} onRemove={roadReports.remove} />
-          {friends.map((f) => f.car ? (
-            <CarMarker key={f.userId} pos={[f.lat, f.lng]} car={f.car} heading={f.heading} label={`${f.name} · ${f.speed} mph`} />
-          ) : (
-            <CircleMarker key={f.userId} center={[f.lat, f.lng]} radius={9} pathOptions={{ color: '#fff', weight: 2, fillColor: f.color || '#39FF14', fillOpacity: 1 }}>
-              <Tooltip direction="top" offset={[0, -10]}>{f.name} · {f.speed} mph</Tooltip>
-            </CircleMarker>
-          ))}
-          <LocationMarker pos={pos} heading={heading} car={myCar} />
-        </MapContainer>
-      </div>
-
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-[500]">
       {/* Search bar */}
-      <div className="absolute top-0 inset-x-0 z-10 px-3 pt-[max(12px,env(safe-area-inset-top))]">
+      <div className="absolute top-0 inset-x-0 z-10 px-3 pt-[max(12px,env(safe-area-inset-top))] [&>*]:pointer-events-auto">
         <div className="flex items-center gap-2 bg-card/95 backdrop-blur rounded-full shadow-2xl border border-border pl-4 pr-1.5 h-12">
           {searching ? <Loader2 className="w-5 h-5 text-muted-foreground animate-spin shrink-0" /> : <Search className="w-5 h-5 text-muted-foreground shrink-0" />}
           <input
@@ -274,6 +225,7 @@ export default function MapHome() {
             <Chip to="/routes" icon={RouteIcon} label="Routes" />
             <Chip to="/live-map" icon={Radio} label={friends.length ? `${friends.length} friend${friends.length > 1 ? 's' : ''} driving` : 'Friends live'} />
             <Chip to="/history" icon={Clock} label="Trips" />
+            {scene && <Chip to="/leaderboard" icon={Trophy} label="Ranks" />}
           </div>
         )}
 
@@ -338,20 +290,20 @@ export default function MapHome() {
       </div>
 
       {/* Location problem */}
-      {locError && !route && (
-        <div className="absolute inset-x-3 top-[124px] z-10 bg-destructive/15 border border-destructive/40 text-destructive rounded-xl px-3 py-2 text-xs flex items-center gap-2">
-          <MapPinOff className="w-4 h-4 shrink-0" /> {locError}
+      {(locError || driveError) && !route && (
+        <div className="absolute inset-x-3 top-[124px] z-10 pointer-events-auto bg-destructive/15 border border-destructive/40 text-destructive rounded-xl px-3 py-2 text-xs flex items-center gap-2">
+          <MapPinOff className="w-4 h-4 shrink-0" /> {driveError ? (DRIVE_ERRORS[driveError] || 'Location is unavailable right now. Try again shortly.') : locError}
         </div>
       )}
 
       {/* Floating buttons */}
-      <div className={`absolute right-3 z-10 flex flex-col items-end gap-3 transition-all ${route || routing || routeErr ? 'bottom-[290px]' : 'bottom-[124px]'} ${sheetOpen && !route && !routing && !routeErr ? 'opacity-0 pointer-events-none' : ''}`}>
+      <div className={`absolute right-3 z-10 flex flex-col items-end gap-3 transition-all pointer-events-auto ${route || routing || routeErr ? 'bottom-[290px]' : 'bottom-[180px]'} ${sheetOpen && !route && !routing && !routeErr ? 'opacity-0 pointer-events-none' : ''}`}>
         <WeatherTimeBadge />
         <WeatherButton />
         <MusicButton />
         <ReportButton onReport={(type) => roadReports.report(type, pos)} disabled={!pos} />
-        {(!follow || route) && pos && (
-          <button onClick={() => { setFollow(true); if (route) clearSearch(); }} className="w-12 h-12 rounded-full bg-card border border-border shadow-xl flex items-center justify-center" aria-label="Center on me">
+        {(!following || route) && pos && (
+          <button onClick={() => { if (route) clearSearch(); onRecenter?.(); }} className="w-12 h-12 rounded-full bg-card border border-border shadow-xl flex items-center justify-center" aria-label="Center on me">
             <LocateFixed className="w-5 h-5 text-[#4285F4]" />
           </button>
         )}
@@ -359,7 +311,7 @@ export default function MapHome() {
 
       {/* Route preview card */}
       {(route || routing || routeErr) ? (
-        <div className="absolute inset-x-0 bottom-20 z-10 px-3 pb-3">
+        <div className="absolute inset-x-0 bottom-20 z-10 px-3 pb-3 pointer-events-auto">
           <div className="bg-card rounded-3xl border border-border shadow-2xl p-5">
             {routing ? (
               <div className="flex items-center gap-3 text-sm text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin" /> Finding the best route…</div>
@@ -438,7 +390,7 @@ export default function MapHome() {
       ) : (
         /* Bottom sheet */
         <div
-          className={`absolute inset-x-0 bottom-0 z-10 bg-card rounded-t-3xl border-t border-border shadow-[0_-8px_30px_rgba(0,0,0,0.5)] transition-[height] duration-300 flex flex-col overflow-hidden ${sheetOpen ? 'h-[calc(62vh+80px)]' : 'h-[112px]'}`}
+          className={`absolute inset-x-0 bottom-20 z-10 pointer-events-auto bg-card rounded-t-3xl border-t border-border shadow-[0_-8px_30px_rgba(0,0,0,0.5)] transition-[height] duration-300 flex flex-col overflow-hidden ${sheetOpen ? 'h-[62vh]' : 'h-[84px]'}`}
           onTouchStart={(e) => { touchY.current = e.touches[0].clientY; }}
           onTouchEnd={(e) => {
             const dy = e.changedTouches[0].clientY - touchY.current;
@@ -446,7 +398,7 @@ export default function MapHome() {
             if (dy > 30 && !(e.target.closest('[data-sheet-scroll]')?.scrollTop > 0)) setSheetOpen(false);
           }}
         >
-          <button onClick={() => setSheetOpen(!sheetOpen)} className="w-full pt-3 pb-3 flex flex-col items-center shrink-0" aria-label={sheetOpen ? 'Collapse' : 'Show your stats and drives'}>
+          <button onClick={() => setSheetOpen(!sheetOpen)} className="w-full pt-2 pb-2 flex flex-col items-center shrink-0" aria-label={sheetOpen ? 'Collapse' : 'Show your stats and drives'}>
             <div className="w-10 h-1.5 rounded-full bg-muted-foreground/50" />
           </button>
           <div className="px-5 flex items-center justify-between">
@@ -454,22 +406,27 @@ export default function MapHome() {
               <p className="text-[11px] text-muted-foreground">{greeting}</p>
               <h1 className="text-lg font-bold text-foreground leading-tight">{user?.displayName}</h1>
             </div>
-            <button onClick={() => setSheetOpen(!sheetOpen)} className="text-xs text-primary font-medium flex items-center gap-1">
-              {sheetOpen ? 'Less' : 'More'} <ChevronUp className={`w-3.5 h-3.5 transition-transform ${sheetOpen ? 'rotate-180' : ''}`} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setSheetOpen(!sheetOpen)} className="text-xs text-primary font-medium flex items-center gap-1 px-1">
+                {sheetOpen ? 'Less' : 'More'} <ChevronUp className={`w-3.5 h-3.5 transition-transform ${sheetOpen ? 'rotate-180' : ''}`} />
+              </button>
+              <button onClick={onStartDrive} className="h-10 px-4 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center gap-1.5 shadow-lg shadow-primary/30" aria-label="Start a drive without a destination">
+                <Play className="w-4 h-4 fill-primary-foreground" /> Drive
+              </button>
+            </div>
           </div>
           <div className="px-5 mt-3 grid grid-cols-3 gap-2">
             <Stat value={stats.thisWeekDrives} label="Drives this week" color="text-primary" />
             <Stat value={stats.thisWeekMiles} label="Miles this week" color="text-accent" />
             <Stat value={stats.bestTopSpeed} label="Top mph" color="text-foreground" />
           </div>
-          <div data-sheet-scroll className={`flex-1 overflow-y-auto no-scrollbar px-5 pt-4 pb-24 ${sheetOpen ? '' : 'pointer-events-none'}`}>
+          <div data-sheet-scroll className={`flex-1 overflow-y-auto no-scrollbar px-5 pt-4 pb-6 ${sheetOpen ? '' : 'pointer-events-none'}`}>
             {quickRoutes.length > 0 && (
               <>
                 <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Saved routes</h2>
                 <div className="space-y-2 mb-4">
                   {quickRoutes.map((r) => (
-                    <button key={r.id} onClick={() => (r.dest ? navigate('/', { state: { plan: { dest: r.dest, stops: r.stops || [] } } }) : navigate(`/drive?route=${r.id}`))} className="w-full bg-secondary/60 rounded-2xl px-4 py-3 flex items-center gap-3 text-left">
+                    <button key={r.id} onClick={() => (r.dest ? navigate('/', { state: { plan: { dest: r.dest, stops: r.stops || [] } } }) : navigate(`/?route=${r.id}`))} className="w-full bg-secondary/60 rounded-2xl px-4 py-3 flex items-center gap-3 text-left">
                       <RouteIcon className="w-4 h-4 text-primary shrink-0" />
                       <span className="flex-1 text-sm font-semibold text-foreground truncate">{r.name}</span>
                       <span className="text-xs text-muted-foreground">{r.distance} mi</span>
@@ -484,10 +441,23 @@ export default function MapHome() {
               {trips.length === 0 && (
                 <div className="bg-secondary/40 rounded-2xl p-6 text-center">
                   <Car className="w-7 h-7 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">No drives yet. Search for a place or tap Drive to start.</p>
+                  <p className="text-sm text-muted-foreground">No drives yet. Search for a place, or tap Drive to just start recording.</p>
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+      {guideRoute && !route && !routing && !routeErr && (
+        <div className={`absolute inset-x-3 z-10 pointer-events-auto transition-all ${sheetOpen ? 'opacity-0 pointer-events-none' : ''}`} style={{ bottom: 176 }}>
+          <div className="bg-card/95 backdrop-blur rounded-2xl border border-border shadow-xl flex items-center gap-3 pl-3 pr-1.5 py-2 mr-16">
+            <Bookmark className="w-4 h-4 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-foreground truncate">{guideRoute.name}</div>
+              <div className="text-[11px] text-muted-foreground">{guideRoute.distance} mi · dashed guide line</div>
+            </div>
+            <button onClick={onStartDrive} className="h-9 px-3 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center gap-1"><Play className="w-3.5 h-3.5 fill-primary-foreground" />Drive</button>
+            <button onClick={onClearGuide} className="w-8 h-8 flex items-center justify-center" aria-label="Remove guide"><X className="w-4 h-4 text-muted-foreground" /></button>
           </div>
         </div>
       )}

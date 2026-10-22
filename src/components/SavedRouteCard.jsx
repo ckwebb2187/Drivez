@@ -29,7 +29,7 @@ export default function SavedRouteCard({ route, onShare, onDelete }) {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => (route.dest ? navigate('/', { state: { plan: { dest: route.dest, stops: route.stops || [] } } }) : navigate(`/drive?route=${route.id}`))}
+            onClick={() => (route.dest ? navigate('/', { state: { plan: { dest: route.dest, stops: route.stops || [] } } }) : navigate(`/?route=${route.id}`))}
             className="flex-1 bg-primary text-primary-foreground rounded-xl py-2 text-xs font-bold flex items-center justify-center gap-1"
           >
             <Play className="w-3 h-3 fill-primary-foreground" /> Drive

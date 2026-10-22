@@ -1,25 +1,23 @@
 import { useEffect, useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { Home, Gauge, Clock, Trophy, User, ChevronRight } from 'lucide-react';
+import { Gauge, Clock, User, ChevronRight } from 'lucide-react';
 import LiveDrive from '@/pages/LiveDrive';
 import SetupModeModal from '@/components/SetupModeModal';
 import { useApp } from '@/lib/AppContext';
 import { useMapLook, featureName } from '@/lib/mapTheme';
 
 const tabs = [
-  { to: '/', icon: Home, label: 'Home' },
   { to: '/history', icon: Clock, label: 'History' },
-  { to: '/drive', icon: Gauge, label: 'Drive', center: true },
-  { to: '/leaderboard', icon: Trophy, label: 'Ranks' },
+  { to: '/', icon: Gauge, label: 'Drive', center: true },
   { to: '/profile', icon: User, label: 'Profile' }
 ];
 
 export default function Layout() {
   const { pathname } = useLocation();
-  const { user, scene } = useApp();
+  const { user } = useApp();
   const [look] = useMapLook();
-  const shownTabs = (scene ? tabs : tabs.filter((t) => t.to !== '/leaderboard')).map((t) => (t.to === '/' && look.jpNames ? { ...t, label: 'Chizu' } : t));
-  const onDrive = pathname === '/drive';
+  const shownTabs = tabs.map((t) => (t.to === '/' && look.jpNames ? { ...t, label: 'Chizu' } : t));
+  const onDrive = pathname === '/' || pathname === '/drive'; // the drive map is the home screen
   // The drive screen is kept running once opened, so switching tabs never loses a drive.
   const [driveOpened, setDriveOpened] = useState(onDrive);
   useEffect(() => { if (onDrive) setDriveOpened(true); }, [onDrive]);
@@ -45,7 +43,7 @@ export default function Layout() {
       )}
       {user && !user.appMode && <SetupModeModal />}
       {!onDrive && driving && (
-        <NavLink to="/drive" className="fixed left-3 right-3 bottom-[92px] z-50 rounded-2xl bg-[#188038] text-white shadow-2xl px-4 h-12 flex items-center gap-2 text-sm font-semibold">
+        <NavLink to="/" className="fixed left-3 right-3 bottom-[92px] z-50 rounded-2xl bg-[#188038] text-white shadow-2xl px-4 h-12 flex items-center gap-2 text-sm font-semibold">
           <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> Drive in progress
           <span className="ml-auto flex items-center gap-1 text-xs opacity-90">Return to drive <ChevronRight className="w-4 h-4" /></span>
         </NavLink>
@@ -56,7 +54,7 @@ export default function Layout() {
             const Icon = tab.icon;
             if (tab.center) {
               return (
-                <NavLink key={tab.to} to={tab.to} className="flex flex-col items-center -mt-6">
+                <NavLink key={tab.to} to={tab.to} end className="flex flex-col items-center -mt-6">
                   {({ isActive }) => (
                     <>
                       <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${

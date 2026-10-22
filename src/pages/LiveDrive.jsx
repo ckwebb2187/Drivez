@@ -13,6 +13,7 @@ import { TurnIcon, ReportButton } from '@/components/MapBits';
 import { useReports, useReportAlerts, useMappedBumps, REPORT_TYPES } from '@/lib/reports';
 import MusicButton from '@/components/MusicButton';
 import { WeatherButton } from '@/components/Weather';
+import TripPlanner from '@/components/TripPlanner';
 
 const MAX_POINTS = 400;
 
@@ -39,8 +40,9 @@ export default function LiveDrive({ active = true }) {
   const [routeId, setRouteId] = useState(() => new URLSearchParams(window.location.search).get('route'));
   const lastKey = useRef(location.key);
   useEffect(() => {
-    if (location.pathname !== '/drive' || location.key === lastKey.current) return;
+    if ((location.pathname !== '/drive' && location.pathname !== '/') || location.key === lastKey.current) return;
     lastKey.current = location.key;
+    if (location.state?.go || location.state?.plan) return; // handled by the planner on the map
     setNavPlan(location.state?.nav || null);
     setRouteId(new URLSearchParams(location.search).get('route'));
   }, [location.key]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -48,7 +50,22 @@ export default function LiveDrive({ active = true }) {
   const nav = useNavigation(navPlan, drive.currentPosition, voiceOn && drive.status === 'driving');
   const toggleVoice = () => { const v = !voiceOn; setVoiceOn(v); try { localStorage.setItem('dz_voice', v ? '1' : '0'); } catch { /* ignore */ } if (!v) window.speechSynthesis?.cancel(); };
 
-  const roadReports = useReports(drive.currentPosition);
+  // Where you are before a drive starts (the map is the home screen now).
+  const [herePos, setHerePos] = useState(null);
+  const [locError, setLocError] = useState('');
+  useEffect(() => {
+    if (drive.status !== 'idle' || !active) return undefined;
+    if (!('geolocation' in navigator)) { setLocError('Your browser can’t share your location.'); return undefined; }
+    const id = navigator.geolocation.watchPosition(
+      (p) => { setLocError(''); setHerePos([p.coords.latitude, p.coords.longitude]); },
+      (e) => { if (e.code === 1) setLocError('Turn on location for Kaido Maps to see where you are.'); },
+      { enableHighAccuracy: true, maximumAge: 5000 }
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, [drive.status, active]);
+  const roadReports = useReports(drive.currentPosition || herePos);
+  // Route being previewed on the map before you tap Go.
+  const [preview, setPreview] = useState(null);
   // Lowered car: also warn about speed bumps and dips mapped in OpenStreetMap.
   const mappedBumps = useMappedBumps(drive.status === 'driving' ? drive.currentPosition : null, !!myCar?.lowered);
   const alertReports = useMemo(() => [...roadReports.reports, ...mappedBumps], [roadReports.reports, mappedBumps]);
@@ -56,6 +73,12 @@ export default function LiveDrive({ active = true }) {
 
   // Tapping "Go" on the home map starts the drive straight away.
   useEffect(() => { if (navPlan && drive.status === 'idle') drive.start(); }, [navPlan]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Back to the map after a drive (saved, discarded or cancelled): forget the old destination.
+  const prevStatus = useRef(drive.status);
+  useEffect(() => {
+    if (drive.status === 'idle' && prevStatus.current !== 'idle') { setNavPlan(null); setRouteId(null); }
+    prevStatus.current = drive.status;
+  }, [drive.status]);
 
   // Let the rest of the app know a drive is going (for the "Return to drive" bar).
   useEffect(() => {
@@ -69,11 +92,6 @@ export default function LiveDrive({ active = true }) {
 
   const guideRoute = routeId ? savedRoutes.find(r => r.id === routeId) : null;
 
-  // Show where you are on the map even before the drive starts.
-  const [herePos, setHerePos] = useState(null);
-  useEffect(() => {
-    navigator.geolocation?.getCurrentPosition((p) => setHerePos([p.coords.latitude, p.coords.longitude]), () => {}, { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 });
-  }, []);
 
   // Live traffic: re-check the arrival time every 3 minutes while navigating.
   const [trafficTick, setTrafficTick] = useState(0);
@@ -100,6 +118,9 @@ export default function LiveDrive({ active = true }) {
     backTimer.current = setTimeout(() => setFollow(true), 12000);
   };
   const recenter = () => { clearTimeout(backTimer.current); setFollow(true); };
+  // Previewing a route: show the whole thing; clearing it snaps back to you.
+  useEffect(() => { clearTimeout(backTimer.current); setFollow(!preview); }, [preview]);
+  useEffect(() => { if (drive.status !== 'idle') setPreview(null); }, [drive.status]);
   useEffect(() => () => clearTimeout(backTimer.current), []);
 
   useEffect(() => {
@@ -183,9 +204,10 @@ export default function LiveDrive({ active = true }) {
           speed={drive.currentSpeed}
           car={myCar}
           driving={drive.status === 'driving'}
-          routeCoords={nav.active ? nav.route.coords : null}
-          dest={navPlan ? navPlan.dest : null}
-          stops={nav.active ? nav.stops.slice(nav.stopIdx) : []}
+          routeCoords={nav.active ? nav.route.coords : preview ? preview.route.coords : null}
+          dest={navPlan ? navPlan.dest : preview ? preview.dest : null}
+          stops={nav.active ? nav.stops.slice(nav.stopIdx) : preview ? preview.stops : []}
+          fitCoords={drive.status === 'idle' && preview ? preview.route.coords : null}
           guide={guideRoute ? guideRoute.route : null}
           trail={drive.route}
           reports={roadReports.reports}
@@ -196,68 +218,22 @@ export default function LiveDrive({ active = true }) {
       </div>
 
       <AnimatePresence mode="wait">
-        {/* Idle */}
+        {/* Idle: the map is the home screen — search, plan and go from here */}
         {drive.status === 'idle' && (
-          <motion.div
-            key="idle"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 flex flex-col items-center justify-end pb-28 z-[500]"
-          >
-            <div className="glass rounded-3xl p-6 mx-5 w-full max-w-md border border-border">
-              <div className="flex items-center justify-center mb-4">
-                <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center">
-                  <Gauge className="w-8 h-8 text-primary" />
-                </div>
-              </div>
-              <h2 className="text-lg font-bold text-foreground text-center">Ready to Drive</h2>
-              <p className="text-xs text-muted-foreground text-center mt-1 mb-5">
-                Keep Kaido Maps open while you drive. Your route, speed and distance are tracked with GPS.
-              </p>
-
-              {drive.error && (
-                <div className="mb-4 p-3 rounded-xl bg-destructive/10 text-destructive text-xs flex items-start gap-2">
-                  <MapPinOff className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span>
-                    {drive.error === 'denied'
-                      ? 'Location permission denied. Enable location for Kaido Maps in your browser settings, then try again.'
-                      : drive.error === 'unsupported'
-                      ? 'Your browser does not support location tracking.'
-                      : drive.error === 'timeout'
-                      ? 'Could not get a GPS signal. Move somewhere with a clear view of the sky and try again.'
-                      : 'Location is currently unavailable. Try again shortly.'}
-                  </span>
-                </div>
-              )}
-
-              {guideRoute && (
-                <div className="mb-4 bg-secondary/50 rounded-xl p-3 border border-border">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Bookmark className="w-3.5 h-3.5 text-primary" />
-                    <span className="text-xs font-bold text-foreground">{guideRoute.name}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                    <span>{guideRoute.distance} mi</span>
-                    <span>Shown as a dashed guide line</span>
-                  </div>
-                </div>
-              )}
-
-              <button
-                onClick={drive.start}
-                className="w-full bg-primary text-primary-foreground rounded-2xl py-3.5 font-bold text-sm flex items-center justify-center gap-2"
-              >
-                <Play className="w-4 h-4 fill-primary-foreground" />
-                Start Drive
-              </button>
-              {!guideRoute && (
-                <button
-                  onClick={() => navigate('/routes')}
-                  className="w-full mt-2 text-xs text-muted-foreground font-medium py-2"
-                >
-                  Use a Saved Route →
-                </button>
-              )}
-            </div>
+          <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[500] pointer-events-none">
+            <TripPlanner
+              pos={herePos}
+              locError={locError}
+              roadReports={roadReports}
+              onPreview={setPreview}
+              onGo={(p) => { setRouteId(null); setNavPlan(p); }}
+              onStartDrive={drive.start}
+              onRecenter={recenter}
+              following={follow}
+              driveError={drive.error}
+              guideRoute={guideRoute}
+              onClearGuide={() => { setRouteId(null); navigate('/', { replace: true }); }}
+            />
           </motion.div>
         )}
 
@@ -396,7 +372,7 @@ export default function LiveDrive({ active = true }) {
                       </button>
                     )}
                     {nav.active && (
-                      <button onClick={() => { setBarOpen(false); navigate('/drive', { replace: true, state: null }); }} className="flex-1 h-11 rounded-xl bg-secondary text-sm font-semibold text-foreground flex items-center justify-center gap-1.5">
+                      <button onClick={() => { setBarOpen(false); setNavPlan(null); navigate('/', { replace: true, state: null }); }} className="flex-1 h-11 rounded-xl bg-secondary text-sm font-semibold text-foreground flex items-center justify-center gap-1.5">
                         <X className="w-4 h-4" /> End route
                       </button>
                     )}

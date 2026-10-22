@@ -79,7 +79,7 @@ export default function DriveMap(props) {
 
 function DriveMapInner({
   pos, heading, speed = 0, car, driving, routeCoords, dest, stops = [], guide, trail, reports = [],
-  follow = true, onUserMove, className = '', active = true, theme = 'standard', base = 'day', lite = false,
+  follow = true, onUserMove, className = '', active = true, theme = 'standard', base = 'day', lite = false, fitCoords = null,
 }) {
   const box = useRef(null);
   const mapRef = useRef(null);
@@ -89,7 +89,7 @@ function DriveMapInner({
   const reportMarkers = useRef(new Map());
   const anim = useRef({ from: null, to: null, t0: 0, dur: 1000, shown: null, brg: 0, brgTarget: 0, zoom: 16, lastFix: 0, lastPos: null });
   const live = useRef({});
-  live.current = { ...live.current, follow, driving, speed, onUserMove, active };
+  live.current = { ...live.current, follow, driving, speed, onUserMove, active, previewing: !!fitCoords };
   const routeIdx = useRef(0);
   const wx = useWeatherTiles();
   const liveTraffic = useLiveTraffic();
@@ -166,7 +166,7 @@ function DriveMapInner({
           carRef.current.setRotation(a.brg);
         }
         const { follow: f, driving: d, speed: s } = live.current;
-        if (f && readyRef.current && !live.current.held && live.current.active) {
+        if (f && readyRef.current && !live.current.held && live.current.active && !live.current.previewing) {
           const targetZoom = d ? zoomForSpeed(s) : 16.5;
           a.zoom += (targetZoom - a.zoom) * 0.03;
           map.jumpTo({
@@ -211,11 +211,28 @@ function DriveMapInner({
     const map = mapRef.current;
     const setPad = () => {
       const h = box.current?.clientHeight || 800;
-      map.setPadding(driving && follow ? { top: Math.round(h * 0.42), bottom: 0, left: 0, right: 0 } : { top: 0, bottom: 0, left: 0, right: 0 });
+      const top = driving && follow ? Math.round(h * 0.42) : 0;
+      if (map.getPadding().top === top) return; // unchanged: don't interrupt camera moves
+      map.setPadding({ top, bottom: 0, left: 0, right: 0 });
     };
     live.current.setPad = setPad;
     setPad();
   }, [driving, follow]);
+
+  // Route preview: fit the whole route on screen, flat and north-up (between the search bar and the route card).
+  useEffect(() => {
+    const map = mapRef.current;
+    const fit = () => {
+      if (!fitCoords || fitCoords.length < 2) return;
+      let w = 180, s = 90, e = -180, n = -90;
+      for (const [la, ln] of fitCoords) { if (ln < w) w = ln; if (ln > e) e = ln; if (la < s) s = la; if (la > n) n = la; }
+      const h = box.current?.clientHeight || 800;
+      try { map.fitBounds([[w, s], [e, n]], { padding: { top: 120, bottom: Math.min(360, h * 0.45), left: 40, right: 70 }, pitch: 0, bearing: 0, duration: 700, maxZoom: 16 }); } catch { /* not ready */ }
+    };
+    // Wait a moment so the switch out of follow mode (which resets padding) doesn't cancel the zoom-out.
+    const t = setTimeout(() => { if (readyRef.current) fit(); else map.once('load', () => setTimeout(fit, 0)); }, 120);
+    return () => clearTimeout(t);
+  }, [fitCoords]);
 
   // Jump to the start when re-centering.
   useEffect(() => {
