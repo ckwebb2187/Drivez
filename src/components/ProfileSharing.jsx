@@ -101,7 +101,7 @@ export default function ProfileSharing() {
 }
 
 // Your QR code, plus a printable window sticker.
-function QrSheet({ username, name, onClose }) {
+export function QrSheet({ username, name, onClose }) {
   const url = profileUrl(username);
   const [qr, setQr] = useState('');
   useEffect(() => { QRCode.toDataURL(url, { margin: 1, width: 512, color: { dark: '#0b1020', light: '#ffffff' } }).then(setQr); }, [url]);

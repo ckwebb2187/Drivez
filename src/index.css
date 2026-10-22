@@ -136,3 +136,7 @@ h1, h2, h3 { font-family: var(--font-heading); }
 .dz-go { background: #4285F4; color: #fff; }
 html:not([data-skin="standard"]) .dz-go { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 html:not([data-skin="standard"]) .dz-go svg { fill: currentColor; }
+.dz-slide-in { animation: dz-slide-in .28s cubic-bezier(.2,.8,.2,1); }
+.dz-slide-in-left { animation: dz-slide-in-left .28s cubic-bezier(.2,.8,.2,1); }
+@keyframes dz-slide-in { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes dz-slide-in-left { from { transform: translateX(-100%); } to { transform: none; } }

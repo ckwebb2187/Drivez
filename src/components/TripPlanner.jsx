@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles, Plus, ArrowUp, ArrowDown, Shuffle, Save, TrafficCone, Play, Bookmark, Trophy } from 'lucide-react';
+import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles, Plus, ArrowUp, ArrowDown, Shuffle, Save, TrafficCone, Play, Bookmark, Trophy, Menu } from 'lucide-react';
 import { ReportButton } from '@/components/MapBits';
 import MusicButton from '@/components/MusicButton';
 import { WeatherButton, WeatherTimeBadge } from '@/components/Weather';
@@ -10,6 +10,8 @@ import { suggestDrives } from '@/lib/predict';
 import ServiceDueCard from '@/components/ServiceDueCard';
 import ParkedCard from '@/components/ParkedCard';
 import TripCard from '@/components/TripCard';
+import GarageDrawer, { GarageTab } from '@/components/GarageDrawer';
+import LeftDrawer from '@/components/LeftDrawer';
 import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
 import { searchPlaces, getRoute, optimizeStops, MAX_STOPS, formatEta, arrivalTime, formatNavDistance, distM } from '@/lib/nav';
@@ -46,6 +48,8 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
   const [routeErr, setRouteErr] = useState('');
 
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [garageOpen, setGarageOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const touchY = useRef(0);
   const [friends, setFriends] = useState([]);
   const inputRef = useRef(null);
@@ -187,7 +191,8 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-[500]">
       {/* Search bar */}
       <div className="absolute top-0 inset-x-0 z-10 px-3 pt-[max(12px,env(safe-area-inset-top))] [&>*]:pointer-events-auto">
-        <div className="flex items-center gap-2 bg-card/95 backdrop-blur rounded-full shadow-2xl border border-border pl-4 pr-1.5 h-12">
+        <div className="flex items-center gap-2 bg-card/95 backdrop-blur rounded-full shadow-2xl border border-border pl-1.5 pr-1.5 h-12">
+          <button onClick={() => setMenuOpen(true)} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" aria-label="Menu"><Menu className="w-5 h-5 text-foreground" /></button>
           {searching ? <Loader2 className="w-5 h-5 text-muted-foreground animate-spin shrink-0" /> : <Search className="w-5 h-5 text-muted-foreground shrink-0" />}
           <input
             ref={inputRef}
@@ -461,6 +466,9 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
           </div>
         </div>
       )}
+      {scene && !route && !routing && !routeErr && !showResults && <GarageTab onOpen={() => setGarageOpen(true)} />}
+      <GarageDrawer open={garageOpen} onClose={() => setGarageOpen(false)} />
+      <LeftDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
       {addingStop && <PlaceSearchSheet title={`Add stop ${allStops.length + 1}`} pos={pos} onPick={addStop} onClose={() => setAddingStop(false)} />}
       {savingPlan && route && (
         <NamePlaceSheet
