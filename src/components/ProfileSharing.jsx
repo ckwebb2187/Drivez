@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { QrCode, Instagram, Facebook, Youtube, Users, Loader2, X, Download, ExternalLink, Share2, Plus } from 'lucide-react';
-import QRCode from 'qrcode';
 import { useApp } from '@/lib/AppContext';
 
 export const SOCIAL_LINKS = {
@@ -15,6 +14,9 @@ const PARTS = [
 ];
 const WHO = [['everyone', 'Everyone'], ['friends', 'Friends'], ['me', 'Only me']];
 const field = 'w-full bg-secondary rounded-xl px-3 py-2.5 text-sm text-foreground border border-border focus:border-primary outline-none';
+
+// The QR library loads only when a code is drawn.
+const loadQR = () => import('qrcode').then((m) => m.default || m);
 
 export const profileUrl = (username) => `${window.location.origin}/u/${username}`;
 
@@ -104,7 +106,7 @@ export default function ProfileSharing() {
 export function QrSheet({ username, name, onClose }) {
   const url = profileUrl(username);
   const [qr, setQr] = useState('');
-  useEffect(() => { QRCode.toDataURL(url, { margin: 1, width: 512, color: { dark: '#0b1020', light: '#ffffff' } }).then(setQr); }, [url]);
+  useEffect(() => { loadQR().then((QRCode) => QRCode.toDataURL(url, { margin: 1, width: 512, color: { dark: '#0b1020', light: '#ffffff' } })).then(setQr); }, [url]);
 
   const sticker = async () => {
     // A 1200x1500 sticker: dark card, big QR, call to action.
@@ -116,6 +118,7 @@ export function QrSheet({ username, name, onClose }) {
     g.fillStyle = grad; g.fillRect(0, 0, 1200, 18); g.fillRect(0, 1482, 1200, 18);
     g.fillStyle = '#ffffff'; g.textAlign = 'center';
     g.font = '800 92px system-ui, sans-serif'; g.fillText('SCAN MY BUILD', 600, 170);
+    const QRCode = await loadQR();
     const code = await QRCode.toCanvas(document.createElement('canvas'), url, { margin: 2, width: 860, color: { dark: '#0b1020', light: '#ffffff' } });
     g.fillStyle = '#ffffff'; g.beginPath(); g.roundRect(150, 240, 900, 900, 40); g.fill();
     g.drawImage(code, 170, 260, 860, 860);

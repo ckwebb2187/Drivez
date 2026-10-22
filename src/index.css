@@ -144,3 +144,13 @@ html:not([data-skin="standard"]) .dz-go svg { fill: currentColor; }
 /* Alert card countdown (alerts close themselves after 12 s) */
 .dz-alert-timer { width: 100%; transform-origin: left; animation: dz-alert-timer 12s linear forwards; }
 @keyframes dz-alert-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* Creator tag: the pink-to-blue gradient keeps flowing across the pill */
+.dz-creator {
+  background: linear-gradient(90deg, #ff2d55, #00bfff, #b026ff, #ff2d55);
+  background-size: 300% 100%;
+  animation: dz-creator-flow 3s ease-in-out infinite alternate;
+  box-shadow: 0 0 10px rgba(255, 45, 85, 0.35);
+}
+@keyframes dz-creator-flow { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+@media (prefers-reduced-motion: reduce) { .dz-creator { animation: none; } }

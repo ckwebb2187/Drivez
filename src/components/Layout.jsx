@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { prefetchPages } from '@/lib/pages';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { Gauge, Clock, User, ChevronRight, Flame, CalendarDays } from 'lucide-react';
 import LiveDrive from '@/pages/LiveDrive';
@@ -27,6 +28,8 @@ export default function Layout() {
   const fullPage = !onDrive && !['/history', '/profile', '/leaderboard', '/feed', '/meets'].includes(pathname);
   // The drive screen is kept running once opened, so switching tabs never loses a drive.
   const [driveOpened, setDriveOpened] = useState(onDrive);
+  // Fetch the other pages in the background once the app is up.
+  useEffect(() => { const t = setTimeout(prefetchPages, 2500); return () => clearTimeout(t); }, []);
   useEffect(() => { if (onDrive) setDriveOpened(true); }, [onDrive]);
   const [driveStatus, setDriveStatus] = useState(() => window.__dzDriveStatus);
   useEffect(() => {
@@ -52,7 +55,9 @@ export default function Layout() {
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       {!onDrive && (
         <main className={`flex-1 overflow-y-auto no-scrollbar ${fullPage ? '' : 'pb-24'}`}>
-          <Outlet />
+          <Suspense fallback={<div className="min-h-full bg-background" />}>
+            <Outlet />
+          </Suspense>
         </main>
       )}
       {driveOpened && (

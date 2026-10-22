@@ -42,8 +42,10 @@ export default function MeetsPage() {
   );
 }
 
+let lastMeets = null; // shown instantly when you come back, then refreshed
 function Meets({ pos, driveTo }) {
-  const [meets, setMeets] = useState(null);
+  const [meets, setMeetsState] = useState(lastMeets);
+  const setMeets = (v) => setMeetsState((prev) => { const next = typeof v === 'function' ? v(prev) : v; lastMeets = next; return next; });
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
   const load = () => api.get(`/meets${pos ? `?lat=${pos[0]}&lng=${pos[1]}` : ''}`).then((d) => setMeets(d.meets)).catch((e) => setError(e.message || 'Could not load meets.'));

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import QRCode from 'qrcode';
 import { CAR_MODELS } from '@/lib/carModels';
 
 // The garage showroom: your car on a lift, a neon social wall, and shop props you can tap
@@ -143,6 +142,7 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
 
         // QR signboard (wall, right) -> window sticker.
         if (qrUrl) {
+          const QRCode = (await import('qrcode')).default;
           const qrCanvas = await QRCode.toCanvas(document.createElement('canvas'), qrUrl, { margin: 1, width: 220, color: { dark: '#0b0c10', light: '#ffffff' } });
           const qrTex = canvasTex(THREE, 300, 360, (g, W, H) => {
             g.fillStyle = '#0d0e12'; g.fillRect(0, 0, W, H);

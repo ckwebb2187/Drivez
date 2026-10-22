@@ -1,6 +1,3 @@
-import FeedPage from '@/pages/FeedPage';
-import MeetsPage from '@/pages/MeetsPage';
-import ConvoyPage from '@/pages/ConvoyPage';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
@@ -11,20 +8,8 @@ import { AuthProvider } from '@/lib/AuthContext';
 import ScrollToTop from './components/ScrollToTop';
 import { AppProvider } from '@/lib/AppContext';
 import Layout from '@/components/Layout';
-import History from '@/pages/History';
-import Leaderboard from '@/pages/Leaderboard';
-import Profile from '@/pages/Profile';
-import TripDetailPage from '@/pages/TripDetailPage';
-import LiveMap from '@/pages/LiveMap';
-import RoutesPage from '@/pages/RoutesPage';
-import PlacesPage from '@/pages/PlacesPage';
-import ImportPage from '@/pages/ImportPage';
-import PublicProfile from '@/pages/PublicProfile';
-import JoinPage from '@/pages/JoinPage';
-import Login from '@/pages/Login';
-import Register from '@/pages/Register';
-import ForgotPassword from '@/pages/ForgotPassword';
-import ResetPassword from '@/pages/ResetPassword';
+import { Suspense } from 'react';
+import { Page } from '@/lib/pages';
 
 export default function App() {
   return (
@@ -34,36 +19,38 @@ export default function App() {
           <ScrollToTop />
           <AppProvider>
             <SafeRoutes>
+            <Suspense fallback={<div className="min-h-screen bg-background" />}>
             <Routes>
               <Route element={<GuestOnly />}>
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/login" element={<Page.Login />} />
+                <Route path="/register" element={<Page.Register />} />
+                <Route path="/forgot-password" element={<Page.ForgotPassword />} />
               </Route>
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/u/:username" element={<PublicProfile />} />
-              <Route path="/join/:code" element={<JoinPage />} />
+              <Route path="/reset-password" element={<Page.ResetPassword />} />
+              <Route path="/u/:username" element={<Page.PublicProfile />} />
+              <Route path="/join/:code" element={<Page.JoinPage />} />
               <Route element={<ProtectedRoute />}>
                 <Route element={<Layout />}>
                   {/* The drive map is the home screen. Layout draws it so it keeps running in the background. */}
                   <Route path="/" element={null} />
                   <Route path="/drive" element={null} />
-                  <Route path="/history" element={<History />} />
-                  <Route path="/leaderboard" element={<Leaderboard />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/feed" element={<FeedPage />} />
-                  <Route path="/meets" element={<MeetsPage />} />
-                  <Route path="/convoy/:code" element={<ConvoyPage />} />
+                  <Route path="/history" element={<Page.History />} />
+                  <Route path="/leaderboard" element={<Page.Leaderboard />} />
+                  <Route path="/profile" element={<Page.Profile />} />
+                  <Route path="/feed" element={<Page.FeedPage />} />
+                  <Route path="/meets" element={<Page.MeetsPage />} />
+                  <Route path="/convoy/:code" element={<Page.ConvoyPage />} />
                   {/* Full-screen pages: also inside Layout so a drive in progress keeps running. */}
-                  <Route path="/trip/:id" element={<TripDetailPage />} />
-                  <Route path="/live-map" element={<LiveMap />} />
-                  <Route path="/routes" element={<RoutesPage />} />
-                  <Route path="/places" element={<PlacesPage />} />
-                  <Route path="/import" element={<ImportPage />} />
+                  <Route path="/trip/:id" element={<Page.TripDetailPage />} />
+                  <Route path="/live-map" element={<Page.LiveMap />} />
+                  <Route path="/routes" element={<Page.RoutesPage />} />
+                  <Route path="/places" element={<Page.PlacesPage />} />
+                  <Route path="/import" element={<Page.ImportPage />} />
                 </Route>
               </Route>
               <Route path="*" element={<PageNotFound />} />
             </Routes>
+            </Suspense>
             </SafeRoutes>
           </AppProvider>
         </Router>

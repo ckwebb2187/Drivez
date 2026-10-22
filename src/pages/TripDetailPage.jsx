@@ -6,7 +6,8 @@ import { LineChart, Line, ResponsiveContainer, YAxis, XAxis, Tooltip } from 'rec
 import DarkMap from '@/components/DarkMap';
 import DiscordShareButton from '@/components/DiscordShareButton';
 import NarrateButton from '@/components/NarrateButton';
-import { useApp } from '@/lib/AppContext';
+import { useApp, mapTrip } from '@/lib/AppContext';
+import { base44 } from '@/api/base44Client';
 import { formatDuration, formatTimeAgo } from '@/lib/helpers';
 
 export default function TripDetailPage() {
@@ -17,7 +18,17 @@ export default function TripDetailPage() {
   const [titleDraft, setTitleDraft] = useState('');
   const [confirmDel, setConfirmDel] = useState(false);
   const [busy, setBusy] = useState(false);
-  const trip = trips.find(t => t.id === id);
+  const listed = trips.find(t => t.id === id);
+  // The drive list only has a thinned-out route; fetch the full one for this drive
+  // (the thin version shows right away, then sharpens).
+  const [full, setFull] = useState(null);
+  useEffect(() => {
+    if (!listed?.lite || full?.id === id) return;
+    let alive = true;
+    base44.entities.Trip.get(id).then((r) => { if (alive) setFull(mapTrip(r, listed.userColor)); }).catch(() => {});
+    return () => { alive = false; };
+  }, [id, listed?.lite]); // eslint-disable-line react-hooks/exhaustive-deps
+  const trip = listed && full?.id === id ? { ...listed, route: full.route, speeds: full.speeds, route_points: full.route_points, lite: false } : listed;
 
   const [replayProgress, setReplayProgress] = useState(1);
   const [routeSaved, setRouteSaved] = useState(false);

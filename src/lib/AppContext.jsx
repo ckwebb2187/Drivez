@@ -7,7 +7,7 @@ import { carLook, displayMode, iconBody } from './carCatalog';
 
 const AppContext = createContext(null);
 
-function mapTrip(t, color) {
+export function mapTrip(t, color) {
   return {
     ...t,
     date: t.start_time,
@@ -69,10 +69,15 @@ export function AppProvider({ children }) {
       return;
     }
     setLoading(true);
+    // Show what we had last time right away (your car, places, routes), then refresh.
+    try {
+      const c = JSON.parse(localStorage.getItem('dz-data-cache') || 'null');
+      if (c && c.uid === authUser.id) { setVehicles(c.v || []); setSavedRoutes((c.r || []).map(mapRoute)); setPlaces(c.pl || []); }
+    } catch { /* ignore */ }
     try {
       const [v, t, r, pl] = await Promise.all([
         base44.entities.Vehicle.list('-created_date', 100),
-        base44.entities.Trip.list('-created_date', 200),
+        base44.entities.Trip.list('-created_date', 200, '&lite=1'),
         base44.entities.Route.list('-created_date', 100),
         base44.entities.Place.list('-created_date', 5000).catch(() => [])
       ]);
@@ -80,6 +85,10 @@ export function AppProvider({ children }) {
       setTrips(t.map(x => mapTrip(x, color)));
       setSavedRoutes(r.map(mapRoute));
       setPlaces(pl);
+      try {
+        const blob = JSON.stringify({ uid: authUser.id, v, r, pl: pl.length > 1500 ? [] : pl });
+        if (blob.length < 1500000) localStorage.setItem('dz-data-cache', blob);
+      } catch { /* storage full: skip */ }
     } finally {
       setLoading(false);
     }

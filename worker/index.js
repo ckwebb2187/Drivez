@@ -1021,6 +1021,20 @@ async function handleApi(req, env, ctx, url) {
             ORDER BY r.created_date DESC LIMIT ?3`).bind(me.id, (me.email || "").toLowerCase(), limit)
         : db.prepare(`SELECT r.*, ?3 AS owner_email FROM records r WHERE r.entity = ?1 AND r.owner_id = ?2 ORDER BY r.created_date DESC LIMIT ?4`).bind(name, me.id, me.email, limit);
       const { results } = await q.all();
+      // ?lite=1 for drives: a thinned-out route (enough for thumbnails, the heat map and
+      // suggestions). The full route loads when you open that drive.
+      if (name === "Trip" && url.searchParams.get("lite")) {
+        return json(results.map((r) => {
+          const rec = parseRecord(r);
+          const pts = rec.route_points;
+          if (Array.isArray(pts) && pts.length > 80) {
+            const step = (pts.length - 1) / 79;
+            rec.route_points = Array.from({ length: 80 }, (_, i) => pts[Math.round(i * step)]);
+            rec.lite = true;
+          }
+          return rec;
+        }));
+      }
       return json(results.map(parseRecord));
     }
     if (method === "POST" && !id) {
@@ -1038,6 +1052,7 @@ async function handleApi(req, env, ctx, url) {
     }
     const row = id ? await db.prepare("SELECT * FROM records WHERE id = ? AND entity = ? AND owner_id = ?").bind(id, name, me.id).first() : null;
     if (!row) throw new HttpError(404, "Not found");
+    if (method === "GET") return json(parseRecord({ ...row, owner_email: me.email }));
     if (method === "PATCH") {
       const data = { ...JSON.parse(row.data), ...body };
       if (name === "Route" && Array.isArray(data.shared_with)) data.shared_with = data.shared_with.map((e) => String(e).toLowerCase());

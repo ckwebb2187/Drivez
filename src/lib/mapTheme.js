@@ -201,18 +201,19 @@ export function applyTheme(map, theme, { lite = false, beforeId } = {}) {
 }
 
 // Gentle water shimmer: nudges the water color back and forth. Returns a stop function.
-export function animateWater(map, theme) {
+export function animateWater(map, theme, isActive = () => true) {
   const p = P[theme];
   const ids = map.getStyle().layers.filter((l) => l.type === 'fill' && kind(l) === 'water').map((l) => l.id);
   const [a, b] = p ? p.water : ['#a9cbe8', '#b8d6ef'];
   if (!ids.length || !p) return () => {};
   if (p.waves && map.hasImage('dz-wave0')) {
     let f = 0;
-    const tw = setInterval(() => { f = (f + 1) % 3; ids.forEach((id) => setP(map, id, 'fill-pattern', `dz-wave${f}`)); }, 450);
+    const tw = setInterval(() => { if (!isActive()) return; f = (f + 1) % 3; ids.forEach((id) => setP(map, id, 'fill-pattern', `dz-wave${f}`)); }, 500);
     return () => clearInterval(tw);
   }
   let on = false;
   const t = setInterval(() => {
+    if (!isActive()) return;
     on = !on;
     ids.forEach((id) => { setP(map, id, 'fill-color-transition', { duration: 2400, delay: 0 }); setP(map, id, 'fill-color', on ? b : a); });
   }, 2500);

@@ -124,7 +124,7 @@ export default function Profile() {
           <div className="flex-1">
             <h1 className="text-xl font-bold text-foreground">{user.displayName}</h1>
             <p className="text-sm text-primary">@{user.username}
-              {user.creator && <span className="ml-2 align-middle text-[10px] font-black tracking-wide text-[#0b1020] rounded-full px-2 py-0.5" style={{ background: 'linear-gradient(90deg,#ff2d55,#00bfff)' }}>CREATOR · ALL ACCESS</span>}
+              {user.creator && <span className="dz-creator ml-2 align-middle inline-block whitespace-nowrap text-[10px] font-black tracking-wider text-[#0b1020] rounded-full px-2 py-0.5">CREATOR</span>}
             </p>
             <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
               {user.location && (

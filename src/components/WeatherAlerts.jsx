@@ -1,19 +1,11 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { GeoJSON } from 'react-leaflet';
 import { TriangleAlert, X, Navigation, ChevronRight, Loader2 } from 'lucide-react';
 import { EVACUATE, pickEvacuationCity } from '@/lib/alerts';
 import { weatherAlongRoute } from '@/lib/routeWeather';
 import { alertsAlongRoute } from '@/lib/alerts';
 
-const colorFor = (a) => (/Warning|Emergency/.test(a.event) ? '#EA4335' : /Watch/.test(a.event) ? '#F9AB00' : '#FB8C00');
-
-// Alert areas drawn on the (Leaflet) map.
-export function AlertAreas({ alerts }) {
-  return alerts.filter((a) => a.geometry).map((a) => (
-    <GeoJSON key={a.id} data={a.geometry} style={{ color: colorFor(a), weight: 2, fillColor: colorFor(a), fillOpacity: 0.12, dashArray: '6 4' }} />
-  ));
-}
+export const colorFor = (a) => (/Warning|Emergency/.test(a.event) ? '#EA4335' : /Watch/.test(a.event) ? '#F9AB00' : '#FB8C00');
 
 // Red banner when there's a serious alert where you are; opens details + evacuation route.
 export function AlertsBanner({ alerts, pos, onRoute, className = '' }) {

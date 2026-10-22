@@ -27,7 +27,8 @@ export const api = {
 function entity(name) {
   const base = `/entities/${name}`;
   return {
-    list: (_sort, limit = 100) => api.get(`${base}?limit=${limit}`),
+    list: (_sort, limit = 100, extra = '') => api.get(`${base}?limit=${limit}${extra}`),
+    get: (id) => api.get(`${base}/${id}`),
     create: (data) => api.post(base, data),
     update: (id, data) => api.patch(`${base}/${id}`, data),
     delete: (id) => api.del(`${base}/${id}`),

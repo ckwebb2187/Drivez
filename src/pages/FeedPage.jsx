@@ -29,9 +29,13 @@ function PathArt({ path }) {
   );
 }
 
+// Last feed seen this session: shown instantly on return while the fresh one loads.
+let lastFeed = null;
+
 // What you and your friends have been up to: drives, build photos, meets.
 export default function FeedPage() {
-  const [items, setItems] = useState(null);
+  const [items, setItemsState] = useState(lastFeed);
+  const setItems = (v) => setItemsState((prev) => { const next = typeof v === 'function' ? v(prev) : v; lastFeed = next; return next; });
   const [error, setError] = useState('');
   const navigate = useNavigate();
   useEffect(() => { api.get('/feed').then((d) => setItems(d.items)).catch((e) => setError(e.message || 'Could not load the feed.')); }, []);

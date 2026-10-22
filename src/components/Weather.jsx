@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { TileLayer, useMap } from 'react-leaflet';
 import { CloudRain, X, Play, Pause, Check } from 'lucide-react';
 import { api } from '@/api/base44Client';
 import { useLiveTraffic, trafficTileUrl } from '@/lib/traffic';
@@ -41,7 +40,7 @@ export function useWeatherPrefs() {
 }
 
 let accuPromise = null;
-function useAccuAvailable() {
+export function useAccuAvailable() {
   const [ok, setOk] = useState(null);
   useEffect(() => {
     accuPromise = accuPromise || api.get('/wx/config').then((d) => !!d.accuweather).catch(() => false);
@@ -51,7 +50,7 @@ function useAccuAvailable() {
 }
 
 // RainViewer frames (past ~2 hours, every 10 minutes).
-function useRainViewer(active) {
+export function useRainViewer(active) {
   const [data, setData] = useState(null);
   useEffect(() => {
     if (!active) return;
@@ -62,74 +61,6 @@ function useRainViewer(active) {
     return () => { alive = false; clearInterval(t); };
   }, [active]);
   return data;
-}
-
-function ensurePane(map) {
-  if (!map.getPane('weather')) {
-    const pane = map.createPane('weather');
-    pane.style.zIndex = 350; // above the base map, below routes and markers
-    pane.style.pointerEvents = 'none';
-  }
-}
-
-// Live traffic colors on the roads (green / orange / red), when TomTom is set up.
-export function TrafficLayer({ night = true }) {
-  const map = useMap();
-  const [prefs] = useWeatherPrefs();
-  const live = useLiveTraffic();
-  ensurePane(map);
-  if (!live || prefs.traffic === false) return null;
-  return <TileLayer url={trafficTileUrl(night)} pane="weather" zIndex={2} maxZoom={20} maxNativeZoom={18} attribution="Traffic &copy; TomTom" />;
-}
-
-// Put inside a <MapContainer>.
-export function WeatherLayer() {
-  const map = useMap();
-  const [prefs] = useWeatherPrefs();
-  const accu = useAccuAvailable();
-  const chosen = prefs.layer === 'rv-satellite' ? 'goes-satellite' : prefs.layer;
-  const id = chosen === 'accu-radar' || chosen === 'accu-satellite' ? (accu ? chosen : accu === false ? 'rv-radar' : 'off') : chosen;
-  const rv = useRainViewer(id === 'rv-radar');
-  const [frame, setFrame] = useState(-1);
-  const playing = id === 'rv-radar' && prefs.playing;
-  ensurePane(map);
-
-  const frames = useMemo(() => (id === 'rv-radar' ? rv?.radar?.past : null) || [], [rv, id]);
-  useEffect(() => { setFrame(frames.length - 1); }, [frames.length]);
-  useEffect(() => {
-    if (!playing || frames.length < 2) { setFrame(frames.length - 1); return undefined; }
-    const t = setInterval(() => setFrame((f) => (f + 1) % frames.length), 700);
-    return () => clearInterval(t);
-  }, [playing, frames.length]);
-
-  // Tell the controls which time is showing.
-  useEffect(() => {
-    const f = frames[frame];
-    window.__dzWeatherTime = f ? f.time * 1000 : null;
-    window.dispatchEvent(new Event('dz-weather-frame'));
-  }, [frame, frames]);
-
-  const common = { pane: 'weather', opacity: prefs.opacity, zIndex: 1 };
-  if (id === 'accu-radar' || id === 'accu-satellite') {
-    const kind = id === 'accu-radar' ? 'radar' : 'satellite';
-    return <TileLayer key={id} url={`/api/wx/accu/${kind}/{z}/{x}/{y}.png`} maxNativeZoom={10} maxZoom={20} attribution="Weather &copy; AccuWeather" {...common} />;
-  }
-  if (id === 'nexrad') {
-    return <TileLayer key={id} url="https://mesonet.agron.iastate.edu/cache/tile.py/1.0.0/nexrad-n0q-900913/{z}/{x}/{y}.png" maxNativeZoom={12} maxZoom={20} attribution="Radar: NOAA via Iowa Environmental Mesonet" {...common} />;
-  }
-  if (id === 'goes-satellite') {
-    return <TileLayer key={id} url="https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GOES-East_ABI_Band13_Clean_Infrared/default/default/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png" maxNativeZoom={6} maxZoom={20} attribution="Satellite: NASA GIBS / NOAA GOES" {...common} />;
-  }
-  if (id === 'rv-radar' && rv && frames[frame]) {
-    // Keep every frame loaded and only show one, so playback doesn't flicker.
-    const style = '2/1_1';
-    return frames.map((f, i) => (
-      <TileLayer key={`${id}-${f.path}`} url={`${rv.host}${f.path}/256/{z}/{x}/{y}/${style}.png`} maxNativeZoom={7} maxZoom={20}
-        attribution={i === frames.length - 1 ? 'Weather: <a href="https://www.rainviewer.com" target="_blank">RainViewer</a>' : ''}
-        {...common} opacity={i === frame ? prefs.opacity : 0} />
-    ));
-  }
-  return null;
 }
 
 // The round map button plus its picker.

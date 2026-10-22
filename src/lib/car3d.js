@@ -396,7 +396,7 @@ export function buildPictureCar({ picture, aspect, glow = null, style = {} }) {
 }
 
 // MapLibre custom layer that draws the car at getPose() = { lngLat:[lng,lat], bearing } each frame.
-export function car3dLayer({ id = 'dz-car3d', colors, getPose, screenLength = 115 }) {
+export function car3dLayer({ id = 'dz-car3d', colors, getPose, screenLength = 115, isActive = () => true }) {
   let renderer, scene, camera, map, car, pulseT = null;
   return {
     id,
@@ -447,7 +447,7 @@ export function car3dLayer({ id = 'dz-car3d', colors, getPose, screenLength = 11
       renderer.clearDepth();
       renderer.render(scene, camera);
       // Animated underglow: keep redrawing (about 30 times a second).
-      if (car.userData.tick) {
+      if (car.userData.tick && isActive()) {
         car.userData.tick(performance.now());
         if (!pulseT) pulseT = setTimeout(() => { pulseT = null; map.triggerRepaint(); }, 33);
       }

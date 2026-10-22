@@ -144,7 +144,7 @@ function DriveMapInner({
       const firstSymbol = layers.slice(lastRoad + 1).find((l) => l.type === 'symbol')?.id;
       // World theme colors + 3D buildings (themed windows), then gentle water motion.
       try { applyTheme(map, theme, { lite, beforeId: firstSymbol }); } catch { /* keep the plain style */ }
-      if (!lite) live.current.stopWater = animateWater(map, theme);
+      if (!lite) live.current.stopWater = animateWater(map, theme, () => live.current.active);
       map.addSource('dz-guide', { type: 'geojson', data: EMPTY });
       map.addSource('dz-trail', { type: 'geojson', data: EMPTY });
       map.addSource('dz-behind', { type: 'geojson', data: EMPTY });
@@ -308,6 +308,7 @@ function DriveMapInner({
         try {
           map.addLayer(car3dLayer({
             colors,
+            isActive: () => live.current.active,
             getPose: () => {
               const a = anim.current;
               const p = a.shown || pos;
