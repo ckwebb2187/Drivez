@@ -35,8 +35,9 @@ function useNowPlaying(user, every) {
   const [track, setTrack] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [hint, setHint] = useState('');
   useEffect(() => {
-    if (!user) { setTrack(null); setError(''); return; }
+    if (!user) { setTrack(null); setError(''); setHint(''); return; }
     let alive = true;
     const load = async () => {
       setLoading(true);
@@ -50,8 +51,18 @@ function useNowPlaying(user, every) {
         if (!m) {
           const last = (await (await fetch(`${LB}${u}/listens?count=1`)).json()).payload?.listens?.[0];
           if (last && Date.now() / 1000 - last.listened_at < 20 * 60) { m = last.track_metadata; recent = true; }
+          // Explain what ListenBrainz has (or hasn't) received, so it's clear which setup step is missing.
+          if (alive && !m) {
+            if (!last) setHint('ListenBrainz hasn’t received any songs from you yet. In YumaPlayer, check that ListenBrainz scrobbling is ON and the token is pasted (step 3), then skip to the next song.');
+            else {
+              const mins = Math.round((Date.now() / 1000 - last.listened_at) / 60);
+              const ago = mins < 60 ? `${mins} min` : mins < 2880 ? `${Math.round(mins / 60)} h` : `${Math.round(mins / 1440)} days`;
+              setHint(`Last song ListenBrainz got: “${last.track_metadata?.track_name}” ${ago} ago. If YumaPlayer is playing now, re-check the token in YumaPlayer and skip to the next song.`);
+            }
+          }
         }
         if (alive) setError('');
+        if (alive && m) setHint('');
         if (!m) { if (alive) setTrack(null); return; }
         const t = { title: m.track_name, artist: m.artist_name, album: m.release_name, recent };
         t.art = await findArt(t);
@@ -62,7 +73,7 @@ function useNowPlaying(user, every) {
     const id = setInterval(load, every);
     return () => { alive = false; clearInterval(id); };
   }, [user, every]);
-  return { track, loading, error };
+  return { track, loading, error, hint };
 }
 
 function Bars() {
@@ -78,7 +89,7 @@ export default function MusicButton({ size = 52 }) {
   const [user, setUser] = useState(readUser);
   const [setup, setSetup] = useState(false);
   const [draft, setDraft] = useState(user);
-  const { track, loading, error } = useNowPlaying(user, open ? 10000 : 45000);
+  const { track, loading, error, hint } = useNowPlaying(user, open ? 10000 : 45000);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const cardRef = useRef(null);
@@ -153,6 +164,9 @@ export default function MusicButton({ size = 52 }) {
               </button>
             </div>
 
+            {!setup && !track && user && hint && (
+              <p className="px-3 -mt-1 pb-2 text-[11px] text-white/60 leading-snug">{hint}</p>
+            )}
             {setup ? (
               <div className="px-3 pb-3">
                 <ol className="text-[11px] text-white/70 mb-2 leading-snug list-decimal pl-4 space-y-1">
