@@ -1,5 +1,7 @@
-import { Outlet, NavLink } from 'react-router-dom';
-import { Home, Gauge, Clock, Trophy, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { Home, Gauge, Clock, Trophy, User, ChevronRight } from 'lucide-react';
+import LiveDrive from '@/pages/LiveDrive';
 
 const tabs = [
   { to: '/', icon: Home, label: 'Home' },
@@ -10,11 +12,37 @@ const tabs = [
 ];
 
 export default function Layout() {
+  const { pathname } = useLocation();
+  const onDrive = pathname === '/drive';
+  // The drive screen is kept running once opened, so switching tabs never loses a drive.
+  const [driveOpened, setDriveOpened] = useState(onDrive);
+  useEffect(() => { if (onDrive) setDriveOpened(true); }, [onDrive]);
+  const [driveStatus, setDriveStatus] = useState(() => window.__dzDriveStatus);
+  useEffect(() => {
+    const on = () => setDriveStatus(window.__dzDriveStatus);
+    window.addEventListener('dz-drive-status', on);
+    return () => window.removeEventListener('dz-drive-status', on);
+  }, []);
+  const driving = driveStatus === 'driving' || driveStatus === 'acquiring';
+
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
-      <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
-        <Outlet />
-      </main>
+      {!onDrive && (
+        <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
+          <Outlet />
+        </main>
+      )}
+      {driveOpened && (
+        <div style={{ display: onDrive ? 'block' : 'none' }}>
+          <LiveDrive active={onDrive} />
+        </div>
+      )}
+      {!onDrive && driving && (
+        <NavLink to="/drive" className="fixed left-3 right-3 bottom-[92px] z-50 rounded-2xl bg-[#188038] text-white shadow-2xl px-4 h-12 flex items-center gap-2 text-sm font-semibold">
+          <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> Drive in progress
+          <span className="ml-auto flex items-center gap-1 text-xs opacity-90">Return to drive <ChevronRight className="w-4 h-4" /></span>
+        </NavLink>
+      )}
       <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border">
         <div className="flex items-center justify-around max-w-md mx-auto px-2 h-20">
           {tabs.map((tab) => {

@@ -63,7 +63,7 @@ function reportElement(type) {
 
 export default function DriveMap({
   pos, heading, speed = 0, car, driving, routeCoords, dest, stops = [], guide, trail, reports = [],
-  follow = true, onUserMove, className = '',
+  follow = true, onUserMove, className = '', active = true,
 }) {
   const box = useRef(null);
   const mapRef = useRef(null);
@@ -73,7 +73,7 @@ export default function DriveMap({
   const reportMarkers = useRef(new Map());
   const anim = useRef({ from: null, to: null, t0: 0, dur: 1000, shown: null, brg: 0, brgTarget: 0, zoom: 16, lastFix: 0, lastPos: null });
   const live = useRef({});
-  live.current = { ...live.current, follow, driving, speed, onUserMove };
+  live.current = { ...live.current, follow, driving, speed, onUserMove, active };
   const routeIdx = useRef(0);
   const wx = useWeatherTiles();
   const liveTraffic = useLiveTraffic();
@@ -159,7 +159,7 @@ export default function DriveMap({
           carRef.current.setRotation(a.brg);
         }
         const { follow: f, driving: d, speed: s } = live.current;
-        if (f && readyRef.current && !live.current.held) {
+        if (f && readyRef.current && !live.current.held && live.current.active) {
           const targetZoom = d ? zoomForSpeed(s) : 16.5;
           a.zoom += (targetZoom - a.zoom) * 0.03;
           map.jumpTo({
@@ -185,10 +185,18 @@ export default function DriveMap({
       window.removeEventListener('resize', resize);
       window.removeEventListener('pointerup', up);
       window.removeEventListener('touchend', up);
-      map.remove();
-      readyRef.current = false;
+      readyRef.current = false; // tell the other cleanups the map is gone
+      try { map.remove(); } catch { /* already gone */ }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Coming back to the drive screen: the map was hidden, so let it re-measure.
+  useEffect(() => {
+    if (!active) return;
+    const map = mapRef.current;
+    const t = setTimeout(() => { try { map.resize(); live.current.setPad?.(); } catch { /* not ready */ } }, 30);
+    return () => clearTimeout(t);
+  }, [active]);
 
   // Keep the car in the lower third while driving.
   useEffect(() => {
@@ -242,8 +250,9 @@ export default function DriveMap({
     }
     return () => {
       cancelled = true;
-      carRef.current?.remove();
-      if (map.getLayer?.('dz-car3d')) map.removeLayer('dz-car3d');
+      try { carRef.current?.remove(); } catch { /* already gone */ }
+      // Only touch the map if it still exists (leaving the screen removes it first).
+      if (readyRef.current) { try { if (map.getLayer('dz-car3d')) map.removeLayer('dz-car3d'); } catch { /* already gone */ } }
       live.current.car3d = false;
     };
   }, [car?.body, car?.color, car?.image]); // eslint-disable-line react-hooks/exhaustive-deps

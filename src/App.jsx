@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import ProtectedRoute, { GuestOnly } from '@/components/ProtectedRoute';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider } from '@/lib/AuthContext';
@@ -8,7 +9,6 @@ import ScrollToTop from './components/ScrollToTop';
 import { AppProvider } from '@/lib/AppContext';
 import Layout from '@/components/Layout';
 import MapHome from '@/pages/MapHome';
-import LiveDrive from '@/pages/LiveDrive';
 import History from '@/pages/History';
 import Leaderboard from '@/pages/Leaderboard';
 import Profile from '@/pages/Profile';
@@ -29,6 +29,7 @@ export default function App() {
         <Router>
           <ScrollToTop />
           <AppProvider>
+            <SafeRoutes>
             <Routes>
               <Route element={<GuestOnly />}>
                 <Route path="/login" element={<Login />} />
@@ -39,7 +40,7 @@ export default function App() {
               <Route element={<ProtectedRoute />}>
                 <Route element={<Layout />}>
                   <Route path="/" element={<MapHome />} />
-                  <Route path="/drive" element={<LiveDrive />} />
+                  <Route path="/drive" element={null} /> {/* drawn by Layout so it keeps running in the background */}
                   <Route path="/history" element={<History />} />
                   <Route path="/leaderboard" element={<Leaderboard />} />
                   <Route path="/profile" element={<Profile />} />
@@ -52,9 +53,16 @@ export default function App() {
               </Route>
               <Route path="*" element={<PageNotFound />} />
             </Routes>
+            </SafeRoutes>
           </AppProvider>
         </Router>
       </QueryClientProvider>
     </AuthProvider>
   )
+}
+
+// Catches a crashed screen (instead of a black screen); moving to another page clears it.
+function SafeRoutes({ children }) {
+  const { pathname } = useLocation();
+  return <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>;
 }

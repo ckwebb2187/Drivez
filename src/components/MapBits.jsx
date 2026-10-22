@@ -54,8 +54,16 @@ export function PinMarker({ pos, color = '#EA4335' }) {
 }
 
 // Keeps the map centred on you until you drag it.
+// Leaving a screen while the map is still animating makes Leaflet throw; stop animations first.
+function useStopOnUnmount(map) {
+  useEffect(() => () => {
+    try { map.stop(); clearTimeout(map._transitionEndTimer); map._animatingZoom = false; } catch { /* already gone */ }
+  }, [map]);
+}
+
 export function FollowMe({ pos, follow, onUserMove, zoom }) {
   const map = useMap();
+  useStopOnUnmount(map);
   useEffect(() => {
     const stop = () => onUserMove?.();
     map.on('dragstart', stop);
@@ -69,6 +77,7 @@ export function FollowMe({ pos, follow, onUserMove, zoom }) {
 
 export function FitBounds({ points, padding = [60, 60], paddingBottom }) {
   const map = useMap();
+  useStopOnUnmount(map);
   useEffect(() => {
     if (!points?.length) return;
     map.fitBounds(L.latLngBounds(points), {

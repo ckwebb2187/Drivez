@@ -28,12 +28,22 @@ async function reverseGeocode(lat, lng) {
   return `${lat.toFixed(3)}, ${lng.toFixed(3)}`;
 }
 
-export default function LiveDrive() {
+export default function LiveDrive({ active = true }) {
   const navigate = useNavigate();
   const { activeVehicle, myCar, savedRoutes, addTrip } = useApp();
   const drive = useGpsDrive(myCar);
   const location = useLocation();
-  const navPlan = location.state?.nav || null;
+  // This screen stays alive in the background while you visit other tabs, so the
+  // route only changes when you're actually sent to /drive (e.g. "Go" or "End route").
+  const [navPlan, setNavPlan] = useState(location.state?.nav || null);
+  const [routeId, setRouteId] = useState(() => new URLSearchParams(window.location.search).get('route'));
+  const lastKey = useRef(location.key);
+  useEffect(() => {
+    if (location.pathname !== '/drive' || location.key === lastKey.current) return;
+    lastKey.current = location.key;
+    setNavPlan(location.state?.nav || null);
+    setRouteId(new URLSearchParams(location.search).get('route'));
+  }, [location.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const [voiceOn, setVoiceOn] = useState(() => { try { return localStorage.getItem('dz_voice') !== '0'; } catch { return true; } });
   const nav = useNavigation(navPlan, drive.currentPosition, voiceOn && drive.status === 'driving');
   const toggleVoice = () => { const v = !voiceOn; setVoiceOn(v); try { localStorage.setItem('dz_voice', v ? '1' : '0'); } catch { /* ignore */ } if (!v) window.speechSynthesis?.cancel(); };
@@ -42,14 +52,18 @@ export default function LiveDrive() {
   const [reportAlert, dismissAlert] = useReportAlerts(roadReports.reports, drive.status === 'driving' ? drive.currentPosition : null, nav.active ? nav.route.coords : null, voiceOn);
 
   // Tapping "Go" on the home map starts the drive straight away.
-  useEffect(() => { if (navPlan && drive.status === 'idle') drive.start(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (navPlan && drive.status === 'idle') drive.start(); }, [navPlan]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Let the rest of the app know a drive is going (for the "Return to drive" bar).
+  useEffect(() => {
+    window.__dzDriveStatus = drive.status;
+    window.dispatchEvent(new Event('dz-drive-status'));
+  }, [drive.status]);
   const [tripTitle, setTripTitle] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [barOpen, setBarOpen] = useState(false);
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const routeId = urlParams.get('route');
   const guideRoute = routeId ? savedRoutes.find(r => r.id === routeId) : null;
 
   // Show where you are on the map even before the drive starts.
@@ -158,6 +172,7 @@ export default function LiveDrive() {
           reports={roadReports.reports}
           follow={follow}
           onUserMove={onUserMove}
+          active={active}
         />
       </div>
 
@@ -384,7 +399,7 @@ export default function LiveDrive() {
             className="absolute inset-0 z-[600] flex flex-col justify-end"
           >
             <div className="flex-1" />
-            <div className="glass rounded-t-3xl p-6 border-t border-border mx-0">
+            <div className="glass rounded-t-3xl p-6 pb-28 border-t border-border mx-0 max-h-[85vh] overflow-y-auto no-scrollbar">
               <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-4" />
               <h2 className="text-lg font-bold text-foreground text-center mb-1">Drive Complete</h2>
               <p className="text-xs text-muted-foreground text-center mb-5">
