@@ -14,6 +14,8 @@ import { useReports, useReportAlerts, useMappedBumps, REPORT_TYPES } from '@/lib
 import MusicButton from '@/components/MusicButton';
 import { WeatherButton } from '@/components/Weather';
 import TripPlanner from '@/components/TripPlanner';
+import DriverSheet from '@/components/DriverSheet';
+import { api } from '@/api/base44Client';
 import { mileageMode } from '@/lib/carBluetooth';
 
 const MAX_POINTS = 400;
@@ -68,6 +70,17 @@ export default function LiveDrive({ active = true }) {
     return () => navigator.geolocation.clearWatch(id);
   }, [drive.status, active]);
   const roadReports = useReports(drive.currentPosition || herePos);
+  // Friends driving right now (shown on the map; tap one for their profile).
+  const [friends, setFriends] = useState([]);
+  const [openDriver, setOpenDriver] = useState(null);
+  useEffect(() => {
+    if (!active) return undefined;
+    let alive = true;
+    const load = () => api.get('/live').then((d) => alive && setFriends(d.drivers || [])).catch(() => {});
+    load();
+    const t = setInterval(load, 15000);
+    return () => { alive = false; clearInterval(t); };
+  }, [active]);
   // Route being previewed on the map before you tap Go.
   const [preview, setPreview] = useState(null);
   // Lowered car: also warn about speed bumps and dips mapped in OpenStreetMap.
@@ -236,6 +249,8 @@ export default function LiveDrive({ active = true }) {
           dest={navPlan ? navPlan.dest : preview ? preview.dest : null}
           stops={nav.active ? nav.stops.slice(nav.stopIdx) : preview ? preview.stops : []}
           fitCoords={drive.status === 'idle' && preview ? preview.route.coords : null}
+          friends={friends}
+          onFriendTap={setOpenDriver}
           guide={guideRoute ? guideRoute.route : null}
           trail={drive.route}
           reports={roadReports.reports}
@@ -415,6 +430,8 @@ export default function LiveDrive({ active = true }) {
         )}
 
       </AnimatePresence>
+
+      {openDriver && active && <DriverSheet driver={openDriver} moving={drive.status === 'driving' && drive.currentSpeed > 8} onClose={() => setOpenDriver(null)} />}
 
       {/* "Drive saved" note */}
       {toast && active && (

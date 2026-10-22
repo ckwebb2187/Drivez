@@ -80,6 +80,7 @@ export default function DriveMap(props) {
 function DriveMapInner({
   pos, heading, speed = 0, car, driving, routeCoords, dest, stops = [], guide, trail, reports = [],
   follow = true, onUserMove, className = '', active = true, theme = 'standard', base = 'day', lite = false, fitCoords = null,
+  friends = [], onFriendTap,
 }) {
   const box = useRef(null);
   const mapRef = useRef(null);
@@ -87,6 +88,9 @@ function DriveMapInner({
   const carRef = useRef(null);
   const pinRef = useRef(null);
   const reportMarkers = useRef(new Map());
+  const friendMarkers = useRef(new Map());
+  const friendTap = useRef(onFriendTap);
+  friendTap.current = onFriendTap;
   const anim = useRef({ from: null, to: null, t0: 0, dur: 1000, shown: null, brg: 0, brgTarget: 0, zoom: 16, lastFix: 0, lastPos: null });
   const live = useRef({});
   live.current = { ...live.current, follow, driving, speed, onUserMove, active, previewing: !!fitCoords };
@@ -259,10 +263,16 @@ function DriveMapInner({
     if (car) {
       const add = async () => {
         const { car3dLayer, prepareCarPicture } = await import('@/lib/car3d'); // 3D engine loads only for driving
-        let colors = { body: car.color || '#1f5ad6', glow: null };
-        if (car.image) { try { colors = await prepareCarPicture(car.image); } catch { /* keep plain colors */ } }
-        const model = car.model3d && CAR_MODELS[car.model3d];
-        if (model) colors = { ...colors, modelUrl: model.url, frontAxis: model.frontAxis, paintMaterials: model.paintMaterials, paint: car.paint || null };
+        // Built car: shape, wheels, paint and underglow from the garage.
+        let colors = { body: car.color || '#1f5ad6', glow: car.glow || null, shape: car.shape, wheels: car.wheels, wheelColor: car.wheelColor, scoop: car.scoop, wing: car.wing };
+        if (car.display !== 'build' && car.image) {
+          try {
+            const pic = await prepareCarPicture(car.image);
+            colors = car.display === 'picture' ? { ...pic, glow: car.glow !== undefined ? car.glow : pic.glow } : { ...colors, picture: pic.picture, aspect: pic.aspect, glow: car.glow !== undefined ? car.glow : pic.glow };
+          } catch { /* keep the built car */ }
+        }
+        const model = car.display === 'model' && car.model3d && CAR_MODELS[car.model3d];
+        if (model) colors = { ...colors, modelUrl: model.url, frontAxis: model.frontAxis, paintMaterials: model.paintMaterials, paint: car.paint || null, glow: colors.glow || null };
         if (cancelled || !readyRef.current) return;
         if (map.getLayer('dz-car3d')) map.removeLayer('dz-car3d');
         try {
@@ -287,7 +297,7 @@ function DriveMapInner({
       if (readyRef.current) { try { if (map.getLayer('dz-car3d')) map.removeLayer('dz-car3d'); } catch { /* already gone */ } }
       live.current.car3d = false;
     };
-  }, [car?.body, car?.color, car?.image, car?.model3d, car?.paint]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [car && JSON.stringify(car)]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // New GPS fix: start gliding from where the car is drawn now to the new spot.
   useEffect(() => {
@@ -369,6 +379,36 @@ function DriveMapInner({
     }
     for (const [id, m] of reportMarkers.current) if (!keep.has(id)) { m.remove(); reportMarkers.current.delete(id); }
   }, [reports]);
+
+  // Friends driving now: their car + name. Tap to see their profile.
+  useEffect(() => {
+    const map = mapRef.current;
+    const keep = new Set();
+    for (const f of friends) {
+      keep.add(f.userId);
+      let m = friendMarkers.current.get(f.userId);
+      if (!m) {
+        const el = document.createElement('div');
+        el.style.cssText = 'display:flex;flex-direction:column;align-items:center;cursor:pointer';
+        el.innerHTML = '<div data-car style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 3px 4px rgba(0,0,0,.5))"></div><div data-name style="margin-top:-2px;font:700 11px system-ui;color:#fff;background:rgba(15,18,28,.85);padding:2px 7px;border-radius:9px;white-space:nowrap"></div>';
+        el.addEventListener('click', (e) => { e.stopPropagation(); friendTap.current?.(friendMarkers.current.get(f.userId)?.friend); });
+        m = new maplibregl.Marker({ element: el, pitchAlignment: 'viewport', rotationAlignment: 'viewport' }).setLngLat([f.lng, f.lat]).addTo(map);
+        friendMarkers.current.set(f.userId, m);
+      }
+      m.friend = f;
+      m.setLngLat([f.lng, f.lat]);
+      const el = m.getElement();
+      const carBox = el.querySelector('[data-car]');
+      const sig = JSON.stringify([f.car, Math.round(f.heading || 0)]);
+      if (carBox.dataset.sig !== sig) {
+        carBox.dataset.sig = sig;
+        carBox.innerHTML = `<div style="transform:rotate(${(f.heading || 0) - map.getBearing()}deg)">${f.car ? carMarkup(f.car, 18, 36) : '<div style="width:16px;height:16px;border-radius:50%;background:#39FF14;border:2px solid #fff"></div>'}</div>`;
+      }
+      el.querySelector('[data-name]').textContent = `${f.name || f.username}${f.speed ? ` · ${f.speed}` : ''}`;
+    }
+    for (const [id, m] of friendMarkers.current) if (!keep.has(id)) { m.remove(); friendMarkers.current.delete(id); }
+  }, [friends]);
+  useEffect(() => () => { for (const m of friendMarkers.current.values()) { try { m.remove(); } catch { /* gone */ } } }, []);
 
   // Weather overlay (under the route).
   useEffect(() => {

@@ -91,7 +91,19 @@ export function carLook(v) {
     wheels: v?.wheels || 'stock',
     wheelColor: v?.wheel_color || cat?.wheelColor || '#c9ced6',
     paint: v?.color || '#1f5ad6',
-    glow: v?.glow_on === false ? null : v?.glow_color || null,
+    // undefined = not chosen yet (a car picture's own underglow is used); null = off.
+    glow: v?.glow_on === false ? null : v?.glow_color || undefined,
     model3d: v?.model3d === 'none' ? null : v?.model3d || cat?.model3d || null,
   };
+}
+
+// How the car is drawn on the drive map: the detailed 3D model, your own picture, or the 3D builder.
+export function displayMode(v) {
+  const look = carLook(v);
+  if (v?.display === 'picture' && v?.image_url) return 'picture';
+  if (v?.display === 'build') return 'build';
+  if (v?.display === 'model' && look.model3d) return 'model';
+  if (look.model3d) return 'model';
+  if (v?.image_url) return 'picture';
+  return 'build';
 }

@@ -4,6 +4,7 @@
 export const BODY_TYPES = [
   { key: 'sports', label: 'Sports car' },
   { key: 'sedan', label: 'Sedan' },
+  { key: 'hatch', label: 'Hatchback' },
   { key: 'suv', label: 'SUV' },
   { key: 'truck', label: 'Pickup' },
   { key: 'moto', label: 'Motorcycle' },
@@ -25,6 +26,11 @@ export function carSvg(body = 'sedan', color = '#00BFFF') {
       shape = `<path d="M9 14 C10 5 30 5 31 14 L34 30 C35 44 35 58 33 70 C32 76 8 76 7 70 C5 58 5 44 6 30 Z" fill="${color}" stroke="${dark}" stroke-width="1.5"/>
         <path d="M11 28 C14 23 26 23 29 28 L28 38 L12 38 Z" fill="${glass}"/><path d="M12 54 L28 54 L27 62 L13 62 Z" fill="${glass}"/>
         <path d="M12 38 L28 38 L28 54 L12 54 Z" fill="${shade(color, -25)}"/><path d="M14 9 C17 7 23 7 26 9" stroke="${shine}" stroke-width="2" fill="none"/>${lights(8, 73, 9)}`;
+      break;
+    case 'hatch':
+      shape = `<path d="M8 13 C9 6 31 6 32 13 L33 30 L33 66 C33 71 7 71 7 66 L7 30 Z" fill="${color}" stroke="${dark}" stroke-width="1.5"/>
+        <path d="M10 25 C14 21 26 21 30 25 L28 34 L12 34 Z" fill="${glass}"/><rect x="11" y="35" width="18" height="23" rx="2" fill="${shade(color, -25)}"/>
+        <path d="M11 59 L29 59 L30 66 L10 66 Z" fill="${glass}"/><path d="M13 10 C17 8 23 8 27 10" stroke="${shine}" stroke-width="2" fill="none"/>${lights(8, 68, 8)}`;
       break;
     case 'suv':
       shape = `<rect x="6" y="6" width="28" height="68" rx="7" fill="${color}" stroke="${dark}" stroke-width="1.5"/>

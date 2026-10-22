@@ -3,6 +3,7 @@ import { base44, api } from '@/api/base44Client';
 import { useAuth } from './AuthContext';
 import { startOfWeek, subWeeks, format as formatDate } from 'date-fns';
 import { useCarBluetooth, connectedCar } from './carBluetooth';
+import { carLook, displayMode, iconBody } from './carCatalog';
 
 const AppContext = createContext(null);
 
@@ -88,7 +89,21 @@ export function AppProvider({ children }) {
 
   // The car you're driving: the one marked "driving this", else your first car.
   const activeVehicle = useMemo(() => vehicles.find(v => v.is_primary) || vehicles[0] || null, [vehicles]);
-  const myCar = useMemo(() => activeVehicle ? { body: activeVehicle.body || 'sedan', color: activeVehicle.color || '#00BFFF', image: activeVehicle.image_url || null, model3d: activeVehicle.model3d || null, paint: activeVehicle.paint || null, lowered: !!activeVehicle.lowered } : null, [activeVehicle]);
+  const myCar = useMemo(() => {
+    if (!activeVehicle) return null;
+    const look = carLook(activeVehicle);
+    const display = displayMode(activeVehicle);
+    return {
+      ...look,
+      display,
+      body: iconBody(look.shape),           // flat map icon
+      color: activeVehicle.color || '#00BFFF',
+      image: display === 'picture' || display === 'model' ? activeVehicle.image_url || null : null,
+      model3d: display === 'model' ? look.model3d : null,
+      paint: activeVehicle.paint || null,    // repaint for the detailed model (null = its own paint)
+      lowered: !!activeVehicle.lowered,
+    };
+  }, [activeVehicle]);
 
   // Android app: when the phone connects to a car's Bluetooth, that car becomes the one you're driving.
   const carBt = useCarBluetooth();

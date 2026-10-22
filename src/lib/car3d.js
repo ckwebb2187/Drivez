@@ -279,7 +279,7 @@ export function car3dLayer({ id = 'dz-car3d', colors, getPose, screenLength = 11
           .then((m) => { if (car) scene.remove(car); car = m; scene.add(m); map.triggerRepaint(); })
           .catch((e) => console.warn('Car model failed to load', e));
       } else {
-        car = colors?.picture && !colors?.shape ? buildPictureCar(colors) : buildCar(colors);
+        car = colors?.picture && !colors?.shape ? buildPictureCar(colors) : buildCar(colors || {});
         scene.add(car);
       }
       renderer = new THREE.WebGLRenderer({ canvas: map.getCanvas(), context: gl, antialias: true });

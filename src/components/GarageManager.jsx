@@ -5,6 +5,7 @@ import VehicleDetail from '@/components/VehicleDetail';
 import { odometer, reminders } from '@/lib/maintenance';
 import { useApp } from '@/lib/AppContext';
 import { BODY_TYPES, carSvg } from '@/lib/cars';
+import { CATALOG, iconBody } from '@/lib/carCatalog';
 
 export function CarPic({ body, color, image, className = 'w-6 h-12' }) {
   if (image) return <img src={image} alt="" className={`${className} object-contain scale-125`} />;
@@ -18,11 +19,19 @@ function VehicleForm({ onSave, onClose, saving, error }) {
   const [nickname, setNickname] = useState('');
   const [color, setColor] = useState('#00BFFF');
   const [body, setBody] = useState('sedan');
+  const [catalogId, setCatalogId] = useState('');
+  const quickPick = (id) => {
+    setCatalogId(id);
+    const c = CATALOG.find((x) => x.id === id);
+    if (!c) return;
+    setMake(c.make); setModel(c.model); setYear(String(c.years[1])); setBody(iconBody(c.shape));
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!make || !model) return;
-    onSave({ make, model, year: parseInt(year) || new Date().getFullYear(), nickname, color, body });
+    const c = CATALOG.find((x) => x.id === catalogId && x.make === make && x.model === model);
+    onSave({ make, model, year: parseInt(year) || new Date().getFullYear(), nickname, color, body, ...(c ? { catalog_id: c.id, shape: c.shape, ...(c.model3d ? { model3d: c.model3d } : {}) } : {}) });
   };
 
   return (
@@ -33,6 +42,13 @@ function VehicleForm({ onSave, onClose, saving, error }) {
           <button onClick={onClose}><X className="w-5 h-5 text-muted-foreground" /></button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Pick your car</label>
+            <select value={catalogId} onChange={(e) => quickPick(e.target.value)} className="w-full bg-secondary rounded-xl px-4 py-3 text-foreground text-sm border border-border focus:border-primary outline-none">
+              <option value="">Choose from the list (or type below)</option>
+              {CATALOG.map((c) => <option key={c.id} value={c.id}>{c.make} {c.model} ({c.years[0]}–{c.years[1]})</option>)}
+            </select>
+          </div>
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">Make</label>
             <input value={make} onChange={e => setMake(e.target.value)} placeholder="BMW"
@@ -152,7 +168,7 @@ export default function GarageManager({ compact = false }) {
               {(() => { const due = reminders(v, trips).filter(r => r.status === 'overdue' || r.status === 'soon'); return due.length > 0 && (
                 <div className={`text-[10px] font-semibold mt-1 ${due.some(r => r.status === 'overdue') ? 'text-destructive' : 'text-amber-400'}`}>🔧 {due.map(r => r.label).join(', ')} due</div>
               ); })()}
-              <div className="text-[10px] text-primary mt-1 flex items-center">Service, mods & odometer <ChevronRight className="w-3 h-3" /></div>
+              <div className="text-[10px] text-primary mt-1 flex items-center">Build, service & mods <ChevronRight className="w-3 h-3" /></div>
             </button>
             {activeVehicle?.id === v.id ? (
               <span className="text-[10px] font-bold text-accent bg-accent/10 rounded-full px-2 py-1">Driving</span>

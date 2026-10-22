@@ -4,7 +4,7 @@ import { SCHEMA, MIGRATIONS } from "./schema.js";
 import { FILES } from "./static/index.js";
 
 const ENTITIES = new Set(["Vehicle", "Trip", "Route", "Place"]);
-const BODY_TYPES = new Set(["sports", "sedan", "suv", "truck", "moto"]);
+const BODY_TYPES = new Set(["hatch", "sports", "sedan", "suv", "truck", "moto"]);
 const SESSION_COOKIE = "dz_session";
 const SESSION_DAYS = 60;
 const LIVE_FRESH_MS = 2 * 60 * 1000;
@@ -516,7 +516,12 @@ async function handleApi(req, env, ctx, url) {
       const cars = results.map((r) => JSON.parse(r.data));
       const v = cars.find((c) => c.is_primary) || cars[0];
       if (v) {
-        if (can("car")) out.car = { make: v.make, model: v.model, year: v.year, nickname: v.nickname || "", color: v.color, body: v.body, image_url: v.image_url || null };
+        if (can("car")) out.car = {
+          make: v.make, model: v.model, year: v.year, nickname: v.nickname || "", color: v.color, body: v.body, image_url: v.image_url || null,
+          catalog_id: v.catalog_id || null, shape: v.shape || null, wheels: v.wheels || null, wheel_color: v.wheel_color || null,
+          glow_on: v.glow_on, glow_color: v.glow_color || null, scoop: v.scoop ?? null, wing: v.wing ?? null, model3d: v.model3d || null, display: v.display || null, paint: v.paint || null,
+          specs: v.specs || null,
+        };
         if (can("mods")) out.mods = (v.mods || []).map((m) => ({ name: m.name, category: m.category || "", note: m.note || "" }));
       }
     }
