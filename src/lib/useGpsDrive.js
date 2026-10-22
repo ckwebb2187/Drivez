@@ -4,6 +4,14 @@ import { api } from '@/api/base44Client';
 
 const MPS_TO_MPH = 2.23694;
 const LIVE_EVERY_MS = 10000; // share position with friends every 10 s
+const G_MPH_PER_S = 21.94;    // 1 g of acceleration = 21.94 mph per second
+
+// Personal drive stats (no leaderboards, so they don't encourage racing):
+// peak g-force from the phone's motion sensor, best 0-60, hard brakes / launches, smoothness.
+function emptyStats() { return { maxG: 0, best060: null, hardBrakes: 0, hardAccels: 0 }; }
+export function smoothnessScore(st) {
+  return Math.max(0, Math.min(100, Math.round(100 - st.hardBrakes * 8 - st.hardAccels * 5 - (st.maxG > 0.7 ? 10 : 0))));
+}
 
 export function useGpsDrive(car) {
   const carRef = useRef(car);
@@ -19,6 +27,10 @@ export function useGpsDrive(car) {
   const [speedHistory, setSpeedHistory] = useState([]);
   const [gpsWaiting, setGpsWaiting] = useState(false);
   const [heading, setHeading] = useState(null);
+  const [stats, setStats] = useState(emptyStats);
+  const statsRef = useRef(emptyStats());
+  const kin = useRef({ lastMph: null, lastT: null, stopAt: null, cool: 0, g: 0 });
+  const motionOn = useRef(false);
 
   const watchIdRef = useRef(null);
   const timerRef = useRef(null);
@@ -95,6 +107,27 @@ export function useGpsDrive(car) {
     }
     lastFixRef.current = { lat: latitude, lng: longitude, timestamp: pos.timestamp };
 
+    // Hard brakes / launches (from speed change) and 0-60 timing.
+    const k = kin.current, st = statsRef.current, now = pos.timestamp;
+    if (k.lastT != null) {
+      const dt = (now - k.lastT) / 1000;
+      if (dt > 0.3 && dt < 5) {
+        const gLong = (mph - k.lastMph) / dt / G_MPH_PER_S;
+        if (now > k.cool && gLong <= -0.4) { st.hardBrakes++; k.cool = now + 5000; }
+        else if (now > k.cool && gLong >= 0.35) { st.hardAccels++; k.cool = now + 5000; }
+      }
+    }
+    if (mph < 3) k.stopAt = now;
+    else if (k.stopAt && mph >= 60 && k.lastMph < 60) {
+      const frac = k.lastMph != null && mph !== k.lastMph ? (60 - k.lastMph) / (mph - k.lastMph) : 1;
+      const tHit = k.lastT + frac * (now - k.lastT);
+      const secs = (tHit - k.stopAt) / 1000;
+      if (secs > 2.5 && secs < 25) st.best060 = st.best060 == null ? secs : Math.min(st.best060, secs);
+      k.stopAt = null;
+    } else if (k.stopAt && now - k.stopAt > 30000) k.stopAt = null;
+    k.lastMph = mph; k.lastT = now;
+    setStats({ ...st, maxG: Math.max(st.maxG, k.g) });
+
     setCurrentPosition([latitude, longitude]);
     if (hd != null && !Number.isNaN(hd) && mph > 2) setHeading(hd);
     setCurrentSpeed(mph);
@@ -123,8 +156,32 @@ export function useGpsDrive(car) {
     setGpsWaiting(true);
   }, [stopWatching]);
 
+  // Peak g-force from the motion sensor (smoothed; ignores phone drops/bumps above 2 g).
+  const onMotion = useCallback((e) => {
+    const a = e.acceleration;
+    if (!a || a.x == null) return;
+    const g = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z) / 9.81;
+    const k = kin.current;
+    k.g = k.g * 0.8 + g * 0.2;
+    if (k.g < 2 && k.g > statsRef.current.maxG) statsRef.current.maxG = Math.round(k.g * 100) / 100;
+  }, []);
+  const startMotion = useCallback(async () => {
+    try {
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        if ((await DeviceMotionEvent.requestPermission()) !== 'granted') return;
+      }
+      window.addEventListener('devicemotion', onMotion);
+      motionOn.current = true;
+    } catch { /* no motion sensor: g-force just stays 0 */ }
+  }, [onMotion]);
+  const stopMotion = useCallback(() => { window.removeEventListener('devicemotion', onMotion); motionOn.current = false; }, [onMotion]);
+
   const start = useCallback(() => {
     setError(null);
+    statsRef.current = emptyStats();
+    kin.current = { lastMph: null, lastT: null, stopAt: null, cool: 0, g: 0 };
+    setStats(emptyStats());
+    startMotion();
     distRef.current = 0;
     lastFixRef.current = null;
     gotFixRef.current = false;
@@ -143,16 +200,21 @@ export function useGpsDrive(car) {
       enableHighAccuracy: true,
       maximumAge: 0
     });
-  }, [handleFix, handleError, acquireWakeLock]);
+  }, [handleFix, handleError, acquireWakeLock, startMotion]);
 
   const end = useCallback(() => {
+    stopMotion();
+    setStats({ ...statsRef.current });
     stopWatching();
     releaseWakeLock();
     stopLive();
     setStatus('ended');
-  }, [stopWatching, releaseWakeLock, stopLive]);
+  }, [stopWatching, releaseWakeLock, stopLive, stopMotion]);
 
   const reset = useCallback(() => {
+    stopMotion();
+    statsRef.current = emptyStats();
+    setStats(emptyStats());
     stopWatching();
     releaseWakeLock();
     stopLive();
@@ -171,7 +233,7 @@ export function useGpsDrive(car) {
     setSpeedHistory([]);
     setGpsWaiting(false);
     setHeading(null);
-  }, [stopWatching, releaseWakeLock, stopLive]);
+  }, [stopWatching, releaseWakeLock, stopLive, stopMotion]);
 
   // Reacquire the wake lock when returning to the foreground mid-drive
   useEffect(() => {
@@ -184,6 +246,7 @@ export function useGpsDrive(car) {
 
   return {
     status, error, currentSpeed, distance, elapsedTime, route,
-    currentPosition, heading, maxSpeed, speedHistory, gpsWaiting, start, end, reset
+    currentPosition, heading, maxSpeed, speedHistory, gpsWaiting, start, end, reset,
+    stats: { ...stats, smoothness: smoothnessScore(stats) },
   };
 }

@@ -159,6 +159,30 @@ export default function TripDetailPage() {
           <DiscordShareButton tripId={trip.id} />
         </div>
 
+        {/* Personal drive stats (just for you, no leaderboard) */}
+        {(trip.smoothness != null || trip.max_g || trip.best_0_60) && (
+          <div className="bg-card rounded-2xl p-4 border border-border mt-3">
+            <div className="text-sm font-semibold text-foreground mb-3">Drive stats</div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-secondary/50 rounded-xl p-2.5 text-center">
+                <div className="text-lg font-bold speed-font text-[#34A853]">{trip.smoothness ?? '—'}</div>
+                <div className="text-[10px] text-muted-foreground">Smoothness</div>
+              </div>
+              <div className="bg-secondary/50 rounded-xl p-2.5 text-center">
+                <div className="text-lg font-bold speed-font text-foreground">{trip.max_g ? `${trip.max_g.toFixed(2)}g` : '—'}</div>
+                <div className="text-[10px] text-muted-foreground">Peak g-force</div>
+              </div>
+              <div className="bg-secondary/50 rounded-xl p-2.5 text-center">
+                <div className="text-lg font-bold speed-font text-foreground">{trip.best_0_60 ? `${trip.best_0_60}s` : '—'}</div>
+                <div className="text-[10px] text-muted-foreground">0–60</div>
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-2">
+              {trip.hard_brakes || 0} hard brakes · {trip.hard_accels || 0} hard launches. These are only shown to you; drive safe and keep the fun for the track.
+            </p>
+          </div>
+        )}
+
         {/* Route replay controls */}
         <div className="bg-card rounded-2xl p-4 border border-border mt-3">
           <div className="flex items-center justify-between mb-3">
@@ -174,7 +198,7 @@ export default function TripDetailPage() {
           />
           <div className="flex items-center justify-between mt-1">
             <span className="text-[10px] text-muted-foreground">Start</span>
-            <span className="text-[10px] text-muted-foreground">{Math.round(replayProgress * 100)}%</span>
+            <span className="text-[10px] text-muted-foreground">{Math.round(replayProgress * 100)}%{trip.speeds?.length ? ` · ${trip.speeds[Math.min(trip.speeds.length - 1, visibleCount - 1)]} mph` : ''}</span>
             <span className="text-[10px] text-muted-foreground">End</span>
           </div>
         </div>

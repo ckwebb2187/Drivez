@@ -142,7 +142,12 @@ export default function LiveDrive({ active = true }) {
         vehicle_id: activeVehicle ? activeVehicle.id : null,
         route_points: routePoints,
         start_location: startLocation,
-        end_location: endLocation
+        end_location: endLocation,
+        max_g: drive.stats.maxG || null,
+        best_0_60: drive.stats.best060 ? Math.round(drive.stats.best060 * 10) / 10 : null,
+        hard_brakes: drive.stats.hardBrakes,
+        hard_accels: drive.stats.hardAccels,
+        smoothness: drive.stats.smoothness,
       });
       drive.reset();
       navigate(`/trip/${rec.id}`);
@@ -457,6 +462,25 @@ export default function LiveDrive({ active = true }) {
                   </div>
                 </div>
               </div>
+
+              {/* Personal drive stats (just for you; no leaderboard) */}
+              <div className="grid grid-cols-3 gap-2 mb-5">
+                <div className="bg-card/80 rounded-2xl p-3 border border-border text-center">
+                  <div className="text-xl font-bold speed-font text-[#34A853]">{drive.stats.smoothness}</div>
+                  <div className="text-[10px] text-muted-foreground">Smoothness</div>
+                </div>
+                <div className="bg-card/80 rounded-2xl p-3 border border-border text-center">
+                  <div className="text-xl font-bold speed-font text-foreground">{drive.stats.maxG ? drive.stats.maxG.toFixed(2) : '—'}<span className="text-xs">g</span></div>
+                  <div className="text-[10px] text-muted-foreground">Peak g-force</div>
+                </div>
+                <div className="bg-card/80 rounded-2xl p-3 border border-border text-center">
+                  <div className="text-xl font-bold speed-font text-foreground">{drive.stats.best060 ? `${drive.stats.best060.toFixed(1)}s` : '—'}</div>
+                  <div className="text-[10px] text-muted-foreground">0–60</div>
+                </div>
+              </div>
+              {(drive.stats.hardBrakes > 0 || drive.stats.hardAccels > 0) && (
+                <p className="text-[11px] text-muted-foreground text-center -mt-3 mb-4">{drive.stats.hardBrakes} hard brake{drive.stats.hardBrakes === 1 ? '' : 's'} · {drive.stats.hardAccels} hard launch{drive.stats.hardAccels === 1 ? '' : 'es'}</p>
+              )}
 
               {saveError && <p className="text-xs text-destructive mb-3 text-center">{saveError}</p>}
 
