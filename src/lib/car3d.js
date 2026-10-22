@@ -113,59 +113,263 @@ export function buildCar({ body = '#1f5ad6', glow = null } = {}) {
   return car;
 }
 
-// Your own WRX: the uploaded top-down picture becomes the top of a 3D body,
-// with matching side panels, wheels, and the underglow on the road.
-export function buildPictureCar({ picture, aspect, body = '#1f5ad6', glow = null }) {
-  const car = new THREE.Group();
-  const len = LEN, wid = LEN * aspect;
-  const paint = new THREE.MeshStandardMaterial({ color: body, metalness: 0.5, roughness: 0.35 });
-  const black = new THREE.MeshStandardMaterial({ color: '#0e0e10', roughness: 0.7 });
+// ---------- WRX STI (2015-2017 "VA") body, to real proportions ----------
+// Length 4.6 m, width 1.8 m, height 1.48 m, wheelbase 2.65 m. Front is -Z.
+const WRX = { L: 4.6, ground: 0.2, axleF: 0.205, axleR: 0.78 };
+const smooth = (a, b, t) => { const x = Math.min(1, Math.max(0, (t - a) / (b - a))); return x * x * (3 - 2 * x); };
+const lerp = (a, b, k) => a + (b - a) * k;
+const bump = (t, c, w) => Math.exp(-(((t - c) / w) ** 2));
 
-  // Body sides: a slightly inset, well-rounded slab so the picture's own outline defines the shape.
-  const inset = 0.94;
-  const sideShape = carShape(len * inset, wid * inset, wid * 0.16, wid * 0.08);
-  car.add(slab(sideShape, 0.78, 0.3, paint, 0.08));
-  // Darker sill along the bottom.
-  car.add(slab(carShape(len * 0.9, wid * 0.9, wid * 0.14, wid * 0.06), 0.14, 0.24, black, 0.02));
-
-  // The picture on top.
-  const tex = new THREE.CanvasTexture(picture);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  const top = new THREE.Mesh(
-    new THREE.PlaneGeometry(wid, len),
-    new THREE.MeshStandardMaterial({ map: tex, transparent: true, alphaTest: 0.5, metalness: 0.35, roughness: 0.4 })
-  );
-  top.rotation.x = -Math.PI / 2; // lie flat; picture's top (front) points to -Z
-  top.position.y = 1.17;
-  car.add(top);
-
-  // Tail lights on the back and headlights on the front of the body.
-  const tailMat = new THREE.MeshBasicMaterial({ color: '#ff1e1e' });
-  const headMat = new THREE.MeshBasicMaterial({ color: '#fff4d6' });
-  for (const side of [-1, 1]) {
-    const t = new THREE.Mesh(new THREE.BoxGeometry(wid * 0.26, 0.12, 0.05), tailMat);
-    t.position.set(side * wid * 0.29, 0.92, (len * inset) / 2 + 0.07);
-    car.add(t);
-    const h = new THREE.Mesh(new THREE.BoxGeometry(wid * 0.22, 0.1, 0.05), headMat);
-    h.position.set(side * wid * 0.27, 0.86, -(len * inset) / 2 - 0.07);
-    car.add(h);
+// Roof/hood/trunk height along the car (t: 0 = front bumper, 1 = rear bumper).
+function wrxTop(t) {
+  const keys = [[0, 0.66], [0.035, 0.84], [0.09, 0.93], [0.3, 1.0], [0.36, 1.18], [0.45, 1.44], [0.62, 1.45], [0.7, 1.36], [0.8, 1.08], [0.84, 1.06], [0.97, 1.03], [0.985, 1.0], [1, 0.95]];
+  for (let i = 1; i < keys.length; i++) {
+    if (t <= keys[i][0]) { const [t0, h0] = keys[i - 1], [t1, h1] = keys[i]; return lerp(h0, h1, smooth(0, 1, (t - t0) / (t1 - t0))); }
   }
+  return 0.95;
+}
+function wrxHalfWidth(t, maxHalf) {
+  let w = 0.9 * smooth(-0.02, 0.07, t) + 0.74 * (1 - smooth(-0.02, 0.07, t));   // tapered nose
+  w = lerp(w, 0.85, smooth(0.95, 1, t));                                          // rounded tail corners
+  w += 0.03 * bump(t, WRX.axleF, 0.06) + 0.035 * bump(t, WRX.axleR, 0.06);        // fender flares
+  return Math.min(w, maxHalf);
+}
+function wrxRoofHalf(t, hw) {
+  const g = smooth(0.3, 0.42, t) * (1 - smooth(0.7, 0.82, t)); // 1 inside the greenhouse
+  return lerp(hw - 0.07, 0.6, g);
+}
 
-  // Wheels peeking out at the corners.
-  const wheelGeo = new THREE.CylinderGeometry(0.36, 0.36, 0.28, 20);
-  wheelGeo.rotateZ(Math.PI / 2);
-  const wx = wid / 2 - 0.12, wz = len * 0.31;
-  for (const [x, z] of [[-wx, -wz], [wx, -wz], [-wx, wz], [wx, wz]]) {
-    const w = new THREE.Mesh(wheelGeo, black);
-    w.position.set(x, 0.36, z);
-    car.add(w);
+// Lofted body with the picture projected from above (so the paint, scoop, sunroof and windows line up).
+function wrxBodyGeometry(PW, PL, maxHalf) {
+  const N = 64, ring = [];
+  const pos = [], uv = [], idx = [];
+  const L = WRX.L;
+  for (let i = 0; i <= N; i++) {
+    const t = i / N, z = -L / 2 + t * L;
+    const top = wrxTop(t), hw = wrxHalfWidth(t, maxHalf);
+    const greenhouse = top > 1.06;
+    const belt = greenhouse ? 0.99 : top - 0.05;
+    const tw = greenhouse ? wrxRoofHalf(t, hw) : hw - 0.07;
+    const hwb = hw - 0.07, y0 = WRX.ground;
+    const pts = [
+      [-hwb, y0], [-hw, 0.42], [-hw, belt - 0.07], [-(hw - 0.025), belt],
+      [-tw, top - 0.035], [-(tw - 0.06), top], [tw - 0.06, top], [tw, top - 0.035],
+      [hw - 0.025, belt], [hw, belt - 0.07], [hw, 0.42], [hwb, y0],
+    ];
+    ring.push(pts.length);
+    for (const [x, y] of pts) {
+      pos.push(x, y, z);
+      uv.push(x / PW + 0.5, 1 - (z + PL / 2) / PL);
+    }
+  }
+  const M = ring[0];
+  // Three parts: top (picture), side glass (greenhouse), painted sides/bottom.
+  const topIdx = [], glassIdx = [], sideIdx = [];
+  for (let i = 0; i < N; i++) for (let j = 0; j < M; j++) {
+    const a = i * M + j, b = i * M + ((j + 1) % M), c = (i + 1) * M + j, d = (i + 1) * M + ((j + 1) % M);
+    const tMid = (i + 0.5) / N;
+    const inGreenhouse = wrxTop(tMid) > 1.1 && tMid > 0.33 && tMid < 0.8;
+    const list = (j >= 4 && j <= 6) ? topIdx : (j === 3 || j === 7) ? (inGreenhouse ? glassIdx : topIdx) : sideIdx;
+    list.push(a, c, b, b, c, d);
+  }
+  idx.push(...topIdx, ...glassIdx, ...sideIdx);
+  const groups = [[0, topIdx.length, 0], [topIdx.length, glassIdx.length, 1], [topIdx.length + glassIdx.length, sideIdx.length, 2]];
+  // Front and rear faces.
+  for (const [i, flip] of [[0, false], [N, true]]) {
+    const base = pos.length / 3;
+    let cx = 0, cy = 0;
+    for (let j = 0; j < M; j++) { cx += pos[(i * M + j) * 3]; cy += pos[(i * M + j) * 3 + 1]; }
+    const z = pos[i * M * 3 + 2];
+    pos.push(cx / M, cy / M, z); uv.push(0.5, flip ? 0.0 : 1.0);
+    for (let j = 0; j < M; j++) {
+      const a = i * M + j, b = i * M + ((j + 1) % M);
+      if (flip) idx.push(base, a, b); else idx.push(base, b, a);
+    }
+  }
+  const capStart = groups[2][0] + groups[2][1];
+  groups.push([capStart, idx.length - capStart, 2]);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  for (const [start, count, mat] of groups) g.addGroup(start, count, mat);
+  g.computeVertexNormals();
+  return g;
+}
+
+// 2015-2017 WRX STI tail lights: wraparound clusters (quarter panel -> corner -> trunk lid)
+// with the C-shaped LED outline inside each lens.
+function wrxTailLights(hwRear) {
+  const group = new THREE.Group();
+  const lens = new THREE.MeshStandardMaterial({ color: '#5a0608', emissive: '#7a0000', emissiveIntensity: 0.6, metalness: 0.2, roughness: 0.25 });
+  const led = new THREE.MeshBasicMaterial({ color: '#ff3030' });
+  const zRear = WRX.L / 2 + 0.006;
+  for (const side of [-1, 1]) {
+    // Rear-facing part: tall at the outer corner, narrowing and rising as it runs onto the trunk lid.
+    const sh = new THREE.Shape();
+    const xo = hwRear - 0.02, xi = 0.33;
+    sh.moveTo(xi, 0.955);
+    sh.lineTo(xi + 0.05, 1.005);
+    sh.lineTo(xo - 0.05, 1.0);
+    sh.quadraticCurveTo(xo, 0.995, xo, 0.95);
+    sh.lineTo(xo - 0.01, 0.83);
+    sh.quadraticCurveTo(xo - 0.05, 0.8, xo - 0.12, 0.815);
+    sh.lineTo(xi + 0.16, 0.9);
+    sh.lineTo(xi + 0.02, 0.925);
+    sh.lineTo(xi, 0.955);
+    const g = new THREE.ExtrudeGeometry(sh, { depth: 0.02, bevelEnabled: false });
+    const m = new THREE.Mesh(g, lens);
+    m.scale.x = side;
+    m.position.z = zRear - 0.012;
+    group.add(m);
+    // C-shaped LED signature, opening toward the middle of the car.
+    const cx = side * (xo - 0.17), cy = 0.915;
+    const pts = [];
+    for (let k = 0; k <= 24; k++) {
+      const a = (-0.62 + (k / 24) * 1.24) * Math.PI; // ~220 degrees of a ring
+      pts.push(new THREE.Vector3(cx + side * Math.cos(a) * 0.13, cy + Math.sin(a) * 0.055, zRear + 0.012));
+    }
+    const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.009, 6, false), led);
+    group.add(tube);
+    // Wrap onto the rear quarter panel.
+    const ws = new THREE.Shape();
+    ws.moveTo(0, 0.83); ws.lineTo(0.22, 0.86); ws.lineTo(0.26, 0.97); ws.lineTo(0.02, 0.99); ws.lineTo(0, 0.83);
+    const wg = new THREE.ExtrudeGeometry(ws, { depth: 0.012, bevelEnabled: false });
+    const wrap = new THREE.Mesh(wg, lens);
+    wrap.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+    wrap.position.set(side * (hwRear + 0.004 + (side > 0 ? 0 : 0.012)), 0, zRear - 0.004);
+    if (side < 0) { wrap.rotation.y = Math.PI / 2; wrap.position.x = -(hwRear + 0.016); wrap.position.z = zRear - 0.004; }
+    group.add(wrap);
+  }
+  // Third brake light on the wing, quad exhaust tips under the bumper.
+  const pipeMat = new THREE.MeshStandardMaterial({ color: '#b9bcc2', metalness: 0.9, roughness: 0.25 });
+  for (const x of [-0.62, -0.47, 0.47, 0.62]) {
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.12, 14), pipeMat);
+    p.rotation.x = Math.PI / 2;
+    p.position.set(x, 0.3, WRX.L / 2 + 0.02);
+    group.add(p);
+  }
+  return group;
+}
+
+// Soft underglow that follows the car's outline (from the car's own silhouette).
+function glowFromMask(mask, color, pad) {
+  const w = mask.width, h = mask.height;
+  const c = document.createElement('canvas');
+  c.width = Math.round(w * pad); c.height = Math.round(h * pad);
+  const g = c.getContext('2d');
+  const tint = document.createElement('canvas');
+  tint.width = w; tint.height = h;
+  const tg = tint.getContext('2d');
+  tg.drawImage(mask, 0, 0);
+  tg.globalCompositeOperation = 'source-in';
+  tg.fillStyle = color;
+  tg.fillRect(0, 0, w, h);
+  const blur = Math.round(Math.max(w, h) * 0.045);
+  const ox = (c.width - w) / 2, oy = (c.height - h) / 2;
+  g.filter = `blur(${blur}px)`;
+  for (let k = 0; k < 3; k++) g.drawImage(tint, ox - w * 0.04, oy - h * 0.025, w * 1.08, h * 1.05); // a bit wider than the car
+  g.filter = `blur(${Math.round(blur / 2.5)}px)`;
+  g.drawImage(tint, ox, oy, w, h); // brighter rim right under the edges
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+export function buildPictureCar({ picture, texture, aspect, body = '#1f5ad6', glow = null }) {
+  const car = new THREE.Group();
+  const PL = WRX.L, PW = WRX.L * aspect;               // the picture's size in meters
+  const maxHalf = Math.min(0.92, (PW / 2) * 0.9);       // leave the mirrors outside the body
+  const map = new THREE.CanvasTexture(texture || picture);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.anisotropy = 4;
+  const paint = new THREE.MeshStandardMaterial({ map, metalness: 0.45, roughness: 0.32, side: THREE.DoubleSide });
+  const plain = new THREE.MeshStandardMaterial({ color: body, metalness: 0.5, roughness: 0.32, side: THREE.DoubleSide });
+  const sideGlass = new THREE.MeshStandardMaterial({ color: '#0b0e14', metalness: 0.3, roughness: 0.08, side: THREE.DoubleSide });
+  car.add(new THREE.Mesh(wrxBodyGeometry(PW, PL, maxHalf), [paint, sideGlass, plain]));
+
+  const black = new THREE.MeshStandardMaterial({ color: '#0d0d10', roughness: 0.75 });
+  const carbon = new THREE.MeshStandardMaterial({ color: '#17171b', metalness: 0.5, roughness: 0.4 });
+  const rimMat = new THREE.MeshStandardMaterial({ color: '#2a2c31', metalness: 0.8, roughness: 0.3 });
+
+  // Mirrors.
+  for (const side of [-1, 1]) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.13), plain);
+    m.position.set(side * (wrxHalfWidth(0.34, maxHalf) + 0.09), 1.02, -WRX.L / 2 + 0.34 * WRX.L);
+    car.add(m);
+  }
+  // STI wing on two pedestals.
+  const wingZ = WRX.L / 2 - 0.24;
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(1.62, 0.045, 0.3), carbon);
+  wing.position.set(0, 1.33, wingZ);
+  wing.rotation.x = -0.08;
+  car.add(wing);
+  for (const x of [-0.58, 0.58]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.16), carbon);
+    post.position.set(x, 1.17, wingZ + 0.02);
+    car.add(post);
+  }
+  for (const x of [-0.81, 0.81]) { // end plates
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.1, 0.34), carbon);
+    plate.position.set(x, 1.33, wingZ);
+    car.add(plate);
+  }
+  // Tail lights, exhaust.
+  car.add(wrxTailLights(wrxHalfWidth(1, maxHalf)));
+  // Front: hawk-eye headlights, hexagon grille, big lower intake.
+  const zF = -WRX.L / 2 - 0.006;
+  const flat = (shape, mat, z, sx = 1) => { const m = new THREE.Mesh(new THREE.ShapeGeometry(shape), mat); m.scale.x = sx; m.position.z = z; m.rotation.y = Math.PI; m.scale.x *= -1; return m; };
+  const lensMat = new THREE.MeshStandardMaterial({ color: '#c9d0d8', metalness: 0.9, roughness: 0.15, emissive: '#3a3f46', side: THREE.DoubleSide });
+  const ledMat = new THREE.MeshBasicMaterial({ color: '#fffaf0', side: THREE.DoubleSide });
+  const amber = new THREE.MeshBasicMaterial({ color: '#ffa31a', side: THREE.DoubleSide });
+  const blackFlat = new THREE.MeshStandardMaterial({ color: '#0a0a0c', roughness: 0.6, side: THREE.DoubleSide });
+  for (const side of [-1, 1]) {
+    // Swept "hawk-eye" lens: low and pointed at the grille, wide and tall at the corner.
+    const hs = new THREE.Shape();
+    hs.moveTo(0.36, 0.7); hs.lineTo(0.5, 0.735); hs.lineTo(0.72, 0.76); hs.quadraticCurveTo(0.77, 0.77, 0.75, 0.82);
+    hs.lineTo(0.56, 0.815); hs.lineTo(0.4, 0.765); hs.lineTo(0.36, 0.7);
+    car.add(flat(hs, lensMat, zF, side));
+    // LED "C" running light along the lower edge, amber marker at the corner.
+    const ls = new THREE.Shape();
+    ls.moveTo(0.4, 0.712); ls.lineTo(0.72, 0.765); ls.lineTo(0.72, 0.78); ls.lineTo(0.42, 0.728); ls.lineTo(0.4, 0.712);
+    car.add(flat(ls, ledMat, zF - 0.002, side));
+    const am = new THREE.Shape();
+    am.moveTo(0.7, 0.785); am.lineTo(0.75, 0.79); am.lineTo(0.745, 0.815); am.lineTo(0.69, 0.81); am.lineTo(0.7, 0.785);
+    car.add(flat(am, amber, zF - 0.002, side));
+  }
+  const grille = new THREE.Shape();
+  grille.moveTo(-0.3, 0.6); grille.lineTo(0.3, 0.6); grille.lineTo(0.36, 0.69); grille.lineTo(0.3, 0.76); grille.lineTo(-0.3, 0.76); grille.lineTo(-0.36, 0.69); grille.lineTo(-0.3, 0.6);
+  car.add(flat(grille, blackFlat, zF));
+  const intake = new THREE.Shape();
+  intake.moveTo(-0.62, 0.3); intake.lineTo(0.62, 0.3); intake.lineTo(0.55, 0.47); intake.lineTo(-0.55, 0.47); intake.lineTo(-0.62, 0.3);
+  car.add(flat(intake, blackFlat, zF));
+
+  // Rear: black diffuser (exhaust tips sit in it) and the plate recess on the trunk lid.
+  const zR = WRX.L / 2 + 0.006;
+  const diff = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.2), blackFlat);
+  diff.position.set(0, 0.32, zR);
+  car.add(diff);
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.13), new THREE.MeshStandardMaterial({ color: '#e8e8e8', roughness: 0.6, side: THREE.DoubleSide }));
+  plate.position.set(0, 0.86, zR + 0.001);
+  car.add(plate);
+  const plateRecess = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.18), blackFlat);
+  plateRecess.position.set(0, 0.86, zR);
+  car.add(plateRecess);
+
+  // Wheels: black tire + dark gunmetal rim, sitting in the flares.
+  const tireGeo = new THREE.CylinderGeometry(0.33, 0.33, 0.25, 26); tireGeo.rotateZ(Math.PI / 2);
+  const rimGeo = new THREE.CylinderGeometry(0.23, 0.23, 0.02, 20); rimGeo.rotateZ(Math.PI / 2);
+  for (const t of [WRX.axleF, WRX.axleR]) for (const side of [-1, 1]) {
+    const x = side * (wrxHalfWidth(t, maxHalf) - 0.1), z = -WRX.L / 2 + t * WRX.L;
+    const tire = new THREE.Mesh(tireGeo, black); tire.position.set(x, 0.33, z); car.add(tire);
+    const rim = new THREE.Mesh(rimGeo, rimMat); rim.position.set(x + side * 0.126, 0.33, z); car.add(rim);
   }
 
   if (glow) {
+    const pad = 1.5;
     const pool = new THREE.Mesh(
-      new THREE.PlaneGeometry(wid * 2.6, len * 1.6),
-      new THREE.MeshBasicMaterial({ map: glowTexture(glow), transparent: true, depthWrite: false, opacity: 0.9 })
+      new THREE.PlaneGeometry(PW * pad, PL * pad),
+      new THREE.MeshBasicMaterial({ map: glowFromMask(picture, glow, pad), transparent: true, depthWrite: false, opacity: 0.95 })
     );
     pool.rotation.x = -Math.PI / 2;
     pool.position.y = 0.03;
@@ -254,7 +458,15 @@ export async function prepareCarPicture(src) {
   car.width = maxX - minX + 1; car.height = maxY - minY + 1;
   car.getContext('2d').drawImage(c, minX, minY, car.width, car.height, 0, 0, car.width, car.height);
   const hex = (r, g2, b, n) => `#${[r, g2, b].map((v) => Math.round(v / n).toString(16).padStart(2, '0')).join('')}`;
+  // Texture for the 3D body: the picture over its own paint color (so no see-through gaps).
+  const texture = document.createElement('canvas');
+  texture.width = car.width; texture.height = car.height;
+  const tx = texture.getContext('2d');
+  tx.fillStyle = bn ? hex(br, bg, bb, bn) : '#1f5ad6';
+  tx.fillRect(0, 0, car.width, car.height);
+  tx.drawImage(car, 0, 0);
   return {
+    texture,
     picture: car,
     aspect: car.width / car.height,
     body: bn ? hex(br, bg, bb, bn) : null,
