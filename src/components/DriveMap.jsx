@@ -118,6 +118,7 @@ function DriveMapInner({
     map.once('load', () => box.current?.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'));
     map.touchZoomRotate.disableRotation();
     mapRef.current = map;
+    window.__dzMap = map; // handy for debugging and tests
 
     // A finger on the map pauses the camera so you can drag it; a real drag/zoom tells the screen.
     const userMoved = (e) => { if (e.originalEvent) { live.current.moved = true; live.current.onUserMove?.(); } };

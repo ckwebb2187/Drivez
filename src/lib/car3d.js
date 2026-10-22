@@ -301,6 +301,9 @@ export function car3dLayer({ id = 'dz-car3d', colors, getPose, screenLength = 11
         .multiply(new THREE.Matrix4().makeRotationY((-pose.bearing * Math.PI) / 180));
       camera.projectionMatrix = m.multiply(l);
       renderer.resetState();
+      // Your car is always drawn on top: 3D buildings must never hide it (it's drawn
+      // bigger than life so it stays readable, which makes it poke into nearby buildings).
+      renderer.clearDepth();
       renderer.render(scene, camera);
     },
     onRemove() { renderer?.dispose(); },
