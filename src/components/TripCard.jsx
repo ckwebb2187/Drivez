@@ -1,9 +1,10 @@
+import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Gauge, MapPin, Clock, TrendingUp } from 'lucide-react';
 import RouteThumbnail from './RouteThumbnail';
 import { formatDuration, formatTimeAgo, getInitials } from '@/lib/helpers';
 
-export default function TripCard({ trip, vehicle }) {
+function TripCard({ trip, vehicle }) {
   const navigate = useNavigate();
 
   return (
@@ -13,7 +14,7 @@ export default function TripCard({ trip, vehicle }) {
     >
       <div className="relative h-32 bg-secondary">
         <RouteThumbnail route={trip.route} className="w-full h-full" color={trip.userColor || '#00BFFF'} />
-        <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full glass max-w-[70%]">
+        <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-black/55 max-w-[70%]">
           <span className="text-[10px] font-medium text-foreground truncate block">
             {trip.imported && !trip.start_location
               ? `From ${trip.source === 'waze' ? 'Waze' : trip.source === 'gpx' ? 'GPX file' : 'Google Maps'}`
@@ -21,7 +22,7 @@ export default function TripCard({ trip, vehicle }) {
           </span>
         </div>
         {trip.isFriendTrip && (
-          <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 rounded-full glass">
+          <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/55">
             <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ backgroundColor: trip.userColor }}>
               {getInitials(trip.userName)}
             </div>
@@ -64,3 +65,6 @@ export default function TripCard({ trip, vehicle }) {
     </div>
   );
 }
+
+// Cards only redraw when their own drive changes.
+export default memo(TripCard);

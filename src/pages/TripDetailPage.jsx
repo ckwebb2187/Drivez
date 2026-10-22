@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Polyline, CircleMarker } from 'react-leaflet';
-import { ChevronLeft, TrendingUp, Gauge, Clock, Route, MapPin, Play, Pause, Bookmark, Check, Loader2 } from 'lucide-react';
+import { ChevronLeft, TrendingUp, Gauge, Clock, Route, MapPin, Play, Pause, Bookmark, Check, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, YAxis, XAxis, Tooltip } from 'recharts';
 import DarkMap from '@/components/DarkMap';
 import DiscordShareButton from '@/components/DiscordShareButton';
@@ -11,7 +11,11 @@ import { formatDuration, formatTimeAgo } from '@/lib/helpers';
 export default function TripDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { trips, vehicles, addRoute, loading, scene } = useApp();
+  const { trips, vehicles, addRoute, loading, scene, updateTrip, deleteTrip } = useApp();
+  const [editing, setEditing] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+  const [confirmDel, setConfirmDel] = useState(false);
+  const [busy, setBusy] = useState(false);
   const trip = trips.find(t => t.id === id);
 
   const [replayProgress, setReplayProgress] = useState(1);
@@ -88,7 +92,31 @@ export default function TripDetailPage() {
       {/* Trip info */}
       <div className="px-5 -mt-4 relative z-10">
         <div className="bg-card rounded-2xl p-5 border border-border">
-          <h1 className="text-lg font-bold text-foreground">{trip.title}</h1>
+          {editing ? (
+            <form className="flex gap-2" onSubmit={async (e) => { e.preventDefault(); const t = titleDraft.trim(); if (t) { setBusy(true); try { await updateTrip(trip.id, { title: t.slice(0, 100) }); } finally { setBusy(false); } } setEditing(false); }}>
+              <input autoFocus value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)} className="flex-1 min-w-0 bg-secondary rounded-xl px-3 py-2 text-sm text-foreground border border-border focus:border-primary outline-none" />
+              <button className="bg-primary text-primary-foreground rounded-xl px-3 text-sm font-semibold">{busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}</button>
+            </form>
+          ) : (
+            <div className="flex items-start gap-2">
+              <h1 className="flex-1 text-lg font-bold text-foreground">{trip.title}</h1>
+              <button onClick={() => { setTitleDraft(trip.title || ''); setEditing(true); }} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center shrink-0" aria-label="Rename drive"><Pencil className="w-3.5 h-3.5" /></button>
+              <button onClick={() => setConfirmDel(true)} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center shrink-0" aria-label="Delete drive"><Trash2 className="w-3.5 h-3.5 text-destructive" /></button>
+            </div>
+          )}
+          {confirmDel && (
+            <div className="mt-3 rounded-xl bg-destructive/10 border border-destructive/30 p-3 flex items-center gap-2">
+              <span className="flex-1 text-xs text-foreground">Delete this drive for good?</span>
+              <button onClick={() => setConfirmDel(false)} className="text-xs text-muted-foreground px-2">Cancel</button>
+              <button onClick={async () => { setBusy(true); try { await deleteTrip(trip.id); navigate('/history', { replace: true }); } finally { setBusy(false); } }} className="h-8 px-3 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold">{busy ? '…' : 'Delete'}</button>
+            </div>
+          )}
+          {scene && trip.vehicleId && (
+            <button onClick={() => updateTrip(trip.id, { odo: trip.odo === false })} className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
+              <span className={`w-4 h-4 rounded border flex items-center justify-center ${trip.odo !== false ? 'bg-primary border-primary' : 'border-border'}`}>{trip.odo !== false && <Check className="w-3 h-3 text-primary-foreground" />}</span>
+              Count these miles toward {(() => { const v = vehicles.find((x) => x.id === trip.vehicleId); return v ? (v.nickname || v.model) : 'the car'; })()}'s odometer
+            </button>
+          )}
           <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
             <MapPin className="w-3 h-3" />
             <span>{trip.startLocation}{trip.endLocation ? ` → ${trip.endLocation}` : ''}</span>

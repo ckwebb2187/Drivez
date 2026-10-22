@@ -154,6 +154,8 @@ function DriveMapInner({
     // Animation loop: glide the car between GPS fixes and keep the camera behind it.
     let raf;
     const tick = (now) => {
+      // Hidden behind another screen: do nothing so the rest of the app stays quick.
+      if (!live.current.active) { raf = requestAnimationFrame(tick); return; }
       const a = anim.current;
       if (a.to) {
         const t = Math.min(1, (now - a.t0) / a.dur);
@@ -169,15 +171,18 @@ function DriveMapInner({
         if (f && readyRef.current && !live.current.held && live.current.active && !live.current.previewing) {
           const targetZoom = d ? zoomForSpeed(s) : 16.5;
           a.zoom += (targetZoom - a.zoom) * 0.03;
-          map.jumpTo({
-            center: toLngLat(p),
-            bearing: d ? a.brg : map.getBearing() + angleDiff(map.getBearing(), 0) * 0.08,
-            pitch: d ? Math.min(58, map.getPitch() + 1.5) : Math.max(0, map.getPitch() - 2),
-            zoom: a.zoom,
-          });
+          const c = map.getCenter();
+          const ll = toLngLat(p);
+          const bearing = d ? a.brg : map.getBearing() + angleDiff(map.getBearing(), 0) * 0.08;
+          const pitch = d ? Math.min(58, map.getPitch() + 1.5) : Math.max(0, map.getPitch() - 2);
+          // Only move the camera when something visibly changes; a still map costs nothing.
+          const still = Math.abs(c.lng - ll[0]) < 2e-7 && Math.abs(c.lat - ll[1]) < 2e-7
+            && Math.abs(map.getZoom() - a.zoom) < 0.002 && Math.abs(angleDiff(map.getBearing(), bearing)) < 0.05
+            && Math.abs(map.getPitch() - pitch) < 0.05;
+          if (!still) map.jumpTo({ center: ll, bearing, pitch, zoom: a.zoom });
         }
+        if (t < 1 && live.current.car3d && !f) map.triggerRepaint(); // 3D car gliding while you look around
       }
-      if (live.current.car3d && !live.current.follow) map.triggerRepaint();
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);

@@ -3,6 +3,11 @@ export default function RouteThumbnail({ route, className = '', color = '#00BFFF
     return <div className={`bg-secondary ${className}`} />;
   }
 
+  // A thumbnail only needs ~60 points; long drives have hundreds.
+  if (route.length > 60) {
+    const step = Math.ceil(route.length / 60);
+    route = route.filter((_, i) => i % step === 0 || i === route.length - 1);
+  }
   const lats = route.map(p => p[0]);
   const lngs = route.map(p => p[1]);
   const minLat = Math.min(...lats), maxLat = Math.max(...lats);

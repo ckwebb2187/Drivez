@@ -24,8 +24,9 @@ function groupByDate(trips) {
 export default function History() {
   const { trips, vehicles, loading } = useApp();
   const [filter, setFilter] = useState('all');
+  const [shown, setShown] = useState(15); // draw drives in pages so the screen opens fast
   const filtered = filter === 'all' ? trips : trips.filter(t => t.vehicleId === filter);
-  const grouped = groupByDate(filtered);
+  const grouped = groupByDate(filtered.slice(0, shown));
   const totalMiles = Math.round(trips.reduce((s, t) => s + (t.distance || 0), 0)).toLocaleString();
 
   if (loading) {
@@ -78,6 +79,12 @@ export default function History() {
             </div>
           </div>
         ))}
+
+        {filtered.length > shown && (
+          <button onClick={() => setShown((n) => n + 25)} className="w-full bg-secondary rounded-2xl py-3 text-sm font-semibold text-foreground">
+            Show more ({filtered.length - shown} older)
+          </button>
+        )}
 
         {trips.length === 0 && (
           <div className="text-center py-12">

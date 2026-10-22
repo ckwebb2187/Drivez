@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Ghost, MapPin, Calendar, Eye, EyeOff, Pencil, LogOut, Loader2, Camera, Trash2, ImagePlus, Upload, Star, ChevronRight, Navigation, Flame } from 'lucide-react';
+import { Ghost, MapPin, Calendar, Eye, EyeOff, Pencil, LogOut, Loader2, Camera, Trash2, ImagePlus, Upload, Star, ChevronRight, Navigation, Flame, BarChart3, QrCode, Users, Palette, MessageCircle, ShieldCheck, Smartphone } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import { base44, api } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import StatsDashboard from '@/components/StatsDashboard';
+import StatsDashboard, { StatsRow } from '@/components/StatsDashboard';
+import Collapsible from '@/components/Collapsible';
 import GarageManager from '@/components/GarageManager';
 import FriendsView from '@/components/FriendsView';
 import HeatMapSection from '@/components/HeatMapSection';
@@ -91,7 +92,7 @@ export default function Profile() {
   return (
     <div className="min-h-full">
       {/* Header */}
-      <div className="px-5 pt-12 pb-4">
+      <div className="px-5 pt-[max(24px,env(safe-area-inset-top))] pb-4">
         <div className="flex items-center gap-4">
           <button type="button" onClick={() => setPicMenu(true)} aria-label="Change profile picture" className="relative shrink-0 active:scale-95 transition-transform">
             {user.avatarUrl ? (
@@ -163,91 +164,56 @@ export default function Profile() {
         </div>
       )}
 
-      {/* Ghost mode toggle */}
-      <div className="px-5 mb-4">
-        <button
-          onClick={toggleGhostMode}
-          className="w-full bg-card rounded-2xl p-4 border border-border flex items-center justify-between"
-        >
-          <div className="flex items-center gap-3">
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${user.ghostMode ? 'bg-muted' : 'bg-primary/10'}`}>
-              {user.ghostMode ? <EyeOff className="w-4 h-4 text-muted-foreground" /> : <Eye className="w-4 h-4 text-primary" />}
-            </div>
-            <div className="text-left">
-              <div className="text-sm font-semibold text-foreground">Ghost Mode</div>
-              <div className="text-[10px] text-muted-foreground">{user.ghostMode ? 'Hidden from friends & leaderboards' : 'Visible to friends'}</div>
-            </div>
-          </div>
-          <div className={`w-11 h-6 rounded-full transition-colors relative ${user.ghostMode ? 'bg-muted-foreground' : 'bg-primary'}`}>
-            <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${user.ghostMode ? 'left-0.5' : 'left-[22px]'}`} />
-          </div>
-        </button>
-      </div>
+      <div className="px-5 space-y-3 pb-10">
+        {/* Totals */}
+        <StatsRow stats={stats} />
 
-      {/* Stats highlights */}
-      <div className="px-5 mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-bold text-foreground">Statistics</h2>
-        </div>
-        <StatsDashboard stats={stats} weekly={weeklyStats} />
-      </div>
+        {/* Garage */}
+        <div className="pt-2"><GarageManager /></div>
 
-      {/* Heat map */}
-      <div className="px-5 mb-6">
-        <HeatMapSection />
-      </div>
-
-      {/* Garage */}
-      <div className="px-5 mb-6">
-        <GarageManager />
-      </div>
-
-      {/* Social driver profile + QR sticker */}
-      {scene && (
-        <div className="px-5 mb-6">
-          <ProfileSharing />
-        </div>
-      )}
-
-      {/* Friends */}
-      <div className="px-5 mb-6">
-        <FriendsView />
-      </div>
-
-      {/* Saved places + import */}
-      <div className="px-5 mb-6 space-y-2">
-        <Link to="/places" className="w-full bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
-          <Star className="w-5 h-5 text-amber-400" />
+        <div className="pt-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">You</div>
+        <Collapsible id="charts" icon={BarChart3} title="Charts" subtitle="Drives and speed by week">
+          <StatsDashboard stats={stats} weekly={weeklyStats} chartsOnly />
+        </Collapsible>
+        <Collapsible id="heat" icon={Flame} title="Heat map" subtitle="Everywhere you've driven">
+          <HeatMapSection />
+        </Collapsible>
+        {scene && (
+          <Collapsible id="social" icon={QrCode} title="Driver profile & QR" subtitle="Socials, clubs, window sticker, who sees what">
+            <ProfileSharing />
+          </Collapsible>
+        )}
+        <Collapsible id="friends" icon={Users} title="Friends" subtitle="Add friends, see requests">
+          <FriendsView />
+        </Collapsible>
+        <Link to="/places" className="bg-card rounded-2xl border border-border flex items-center gap-3 px-4 py-3">
+          <Star className="w-4 h-4 text-amber-400" />
           <span className="flex-1 text-sm font-semibold text-foreground">Saved places</span>
           <ChevronRight className="w-4 h-4 text-muted-foreground" />
         </Link>
-        <Link to="/import" className="w-full bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
-          <Upload className="w-5 h-5 text-primary" />
-          <div className="flex-1">
+        <Link to="/import" className="bg-card rounded-2xl border border-border flex items-center gap-3 px-4 py-3">
+          <Upload className="w-4 h-4 text-primary" />
+          <div className="flex-1 min-w-0">
             <div className="text-sm font-semibold text-foreground">Import from Google Maps & Waze</div>
-            <div className="text-[11px] text-muted-foreground">Saved places and past drives</div>
           </div>
           <ChevronRight className="w-4 h-4 text-muted-foreground" />
         </Link>
-      </div>
 
-      {/* Discord */}
-      <div className="px-5 mb-6">
-        <DiscordSettings />
-      </div>
-
-      {/* Map look: theme, battery saver, Japanese names */}
-      <div className="px-5 mb-6">
-        <MapLookSettings />
-      </div>
-
-      {/* App mode */}
-      <div className="px-5 mb-6">
-        <div className="bg-card rounded-2xl border border-border p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-bold text-foreground">App mode</h3>
-            {modeBusy && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+        <div className="pt-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Settings</div>
+        <button onClick={toggleGhostMode} className="w-full bg-card rounded-2xl border border-border flex items-center gap-3 px-4 py-3 text-left">
+          {user.ghostMode ? <EyeOff className="w-4 h-4 text-muted-foreground" /> : <Eye className="w-4 h-4 text-primary" />}
+          <div className="flex-1">
+            <div className="text-sm font-semibold text-foreground">Ghost mode</div>
+            <div className="text-[11px] text-muted-foreground">{user.ghostMode ? 'Hidden from friends & rankings' : 'Friends can see you while you drive'}</div>
           </div>
+          <span className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${user.ghostMode ? 'bg-primary' : 'bg-muted'}`}>
+            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${user.ghostMode ? 'left-[22px]' : 'left-0.5'}`} />
+          </span>
+        </button>
+        <Collapsible id="look" icon={Palette} title="Map look" subtitle="World theme, battery saver, Japanese names">
+          <MapLookSettings />
+        </Collapsible>
+        <Collapsible id="mode" icon={Flame} title="App mode" subtitle={(user.appMode || 'scene') === 'nav' ? 'Just navigation' : 'Car scene'} right={modeBusy ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /> : null}>
           <div className="grid grid-cols-2 gap-2">
             {[['nav', Navigation, 'Just navigation'], ['scene', Flame, 'Car scene']].map(([m, Icon, label]) => (
               <button key={m} onClick={() => switchMode(m)} className={`rounded-xl border px-3 py-3 flex items-center gap-2 text-sm font-semibold ${(user.appMode || 'scene') === m ? 'border-primary bg-primary/10 text-primary' : 'border-border text-foreground'}`}>
@@ -256,27 +222,20 @@ export default function Profile() {
             ))}
           </div>
           <p className="text-[11px] text-muted-foreground mt-2">{scene ? 'All car features are on.' : 'Car features (mods, stats, rankings, driver profile) are hidden. Nothing is deleted.'}</p>
-        </div>
-      </div>
+        </Collapsible>
+        <Collapsible id="discord" icon={MessageCircle} title="Discord" subtitle="Post your drives to a channel">
+          <DiscordSettings />
+        </Collapsible>
+        <Collapsible id="privacy" icon={ShieldCheck} title="Privacy & data" subtitle="Trip history, download, delete account">
+          <PrivacySettings />
+        </Collapsible>
+        <Collapsible id="app" icon={Smartphone} title="App & updates" subtitle="Android app, version">
+          <AppUpdate />
+        </Collapsible>
 
-      {/* Privacy */}
-      <div className="px-5 mb-6">
-        <PrivacySettings />
-      </div>
-
-      {/* App version + updates */}
-      <div className="px-5 mb-6">
-        <AppUpdate />
-      </div>
-
-      {/* Logout */}
-      <div className="px-5 mb-10">
-        <button
-          onClick={handleLogout}
-          className="w-full bg-card rounded-2xl p-4 border border-border flex items-center justify-center gap-2 text-destructive"
-        >
+        <button onClick={handleLogout} className="w-full bg-card rounded-2xl border border-border flex items-center justify-center gap-2 py-3 text-destructive">
           <LogOut className="w-4 h-4" />
-          <span className="text-sm font-semibold">Log Out</span>
+          <span className="text-sm font-semibold">Log out</span>
         </button>
       </div>
 

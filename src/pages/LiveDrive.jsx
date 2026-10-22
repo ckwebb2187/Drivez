@@ -36,7 +36,7 @@ export default function LiveDrive({ active = true }) {
   const drive = useGpsDrive(myCar);
   const location = useLocation();
   // This screen stays alive in the background while you visit other tabs, so the
-  // route only changes when you're actually sent to /drive (e.g. "Go" or "End route").
+  // route only changes when you tap Go, End route, or open a saved plan.
   const [navPlan, setNavPlan] = useState(location.state?.nav || null);
   const [routeId, setRouteId] = useState(() => new URLSearchParams(window.location.search).get('route'));
   const lastKey = useRef(location.key);
@@ -44,8 +44,11 @@ export default function LiveDrive({ active = true }) {
     if ((location.pathname !== '/drive' && location.pathname !== '/') || location.key === lastKey.current) return;
     lastKey.current = location.key;
     if (location.state?.go || location.state?.plan) return; // handled by the planner on the map
-    setNavPlan(location.state?.nav || null);
-    setRouteId(new URLSearchParams(location.search).get('route'));
+    // Only change the route when we're actually given a new one. Coming back to the map
+    // from another screen (tab bar, back button) must never cancel the route you're on.
+    if (location.state?.nav) setNavPlan(location.state.nav);
+    const rid = new URLSearchParams(location.search).get('route');
+    if (rid) setRouteId(rid);
   }, [location.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const [voiceOn, setVoiceOn] = useState(() => { try { return localStorage.getItem('dz_voice') !== '0'; } catch { return true; } });
   const nav = useNavigation(navPlan, drive.currentPosition, voiceOn && drive.status === 'driving');
@@ -86,9 +89,6 @@ export default function LiveDrive({ active = true }) {
     window.__dzDriveStatus = drive.status;
     window.dispatchEvent(new Event('dz-drive-status'));
   }, [drive.status]);
-  const [tripTitle, setTripTitle] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState('');
   const [barOpen, setBarOpen] = useState(false);
 
   const guideRoute = routeId ? savedRoutes.find(r => r.id === routeId) : null;
@@ -124,12 +124,6 @@ export default function LiveDrive({ active = true }) {
   useEffect(() => { if (drive.status !== 'idle') setPreview(null); }, [drive.status]);
   useEffect(() => () => clearTimeout(backTimer.current), []);
 
-  useEffect(() => {
-    if (drive.status === 'ended' && !tripTitle) {
-      setTripTitle(navPlan ? `Drive to ${navPlan.dest.name}` : `Drive — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
-    }
-  }, [drive.status]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Remember where you parked when a drive ends; forget it when the next one starts.
   useEffect(() => {
     try {
@@ -148,56 +142,80 @@ export default function LiveDrive({ active = true }) {
   const tripCar = btSeen.current || activeVehicle;
   const countsMiles = !!tripCar && (btSeen.current ? true : mileageMode(tripCar) === 'all');
 
-  const handleSave = async () => {
-    if (!drive.route.length || saving) return;
-    setSaving(true);
-    setSaveError('');
-    try {
-      const step = Math.ceil(drive.route.length / MAX_POINTS) || 1;
-      const routePoints = drive.route.filter((_, i) => i % step === 0 || i === drive.route.length - 1);
-
-      let startLocation = 'Start';
-      let endLocation = '';
-      try {
-        const first = drive.route[0];
-        const last = drive.route[drive.route.length - 1];
-        [startLocation, endLocation] = await Promise.all([
-          reverseGeocode(first.lat, first.lng),
-          reverseGeocode(last.lat, last.lng)
-        ]);
-      } catch (e) { /* fall back to Start */ }
-
-      const avg = drive.speedHistory.length
-        ? Math.round(drive.speedHistory.reduce((a, b) => a + b, 0) / drive.speedHistory.length)
-        : 0;
-
-      const rec = await addTrip({
-        title: tripTitle || 'Drive',
-        start_time: new Date(Date.now() - drive.elapsedTime * 1000).toISOString(),
-        end_time: new Date().toISOString(),
-        distance: drive.distance,
-        duration: drive.elapsedTime,
-        top_speed: drive.maxSpeed,
-        avg_speed: avg,
-        vehicle_id: tripCar ? tripCar.id : null,
-        odo: countsMiles,
-        route_points: routePoints,
-        start_location: startLocation,
-        end_location: endLocation,
-        max_g: drive.stats.maxG || null,
-        best_0_60: drive.stats.best060 ? Math.round(drive.stats.best060 * 10) / 10 : null,
-        hard_brakes: drive.stats.hardBrakes,
-        hard_accels: drive.stats.hardAccels,
-        smoothness: drive.stats.smoothness,
-      });
+  // Drives save themselves when they end (no full-screen summary). A small note confirms it,
+  // with a link to the drive to view, rename or delete it. Offline? It's kept and sent later.
+  const [toast, setToast] = useState(null);
+  const savedOnce = useRef(false);
+  useEffect(() => { if (drive.status !== 'ended') savedOnce.current = false; }, [drive.status]);
+  useEffect(() => {
+    if (drive.status !== 'ended' || savedOnce.current) return;
+    savedOnce.current = true;
+    const route = drive.route;
+    // Too short to be a real drive (started by accident): just drop it.
+    if (route.length < 2 || (drive.distance < 0.05 && drive.elapsedTime < 60)) {
       drive.reset();
-      navigate(`/trip/${rec.id}`);
-    } catch (err) {
-      setSaveError(err.message || 'Failed to save trip');
-    } finally {
-      setSaving(false);
+      setToast({ text: 'Drive too short to save' });
+      return;
     }
-  };
+    const step = Math.ceil(route.length / MAX_POINTS) || 1;
+    const trip = {
+      title: navPlan ? `Drive to ${navPlan.dest.name}` : `Drive — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
+      start_time: new Date(Date.now() - drive.elapsedTime * 1000).toISOString(),
+      end_time: new Date().toISOString(),
+      distance: drive.distance,
+      duration: drive.elapsedTime,
+      top_speed: drive.maxSpeed,
+      avg_speed: drive.speedHistory.length ? Math.round(drive.speedHistory.reduce((a, b) => a + b, 0) / drive.speedHistory.length) : 0,
+      vehicle_id: tripCar ? tripCar.id : null,
+      odo: countsMiles,
+      route_points: route.filter((_, i) => i % step === 0 || i === route.length - 1),
+      max_g: drive.stats.maxG || null,
+      best_0_60: drive.stats.best060 ? Math.round(drive.stats.best060 * 10) / 10 : null,
+      hard_brakes: drive.stats.hardBrakes,
+      hard_accels: drive.stats.hardAccels,
+      smoothness: drive.stats.smoothness,
+    };
+    const odoNote = tripCar && scene && !countsMiles
+      ? (mileageMode(tripCar) === 'manual' ? '' : ` · not added to ${tripCar.nickname || tripCar.model} miles`)
+      : '';
+    drive.reset();
+    navigate('/', { replace: true, state: null });
+    setToast({ text: `Saving drive · ${trip.distance} mi…` });
+    (async () => {
+      const first = route[0], last = route[route.length - 1];
+      try {
+        const [a, b] = await Promise.all([reverseGeocode(first.lat, first.lng), reverseGeocode(last.lat, last.lng)]);
+        trip.start_location = a; trip.end_location = b;
+      } catch { trip.start_location = 'Start'; trip.end_location = ''; }
+      try {
+        const rec = await addTrip(trip);
+        setToast({ text: `Drive saved · ${trip.distance} mi${odoNote}`, id: rec.id });
+      } catch {
+        try {
+          const q = JSON.parse(localStorage.getItem('dz-pending-trips') || '[]');
+          localStorage.setItem('dz-pending-trips', JSON.stringify([...q, trip]));
+        } catch { /* storage full */ }
+        setToast({ text: 'No connection: drive kept on this phone and will upload later' });
+      }
+    })();
+  }, [drive.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(null), toast.id ? 7000 : 4000); return () => clearTimeout(t); }, [toast]);
+
+  // Upload drives that were kept while offline.
+  useEffect(() => {
+    const flush = async () => {
+      let q = [];
+      try { q = JSON.parse(localStorage.getItem('dz-pending-trips') || '[]'); } catch { return; }
+      if (!q.length) return;
+      const left = [];
+      for (const t of q) { try { await addTrip(t); } catch { left.push(t); } }
+      try { localStorage.setItem('dz-pending-trips', JSON.stringify(left)); } catch { /* ignore */ }
+      if (left.length < q.length) setToast({ text: `${q.length - left.length} saved drive${q.length - left.length > 1 ? 's' : ''} uploaded` });
+    };
+    flush();
+    window.addEventListener('online', flush);
+    return () => window.removeEventListener('online', flush);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const avgSpeedNow = drive.speedHistory.length
     ? Math.round(drive.speedHistory.reduce((a, b) => a + b, 0) / drive.speedHistory.length)
@@ -395,123 +413,19 @@ export default function LiveDrive({ active = true }) {
           </motion.div>
         )}
 
-        {/* Summary */}
-        {drive.status === 'ended' && (
-          <motion.div
-            key="ended"
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[600] flex flex-col justify-end"
-          >
-            <div className="flex-1" />
-            <div className="glass rounded-t-3xl p-6 pb-28 border-t border-border mx-0 max-h-[85vh] overflow-y-auto no-scrollbar">
-              <div className="w-10 h-1 rounded-full bg-muted-foreground/30 mx-auto mb-4" />
-              <h2 className="text-lg font-bold text-foreground text-center mb-1">Drive Complete</h2>
-              <p className="text-xs text-muted-foreground text-center mb-5">
-                {drive.distance} miles • {formatDuration(drive.elapsedTime)}
-              </p>
-
-              <input
-                value={tripTitle}
-                onChange={e => setTripTitle(e.target.value)}
-                placeholder="Trip name"
-                className="w-full bg-secondary/50 rounded-xl px-4 py-2.5 text-foreground text-sm border border-border focus:border-primary outline-none mb-4"
-              />
-
-              <div className="grid grid-cols-2 gap-3 mb-5">
-                <div className="bg-card/80 rounded-2xl p-4 border border-border">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <TrendingUp className="w-3.5 h-3.5 text-primary" />
-                    <span className="text-[10px] text-muted-foreground">Top Speed</span>
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold speed-font text-primary">{drive.maxSpeed}</span>
-                    <span className="text-xs text-muted-foreground">mph</span>
-                  </div>
-                </div>
-                <div className="bg-card/80 rounded-2xl p-4 border border-border">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Gauge className="w-3.5 h-3.5 text-accent" />
-                    <span className="text-[10px] text-muted-foreground">Avg Speed</span>
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold speed-font text-accent">{avgSpeedNow}</span>
-                    <span className="text-xs text-muted-foreground">mph</span>
-                  </div>
-                </div>
-                <div className="bg-card/80 rounded-2xl p-4 border border-border">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Route className="w-3.5 h-3.5 text-foreground" />
-                    <span className="text-[10px] text-muted-foreground">Distance</span>
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold speed-font text-foreground">{drive.distance}</span>
-                    <span className="text-xs text-muted-foreground">mi</span>
-                  </div>
-                </div>
-                <div className="bg-card/80 rounded-2xl p-4 border border-border">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Clock className="w-3.5 h-3.5 text-foreground" />
-                    <span className="text-[10px] text-muted-foreground">Duration</span>
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold speed-font text-foreground">{formatDuration(drive.elapsedTime)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Personal drive stats (just for you; no leaderboard) */}
-              {scene && <>
-              <div className="grid grid-cols-3 gap-2 mb-5">
-                <div className="bg-card/80 rounded-2xl p-3 border border-border text-center">
-                  <div className="text-xl font-bold speed-font text-[#34A853]">{drive.stats.smoothness}</div>
-                  <div className="text-[10px] text-muted-foreground">Smoothness</div>
-                </div>
-                <div className="bg-card/80 rounded-2xl p-3 border border-border text-center">
-                  <div className="text-xl font-bold speed-font text-foreground">{drive.stats.maxG ? drive.stats.maxG.toFixed(2) : '—'}<span className="text-xs">g</span></div>
-                  <div className="text-[10px] text-muted-foreground">Peak g-force</div>
-                </div>
-                <div className="bg-card/80 rounded-2xl p-3 border border-border text-center">
-                  <div className="text-xl font-bold speed-font text-foreground">{drive.stats.best060 ? `${drive.stats.best060.toFixed(1)}s` : '—'}</div>
-                  <div className="text-[10px] text-muted-foreground">0–60</div>
-                </div>
-              </div>
-              {(drive.stats.hardBrakes > 0 || drive.stats.hardAccels > 0) && (
-                <p className="text-[11px] text-muted-foreground text-center -mt-3 mb-4">{drive.stats.hardBrakes} hard brake{drive.stats.hardBrakes === 1 ? '' : 's'} · {drive.stats.hardAccels} hard launch{drive.stats.hardAccels === 1 ? '' : 'es'}</p>
-              )}
-              </>}
-
-              {tripCar && scene && (
-                <p className={`text-[11px] text-center -mt-2 mb-4 ${countsMiles ? 'text-muted-foreground' : 'text-amber-400'}`}>
-                  {countsMiles
-                    ? `Miles count toward the ${tripCar.nickname || tripCar.model} odometer${btSeen.current ? ' (connected to its Bluetooth)' : ''}`
-                    : mileageMode(tripCar) === 'manual'
-                      ? `${tripCar.nickname || tripCar.model} mileage is entered by hand, so this drive isn't added`
-                      : `Not added to the ${tripCar.nickname || tripCar.model} odometer: the phone wasn't on its Bluetooth (passenger or another car?)`}
-                </p>
-              )}
-              {saveError && <p className="text-xs text-destructive mb-3 text-center">{saveError}</p>}
-
-              <div className="flex gap-3">
-                <button
-                  onClick={drive.reset}
-                  disabled={saving}
-                  className="flex-1 bg-secondary text-foreground rounded-2xl py-3 font-semibold text-sm disabled:opacity-40"
-                >
-                  Discard
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={saving || drive.route.length < 2}
-                  className="flex-1 bg-primary text-primary-foreground rounded-2xl py-3 font-bold text-sm flex items-center justify-center gap-1.5 disabled:opacity-40"
-                >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                  Save Trip
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
       </AnimatePresence>
+
+      {/* "Drive saved" note */}
+      {toast && active && (
+        <div className="absolute left-3 right-3 top-[max(12px,env(safe-area-inset-top))] z-[700] pointer-events-auto dz-pop-in">
+          <div className="mx-auto max-w-md rounded-2xl bg-[#188038] text-white shadow-2xl pl-4 pr-1.5 py-1.5 flex items-center gap-2">
+            <Check className="w-4 h-4 shrink-0" />
+            <span className="flex-1 text-sm font-semibold truncate">{toast.text}</span>
+            {toast.id && <button onClick={() => { setToast(null); navigate(`/trip/${toast.id}`); }} className="h-9 px-3 rounded-full bg-white/20 text-xs font-bold">View</button>}
+            <button onClick={() => setToast(null)} className="w-8 h-8 flex items-center justify-center" aria-label="Close"><X className="w-4 h-4" /></button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -15,9 +15,11 @@ export function useCarBluetooth() {
   const [status, setStatus] = useState(() => (nativeBt() ? readStatus() : null));
   useEffect(() => {
     if (!nativeBt()) return undefined;
-    const on = (e) => setStatus(e.detail || readStatus());
+    // Only update when something actually changed, so the app doesn't redraw for nothing.
+    const set = (next) => setStatus((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+    const on = (e) => set(e.detail || readStatus());
     window.addEventListener('drivez-bt', on);
-    const t = setInterval(() => setStatus(readStatus()), 20000); // safety net
+    const t = setInterval(() => set(readStatus()), 20000); // safety net
     return () => { window.removeEventListener('drivez-bt', on); clearInterval(t); };
   }, []);
   const request = () => { try { window.DrivezNative.requestBluetooth(); } catch { /* not in the app */ } };

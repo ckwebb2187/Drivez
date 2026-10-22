@@ -18,16 +18,36 @@ function StatCard({ icon: Icon, label, value, unit, color }) {
   );
 }
 
-export default function StatsDashboard({ stats, weekly = [] }) {
+// One compact row of your totals.
+export function StatsRow({ stats }) {
+  const items = [
+    [stats.lifetimeMiles.toLocaleString(), 'miles', '#00BFFF'],
+    [stats.totalDrives.toLocaleString(), 'drives', '#39FF14'],
+    [stats.avgSpeed, 'avg mph', '#FF6B35'],
+    [stats.bestTopSpeed, 'top mph', '#FF4757'],
+  ];
+  return (
+    <div className="bg-card rounded-2xl border border-border grid grid-cols-4 divide-x divide-border">
+      {items.map(([v, l, c]) => (
+        <div key={l} className="py-3 text-center">
+          <div className="text-base font-bold speed-font" style={{ color: c }}>{v}</div>
+          <div className="text-[10px] text-muted-foreground">{l}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function StatsDashboard({ stats, weekly = [], chartsOnly = false }) {
   const chartData = weekly;
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
+      {!chartsOnly && <div className="grid grid-cols-2 gap-3">
         <StatCard icon={Milestone} label="Lifetime Miles" value={stats.lifetimeMiles.toLocaleString()} unit="mi" color="#00BFFF" />
         <StatCard icon={Car} label="Total Drives" value={stats.totalDrives} color="#39FF14" />
         <StatCard icon={Gauge} label="Average Speed" value={stats.avgSpeed} unit="mph" color="#FF6B35" />
         <StatCard icon={Trophy} label="Best Top Speed" value={stats.bestTopSpeed} unit="mph" color="#FF4757" />
-      </div>
+      </div>}
 
       <div className="bg-card rounded-2xl p-4 border border-border">
         <div className="flex items-center justify-between mb-3">

@@ -190,6 +190,15 @@ export function AppProvider({ children }) {
     return mapped;
   };
 
+  const updateTrip = async (id, patch) => {
+    await base44.entities.Trip.update(id, patch);
+    setTrips(prev => prev.map(t => t.id === id ? mapTrip({ ...t, ...patch }, color) : t));
+  };
+  const deleteTrip = async (id) => {
+    await base44.entities.Trip.delete(id);
+    setTrips(prev => prev.filter(t => t.id !== id));
+  };
+
   const addRoute = async (routeData) => {
     const rec = await base44.entities.Route.create({
       name: routeData.name,
@@ -245,7 +254,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       user, scene, setAppMode, carBt, btCar, saveProfile, stats, weeklyStats, vehicles, trips, savedRoutes, loading, activeVehicle, myCar, setPrimaryVehicle,
-      toggleGhostMode, updateUser, addVehicle, removeVehicle, setVehicleImage, updateVehicle, addTrip,
+      toggleGhostMode, updateUser, addVehicle, updateTrip, deleteTrip, removeVehicle, setVehicleImage, updateVehicle, addTrip,
       addRoute, deleteRoute, shareRouteWithFriends, places, addPlace, deletePlace, renamePlace, home, work, setHomeWork, refreshData: loadData
     }}>
       {children}
