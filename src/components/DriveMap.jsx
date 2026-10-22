@@ -86,7 +86,6 @@ function DriveMapInner({
   const mapRef = useRef(null);
   const readyRef = useRef(false);
   const carRef = useRef(null);
-  const youRef = useRef(null);
   const pinRef = useRef(null);
   const reportMarkers = useRef(new Map());
   const friendMarkers = useRef(new Map());
@@ -198,7 +197,6 @@ function DriveMapInner({
           carRef.current.setLngLat(toLngLat(p));
           carRef.current.setRotation(a.brg);
         }
-        if (youRef.current && live.current.driving) youRef.current.setLngLat(toLngLat(p));
         const { follow: f, driving: d, speed: s } = live.current;
         if (f && readyRef.current && !live.current.held && live.current.active && !live.current.previewing) {
           const targetZoom = d ? zoomForSpeed(s) : 16.5;
@@ -271,18 +269,6 @@ function DriveMapInner({
     const t = setTimeout(() => { if (readyRef.current) fit(); else map.once('load', () => setTimeout(fit, 0)); }, 120);
     return () => clearTimeout(t);
   }, [fitCoords]);
-
-  // "YOU" badge floating above your car while driving.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!driving) { youRef.current?.remove(); youRef.current = null; return undefined; }
-    const el = document.createElement('div');
-    el.className = 'dz-you';
-    el.textContent = 'YOU';
-    youRef.current = new maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -54] })
-      .setLngLat(anim.current.shown ? toLngLat(anim.current.shown) : pos ? toLngLat(pos) : [0, 0]).addTo(map);
-    return () => { try { youRef.current?.remove(); } catch { /* gone */ } youRef.current = null; };
-  }, [driving]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Jump to the start when re-centering.
   useEffect(() => {
