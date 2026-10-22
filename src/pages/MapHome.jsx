@@ -35,6 +35,7 @@ export default function MapHome() {
   const [routeErr, setRouteErr] = useState('');
 
   const [sheetOpen, setSheetOpen] = useState(false);
+  const touchY = useRef(0);
   const [friends, setFriends] = useState([]);
   const inputRef = useRef(null);
   const roadReports = useReports(pos);
@@ -113,7 +114,7 @@ export default function MapHome() {
   const quickRoutes = savedRoutes.slice(0, 3);
 
   return (
-    <div className="relative h-full overflow-hidden">
+    <div className="fixed inset-0 overflow-hidden">
       {/* Map */}
       <div className="absolute inset-0 isolate">
         <MapContainer center={pos || FALLBACK_CENTER} zoom={pos ? 15 : 4} zoomControl={false} attributionControl style={{ height: '100%', width: '100%' }}>
@@ -205,7 +206,7 @@ export default function MapHome() {
       )}
 
       {/* Floating buttons */}
-      <div className={`absolute right-3 z-10 flex flex-col items-end gap-3 transition-all ${route || routing || routeErr ? 'bottom-[290px]' : sheetOpen ? 'bottom-[calc(62vh+92px)]' : 'bottom-[272px]'}`}>
+      <div className={`absolute right-3 z-10 flex flex-col items-end gap-3 transition-all ${route || routing || routeErr ? 'bottom-[290px]' : 'bottom-[124px]'} ${sheetOpen && !route && !routing && !routeErr ? 'opacity-0 pointer-events-none' : ''}`}>
         <MusicButton />
         <ReportButton onReport={(type) => roadReports.report(type, pos)} disabled={!pos} />
         {(!follow || route) && pos && (
@@ -246,10 +247,16 @@ export default function MapHome() {
       ) : (
         /* Bottom sheet */
         <div
-          className={`absolute inset-x-0 bottom-0 z-10 bg-card rounded-t-3xl border-t border-border shadow-[0_-8px_30px_rgba(0,0,0,0.5)] transition-[height] duration-300 flex flex-col ${sheetOpen ? 'h-[calc(62vh+80px)]' : 'h-[260px]'}`}
+          className={`absolute inset-x-0 bottom-0 z-10 bg-card rounded-t-3xl border-t border-border shadow-[0_-8px_30px_rgba(0,0,0,0.5)] transition-[height] duration-300 flex flex-col overflow-hidden ${sheetOpen ? 'h-[calc(62vh+80px)]' : 'h-[112px]'}`}
+          onTouchStart={(e) => { touchY.current = e.touches[0].clientY; }}
+          onTouchEnd={(e) => {
+            const dy = e.changedTouches[0].clientY - touchY.current;
+            if (dy < -30) setSheetOpen(true);
+            if (dy > 30 && !(e.target.closest('[data-sheet-scroll]')?.scrollTop > 0)) setSheetOpen(false);
+          }}
         >
-          <button onClick={() => setSheetOpen(!sheetOpen)} className="w-full pt-2.5 pb-1 flex flex-col items-center" aria-label={sheetOpen ? 'Collapse' : 'Expand'}>
-            <div className="w-10 h-1.5 rounded-full bg-muted-foreground/40" />
+          <button onClick={() => setSheetOpen(!sheetOpen)} className="w-full pt-3 pb-3 flex flex-col items-center shrink-0" aria-label={sheetOpen ? 'Collapse' : 'Show your stats and drives'}>
+            <div className="w-10 h-1.5 rounded-full bg-muted-foreground/50" />
           </button>
           <div className="px-5 flex items-center justify-between">
             <div>
@@ -265,7 +272,7 @@ export default function MapHome() {
             <Stat value={stats.thisWeekMiles} label="Miles this week" color="text-accent" />
             <Stat value={stats.bestTopSpeed} label="Top mph" color="text-foreground" />
           </div>
-          <div className={`flex-1 overflow-y-auto no-scrollbar px-5 pt-4 pb-24 ${sheetOpen ? '' : 'pointer-events-none'}`}>
+          <div data-sheet-scroll className={`flex-1 overflow-y-auto no-scrollbar px-5 pt-4 pb-24 ${sheetOpen ? '' : 'pointer-events-none'}`}>
             {quickRoutes.length > 0 && (
               <>
                 <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Saved routes</h2>

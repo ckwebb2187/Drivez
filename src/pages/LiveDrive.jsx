@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X } from 'lucide-react';
+import { Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X, ChevronUp } from 'lucide-react';
 import { Polyline } from 'react-leaflet';
 import DarkMap from '@/components/DarkMap';
-import SpeedHUD from '@/components/SpeedHUD';
 import { useGpsDrive } from '@/lib/useGpsDrive';
 import { useApp } from '@/lib/AppContext';
 import { formatDuration } from '@/lib/helpers';
@@ -46,6 +45,7 @@ export default function LiveDrive() {
   const [tripTitle, setTripTitle] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [barOpen, setBarOpen] = useState(false);
 
   const urlParams = new URLSearchParams(window.location.search);
   const routeId = urlParams.get('route');
@@ -115,7 +115,7 @@ export default function LiveDrive() {
     : 0;
 
   return (
-    <div className="relative h-full overflow-hidden">
+    <div className="fixed inset-0 overflow-hidden">
       {/* Map */}
       <div className="absolute inset-0">
         <DarkMap center={center} zoom={navPlan ? 17 : 16} follow={drive.status === 'driving' || (!!herePos && drive.status === 'idle')}>
@@ -258,34 +258,9 @@ export default function LiveDrive() {
               </div>
             )}
 
-            {/* Top bar */}
-            {!nav.active && <div className="absolute top-0 left-0 right-0 p-5 pt-12">
-              <div className="glass rounded-2xl px-4 py-3 border border-border flex items-center justify-between pointer-events-auto">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-                  <span className="text-xs font-medium text-accent">{drive.gpsWaiting ? 'Waiting for GPS…' : 'Recording'}</span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-center">
-                    <div className="flex items-center gap-1 text-foreground">
-                      <Route className="w-3 h-3" />
-                      <span className="text-sm font-bold speed-font">{drive.distance}</span>
-                      <span className="text-[10px] text-muted-foreground">mi</span>
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="flex items-center gap-1 text-foreground">
-                      <Clock className="w-3 h-3" />
-                      <span className="text-sm font-bold speed-font">{formatDuration(drive.elapsedTime)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>}
-
             {/* Report warning */}
             {reportAlert && (
-              <div className={`absolute left-3 right-[76px] ${nav.active ? 'top-[150px]' : 'top-[120px]'} pointer-events-auto`}>
+              <div className={`absolute left-3 right-[76px] ${nav.active ? 'top-[150px]' : 'top-[max(12px,env(safe-area-inset-top))]'} pointer-events-auto`}>
                 <button onClick={dismissAlert} className="w-full flex items-center gap-3 rounded-2xl px-4 py-3 shadow-2xl text-left" style={{ background: REPORT_TYPES[reportAlert.type]?.color || '#F9AB00' }}>
                   <span className="text-2xl">{REPORT_TYPES[reportAlert.type]?.emoji}</span>
                   <span className="flex-1 text-white">
@@ -297,35 +272,50 @@ export default function LiveDrive() {
               </div>
             )}
 
-            {/* Music + report shortcuts */}
-            <div className={`absolute right-4 ${nav.active ? 'bottom-[calc(7rem+330px)]' : 'bottom-[calc(7rem+250px)]'} pointer-events-auto flex flex-col gap-3`}>
-              <MusicButton />
-              <ReportButton onReport={(type) => roadReports.report(type, drive.currentPosition)} disabled={!drive.currentPosition} />
+            {/* Speed bubble (bottom left, like Waze) */}
+            <div className={`absolute left-3 ${barOpen ? 'bottom-[214px]' : 'bottom-[156px]'} transition-all pointer-events-none`}>
+              <div className="w-[68px] h-[68px] rounded-full bg-white shadow-2xl flex flex-col items-center justify-center border-4 border-[#1f1f2e]">
+                <span className="text-[26px] leading-none font-bold speed-font text-[#111]">{Math.round(drive.currentSpeed)}</span>
+                <span className="text-[10px] font-bold text-[#555] -mt-0.5">mph</span>
+              </div>
             </div>
 
-            {/* Bottom HUD */}
-            <div className="absolute bottom-0 left-0 right-0 p-5 pb-28">
-              <div className="glass rounded-3xl p-6 border border-border pointer-events-auto">
-                {nav.active && !nav.arrived && (
-                  <div className="flex items-center justify-between mb-3 pb-3 border-b border-border">
-                    <div>
-                      <span className="text-xl font-bold text-[#34A853]">{formatEta(nav.remainingS)}</span>
-                      <span className="text-sm text-muted-foreground"> · {formatNavDistance(nav.remainingM)}</span>
-                      <div className="text-[11px] text-muted-foreground">Arrive {arrivalTime(nav.remainingS)}</div>
+            {/* Music + report shortcuts */}
+            <div className={`absolute right-3 ${barOpen ? 'bottom-[214px]' : 'bottom-[156px]'} transition-all pointer-events-auto flex flex-col gap-3`}>
+              <MusicButton size={50} />
+              <ReportButton size={50} onReport={(type) => roadReports.report(type, drive.currentPosition)} disabled={!drive.currentPosition} />
+            </div>
+
+            {/* Slim bottom bar: tap to show End route / End Drive */}
+            <div className="absolute left-0 right-0 bottom-[84px] px-3 pointer-events-auto">
+              <div className="bg-card/95 backdrop-blur rounded-2xl border border-border shadow-2xl overflow-hidden">
+                <button onClick={() => setBarOpen((o) => !o)} className="w-full flex items-center gap-3 px-4 h-[60px] text-left">
+                  {nav.active && !nav.arrived ? (
+                    <div className="flex-1 min-w-0">
+                      <span className="text-lg font-bold text-[#34A853]">{formatEta(nav.remainingS)}</span>
+                      <span className="text-sm text-muted-foreground"> · {formatNavDistance(nav.remainingM)} · {arrivalTime(nav.remainingS)}</span>
                     </div>
-                    <button onClick={() => navigate('/drive', { replace: true, state: null })} className="h-9 px-3 rounded-full bg-secondary text-xs font-semibold text-foreground flex items-center gap-1">
-                      <X className="w-3.5 h-3.5" /> End route
+                  ) : (
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                      <span className="text-sm font-semibold text-foreground">{drive.gpsWaiting ? 'Waiting for GPS…' : nav.arrived ? 'Arrived' : 'Recording'}</span>
+                      <span className="text-sm text-muted-foreground speed-font">· {drive.distance} mi · {formatDuration(drive.elapsedTime)}</span>
+                    </div>
+                  )}
+                  <ChevronUp className={`w-5 h-5 text-muted-foreground transition-transform ${barOpen ? '' : 'rotate-180'}`} />
+                </button>
+                {barOpen && (
+                  <div className="flex gap-2 px-3 pb-3">
+                    {nav.active && (
+                      <button onClick={() => { setBarOpen(false); navigate('/drive', { replace: true, state: null }); }} className="flex-1 h-11 rounded-xl bg-secondary text-sm font-semibold text-foreground flex items-center justify-center gap-1.5">
+                        <X className="w-4 h-4" /> End route
+                      </button>
+                    )}
+                    <button onClick={drive.end} className="flex-1 h-11 rounded-xl bg-destructive/90 text-destructive-foreground text-sm font-bold flex items-center justify-center gap-1.5">
+                      <Square className="w-3.5 h-3.5 fill-current" /> End Drive
                     </button>
                   </div>
                 )}
-                <SpeedHUD speed={drive.currentSpeed} maxSpeed={drive.maxSpeed} />
-                <button
-                  onClick={drive.end}
-                  className="w-full mt-4 bg-destructive/90 text-destructive-foreground rounded-2xl py-3 font-bold text-sm flex items-center justify-center gap-2"
-                >
-                  <Square className="w-4 h-4 fill-current" />
-                  End Drive
-                </button>
               </div>
             </div>
           </motion.div>
