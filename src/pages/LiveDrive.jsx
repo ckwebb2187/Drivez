@@ -14,6 +14,8 @@ import { useReports, useReportAlerts, useMappedBumps, REPORT_TYPES } from '@/lib
 import MusicButton from '@/components/MusicButton';
 import { WeatherButton } from '@/components/Weather';
 import TripPlanner from '@/components/TripPlanner';
+import { useSpeedLimit } from '@/lib/speedLimit';
+import { useMapLook, speedStyle } from '@/lib/mapTheme';
 import DriverSheet from '@/components/DriverSheet';
 import { api } from '@/api/base44Client';
 import { mileageMode } from '@/lib/carBluetooth';
@@ -70,6 +72,8 @@ export default function LiveDrive({ active = true }) {
     return () => navigator.geolocation.clearWatch(id);
   }, [drive.status, active]);
   const roadReports = useReports(drive.currentPosition || herePos);
+  const [look] = useMapLook();
+  const speedLimit = useSpeedLimit(drive.status === 'driving' ? drive.currentPosition : null, drive.heading, drive.status === 'driving');
   // Friends driving right now (shown on the map; tap one for their profile).
   const [friends, setFriends] = useState([]);
   const [openDriver, setOpenDriver] = useState(null);
@@ -358,13 +362,27 @@ export default function LiveDrive({ active = true }) {
               </div>
             )}
 
-            {/* Speed bubble (bottom left, like Waze) */}
-            <div className={`absolute left-3 ${barOpen ? 'bottom-[214px]' : 'bottom-[156px]'} transition-all pointer-events-none`}>
-              <div className="w-[68px] h-[68px] rounded-full bg-white shadow-2xl flex flex-col items-center justify-center border-4 border-[#1f1f2e]">
-                <span className="text-[26px] leading-none font-bold speed-font text-[#111]">{Math.round(drive.currentSpeed)}</span>
-                <span className="text-[10px] font-bold text-[#555] -mt-0.5">mph</span>
-              </div>
-            </div>
+            {/* Speed (themed) + posted speed limit, bottom left like Waze */}
+            {(() => {
+              const st = speedStyle(look.theme);
+              const mph = Math.round(drive.currentSpeed);
+              const over = speedLimit && mph > speedLimit.mph + 5;
+              return (
+                <div className={`absolute left-3 ${barOpen ? 'bottom-[214px]' : 'bottom-[156px]'} transition-all pointer-events-none flex items-end gap-2`}>
+                  <div className="w-[68px] h-[68px] rounded-full shadow-2xl flex flex-col items-center justify-center border-4 transition-colors"
+                    style={{ background: over ? '#d93025' : st.bg, borderColor: over ? '#ffffff' : st.ring, boxShadow: st.glow && !over ? `0 0 18px ${st.glow}88, 0 8px 20px rgba(0,0,0,.4)` : undefined }}>
+                    <span className="text-[26px] leading-none font-bold speed-font" style={{ color: over ? '#fff' : st.text }}>{mph}</span>
+                    <span className="text-[10px] font-bold -mt-0.5" style={{ color: over ? '#fff' : st.sub }}>mph</span>
+                  </div>
+                  {speedLimit && (
+                    <div className="w-[46px] rounded-md bg-white border-[3px] border-black flex flex-col items-center py-0.5 shadow-xl" title={speedLimit.name}>
+                      <span className="text-[7px] font-black leading-[8px] text-black text-center">SPEED<br />LIMIT</span>
+                      <span className="text-[20px] leading-none font-black text-black speed-font">{speedLimit.mph}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Re-center (shows after you move the map) */}
             {!follow && (

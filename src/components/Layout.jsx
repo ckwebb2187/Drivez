@@ -4,6 +4,7 @@ import { Gauge, Clock, User, ChevronRight } from 'lucide-react';
 import LiveDrive from '@/pages/LiveDrive';
 import SetupModeModal from '@/components/SetupModeModal';
 import { useApp } from '@/lib/AppContext';
+import { api } from '@/api/base44Client';
 import { useMapLook, featureName } from '@/lib/mapTheme';
 
 const tabs = [
@@ -31,6 +32,18 @@ export default function Layout() {
   }, []);
   const driving = driveStatus === 'driving' || driveStatus === 'acquiring';
 
+  // Joined through someone's invite link: make you friends, then say so.
+  const { refreshData } = useApp();
+  const [inviteMsg, setInviteMsg] = useState('');
+  useEffect(() => {
+    if (!user) return;
+    let code = null;
+    try { code = localStorage.getItem('dz-invite'); } catch { /* private mode */ }
+    if (!code) return;
+    try { localStorage.removeItem('dz-invite'); } catch { /* ignore */ }
+    api.post('/invite/accept', { code }).then((r) => { if (!r.self) { setInviteMsg(r.message); setTimeout(() => setInviteMsg(''), 5000); refreshData?.(); } }).catch(() => {});
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       {!onDrive && (
@@ -44,6 +57,9 @@ export default function Layout() {
         </div>
       )}
       {user && !user.appMode && <SetupModeModal />}
+      {inviteMsg && (
+        <div className="fixed left-3 right-3 top-[max(12px,env(safe-area-inset-top))] z-[1500] rounded-2xl bg-[#188038] text-white shadow-2xl px-4 py-3 text-sm font-semibold text-center dz-pop-in">🤝 {inviteMsg}</div>
+      )}
       {!onDrive && driving && (
         <NavLink to="/" className={`fixed left-3 right-3 ${fullPage ? 'bottom-[max(16px,env(safe-area-inset-bottom))]' : 'bottom-[92px]'} z-[1400] rounded-2xl bg-[#188038] text-white shadow-2xl px-4 h-12 flex items-center gap-2 text-sm font-semibold`}>
           <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> Drive in progress

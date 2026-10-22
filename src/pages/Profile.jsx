@@ -6,6 +6,7 @@ import { base44, api } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import StatsDashboard, { StatsRow } from '@/components/StatsDashboard';
 import Collapsible from '@/components/Collapsible';
+import InviteButton from '@/components/InviteButton';
 import GarageManager from '@/components/GarageManager';
 import FriendsView from '@/components/FriendsView';
 import HeatMapSection from '@/components/HeatMapSection';
@@ -167,6 +168,7 @@ export default function Profile() {
       <div className="px-5 space-y-3 pb-10">
         {/* Totals */}
         <StatsRow stats={stats} />
+        <InviteButton />
 
         {/* Garage */}
         <div className="pt-2"><GarageManager /></div>

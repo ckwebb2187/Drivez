@@ -179,3 +179,21 @@ export function useMapLook() {
 const JP = { map: 'Chizu 地図', night: 'Yomichi 夜道', highway: 'Wangan 湾岸', twisty: 'Tōge 峠' };
 const EN = { map: 'Map', night: 'Night theme', highway: 'Highway mode', twisty: 'Twisty roads' };
 export const featureName = (key, jpNames) => (jpNames ? JP[key] : EN[key]) || key;
+
+// Speed bubble colors to match the world theme.
+const SPEED = {
+  standard: { bg: '#ffffff', text: '#111111', ring: '#1f1f2e', sub: '#555555' },
+  tokyo: { bg: '#0b0d1a', text: '#ffffff', ring: '#ff2d95', sub: '#7af2ff', glow: '#ff2d95' },
+  cyberpunk: { bg: '#0a0614', text: '#7df9ff', ring: '#b026ff', sub: '#00ffd5', glow: '#b026ff' },
+  dystopian: { bg: '#2b2b2a', text: '#e9e6d6', ring: '#8a8a84', sub: '#b9b5a2' },
+  wasteland: { bg: '#3a3022', text: '#f1e3c3', ring: '#a0662f', sub: '#d1b483' },
+  kawaii: { bg: '#fff3fa', text: '#7a4a8c', ring: '#ff8cc6', sub: '#b98ac9', glow: '#ff8cc6' },
+  rose: { bg: '#0d0a0e', text: '#f4c2b8', ring: '#e8a598', sub: '#ff6fae', glow: '#ff4fa3' },
+  sakura: { bg: '#fff1f4', text: '#8a3b5c', ring: '#f3a6c0', sub: '#c56f8f' },
+  vapor: { bg: '#1a0f33', text: '#fffb96', ring: '#ff71ce', sub: '#01cdfe', glow: '#ff71ce' },
+  galaxy: { bg: '#05040f', text: '#ffffff', ring: '#7c4dff', sub: '#3ad1ff', glow: '#7c4dff' },
+  y2k: { bg: '#ffe3f6', text: '#b0007a', ring: '#c0c0c0', sub: '#ff5fc8', glow: '#ff5fc8' },
+  lavender: { bg: '#f6f2fd', text: '#5a3f8f', ring: '#b9a6e0', sub: '#8a72c2' },
+  harajuku: { bg: '#fff6d6', text: '#2a1a5e', ring: '#ff5c8a', sub: '#4dd4ff', glow: '#ffe14d' },
+};
+export const speedStyle = (theme) => SPEED[theme] || SPEED.standard;

@@ -17,6 +17,7 @@ import RoutesPage from '@/pages/RoutesPage';
 import PlacesPage from '@/pages/PlacesPage';
 import ImportPage from '@/pages/ImportPage';
 import PublicProfile from '@/pages/PublicProfile';
+import JoinPage from '@/pages/JoinPage';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
@@ -38,6 +39,7 @@ export default function App() {
               </Route>
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/u/:username" element={<PublicProfile />} />
+              <Route path="/join/:code" element={<JoinPage />} />
               <Route element={<ProtectedRoute />}>
                 <Route element={<Layout />}>
                   {/* The drive map is the home screen. Layout draws it so it keeps running in the background. */}

@@ -64,4 +64,6 @@ export const MIGRATIONS = [
   `ALTER TABLE users ADD COLUMN trip_retention_days INTEGER`,
   `ALTER TABLE users ADD COLUMN app_mode TEXT`,
   `ALTER TABLE users ADD COLUMN profile TEXT`,
+  `ALTER TABLE users ADD COLUMN invite_code TEXT`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS users_invite ON users(invite_code)`,
 ];

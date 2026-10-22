@@ -256,6 +256,7 @@ async function nwsAlerts(lat, lng, ctx) {
 // ---------- OpenStreetMap (Overpass) ----------
 const OSM_KINDS = {
   bumps: (bb) => `node["traffic_calming"~"bump|hump|table|cushion|dip|rumble_strip"](${bb});out 800;`,
+  limits: (bb) => `way["highway"]["maxspeed"](${bb});out tags geom 4000;`,
   shops: (bb) => `(nwr["shop"~"car_repair|car_parts|tyres"](${bb});nwr["craft"="car_repair"](${bb});nwr["amenity"="fuel"]["fuel:octane_93"="yes"](${bb});nwr["amenity"="fuel"]["fuel:e0"="yes"](${bb});nwr["amenity"="fuel"]["fuel:ethanol_free"="yes"](${bb}););out center tags 300;`,
 };
 const OVERPASS = ["https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.openstreetmap.fr/api/interpreter", "https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -277,6 +278,13 @@ async function osmLookup(kind, [s, w, n, e], ctx) {
   if (!data) throw new HttpError(502, "Map data is busy right now. Try again in a minute.");
   const items = (data.elements || []).map((el) => {
     const t = el.tags || {};
+    if (kind === "limits") {
+      // Posted speed limit for a stretch of road, in mph (OSM gives "45 mph" or km/h numbers).
+      const m = String(t.maxspeed || "").match(/^(\d+)\s*(mph|km\/h|kmh)?/i);
+      if (!m || !el.geometry?.length) return null;
+      const mph = /mph/i.test(m[2] || "") ? +m[1] : Math.round(+m[1] / 1.609 / 5) * 5;
+      return { id: `w${el.id}`, mph, name: t.name || t.ref || "", oneway: t.oneway === "yes", g: el.geometry.map((p) => [Math.round(p.lat * 1e5) / 1e5, Math.round(p.lon * 1e5) / 1e5]) };
+    }
     const lat = el.lat ?? el.center?.lat, lng = el.lon ?? el.center?.lon;
     if (lat == null) return null;
     if (kind === "bumps") return { id: `osm${el.id}`, lat, lng, type: /dip/.test(t.traffic_calming) ? "dip" : "bump", what: t.traffic_calming };
@@ -291,7 +299,7 @@ async function osmLookup(kind, [s, w, n, e], ctx) {
       phone: t.phone || t["contact:phone"] || "", website: t.website || t["contact:website"] || "", hours: t.opening_hours || "",
     };
   }).filter(Boolean);
-  ctx.waitUntil(caches.default.put(key, new Response(JSON.stringify(items), { headers: { "content-type": "application/json", "cache-control": `public, max-age=${kind === "bumps" ? 7 * 86400 : 86400}` } })));
+  ctx.waitUntil(caches.default.put(key, new Response(JSON.stringify(items), { headers: { "content-type": "application/json", "cache-control": `public, max-age=${kind === "shops" ? 86400 : 7 * 86400}` } })));
   return items;
 }
 
@@ -498,6 +506,14 @@ async function handleApi(req, env, ctx, url) {
     return new Response(new Uint8Array(row.data), { headers: { "content-type": row.mime, "cache-control": "public, max-age=31536000, immutable" } });
   }
 
+  // Invite link preview (public): who invited you.
+  const inv = path.match(/^\/invite\/([A-Za-z0-9]{6,16})$/);
+  if (inv && method === "GET") {
+    const u = await db.prepare("SELECT display_name, username, avatar_url, color FROM users WHERE invite_code = ?").bind(inv[1]).first();
+    if (!u) throw new HttpError(404, "That invite link isn't valid anymore.");
+    return json({ name: u.display_name, username: u.username, avatarUrl: u.avatar_url, color: u.color });
+  }
+
   // Public driver profile (what a QR sticker opens). Shows only the parts the owner allows.
   const pu = path.match(/^\/u\/([a-z0-9_]{1,24})$/);
   if (pu && method === "GET") {
@@ -592,6 +608,25 @@ async function handleApi(req, env, ctx, url) {
       db.prepare("UPDATE users SET avatar_url = NULL WHERE id = ?").bind(me.id),
     ]);
     return json(publicUser(await db.prepare("SELECT * FROM users WHERE id = ?").bind(me.id).first()));
+  }
+
+  // --- invite links: anyone who joins through your link becomes your friend ---
+  if (path === "/me/invite" && (method === "GET" || method === "POST")) {
+    let code = me.invite_code;
+    if (!code || (method === "POST" && body.reset)) {
+      code = token().replace(/[^A-Za-z0-9]/g, "").slice(0, 10);
+      await db.prepare("UPDATE users SET invite_code = ? WHERE id = ?").bind(code, me.id).run();
+    }
+    return json({ code, url: `${url.origin}/join/${code}` });
+  }
+  if (path === "/invite/accept" && method === "POST") {
+    const other = await db.prepare("SELECT id, display_name FROM users WHERE invite_code = ?").bind(String(body.code || "")).first();
+    if (!other) throw new HttpError(404, "That invite link isn't valid anymore.");
+    if (other.id === me.id) return json({ message: "That's your own invite link." , self: true });
+    const existing = await db.prepare("SELECT * FROM friends WHERE (requester_id = ?1 AND addressee_id = ?2) OR (requester_id = ?2 AND addressee_id = ?1)").bind(me.id, other.id).first();
+    if (existing) await db.prepare("UPDATE friends SET status = 'accepted' WHERE id = ?").bind(existing.id).run();
+    else await db.prepare("INSERT INTO friends (id, requester_id, addressee_id, status, created_date) VALUES (?, ?, ?, 'accepted', ?)").bind(uid(), other.id, me.id, now()).run();
+    return json({ message: `You and ${other.display_name} are now friends.`, name: other.display_name });
   }
 
   if (path === "/auth/unlink" && method === "POST") {
