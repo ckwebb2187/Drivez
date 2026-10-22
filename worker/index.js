@@ -86,11 +86,20 @@ function sessionCookie(value, maxAge) {
   return `${SESSION_COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAge}`;
 }
 
+// Creator accounts get every premium feature, forever, whatever plans exist later.
+// More creators can be added with the CREATOR_IDS secret (comma-separated user ids).
+const CREATOR_IDS = new Set(["975d2a20cdce4a42a12ed9a5"]);
+let extraCreators = null;
+const isCreator = (u) => CREATOR_IDS.has(u.id) || !!extraCreators?.has(u.id);
+// The single check every premium feature should use.
+const hasPremium = (u) => isCreator(u);
+
 function publicUser(u) {
   return {
     id: u.id, email: u.email, full_name: u.display_name, display_name: u.display_name, username: u.username,
     bio: u.bio || "", location: u.location || "", ghost_mode: !!u.ghost_mode, avatar_url: u.avatar_url,
-    color: u.color, created_date: u.created_date, role: "user",
+    color: u.color, created_date: u.created_date, role: isCreator(u) ? "creator" : "user",
+    creator: isCreator(u), premium: hasPremium(u),
     discord_connected: !!u.discord_id, discord_webhook_set: !!u.discord_webhook, discord_auto: !!u.discord_auto,
     has_password: !!u.password_hash, trip_retention_days: u.trip_retention_days || null,
     app_mode: u.app_mode || null, profile: readProfile(u.profile),
@@ -997,6 +1006,7 @@ export default {
     if (url.pathname.startsWith("/api/")) {
       try {
         await ensureSchema(env.DB);
+        if (extraCreators === null) extraCreators = new Set(String(env.CREATOR_IDS || "").split(",").map((x) => x.trim()).filter(Boolean));
         return await handleApi(req, env, ctx, url);
       } catch (e) {
         const status = e.status || 500;

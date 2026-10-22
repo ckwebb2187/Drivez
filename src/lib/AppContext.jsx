@@ -52,6 +52,8 @@ export function AppProvider({ children }) {
       discordConnected: !!authUser.discord_connected,
       discordWebhookSet: !!authUser.discord_webhook_set,
       discordAuto: !!authUser.discord_auto,
+      creator: !!authUser.creator,
+      premium: !!authUser.premium,               // creators always have it
       appMode: authUser.app_mode || null,          // null until they pick on first launch
       profile: authUser.profile || { socials: {}, clubs: [], show: {} }
     };
