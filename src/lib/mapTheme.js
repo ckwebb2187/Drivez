@@ -47,31 +47,37 @@ const P = {
 
 export const themeBase = (theme, isDay) => (P[theme]?.base === 'day' ? 'day' : P[theme] ? 'dark' : isDay ? 'day' : 'dark');
 
-// A small square of building wall with windows, used as the side texture of 3D buildings.
-function windowTile(p, lit) {
-  const s = p.neon ? 64 : 32; // Kaido Night: wider tile so neon trim is occasional
-  const c = document.createElement('canvas');
-  c.width = c.height = s;
+// Building wall textures (the sides of 3D buildings): mostly dark glass with a few lit
+// windows and a neon edge, like a real city at night. Three styles for variety.
+function wallTile(p, variant, day) {
+  const W = 64, H = 64;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d');
-  g.fillStyle = p.bldg; g.fillRect(0, 0, s, s);
-  const w = 3, h = 4;
-  for (let y = 4; y < s; y += 10) {
-    for (let x = 3; x < s; x += 8) {
-      const on = lit && Math.random() < (p.neon ? 0.16 : 0.4);
-      g.fillStyle = on ? p.windows[Math.floor(Math.random() * p.windows.length)] : 'rgba(0,0,0,0.22)';
-      g.globalAlpha = on ? 0.7 : 1;
-      g.fillRect(x, y, w, h);
+  g.fillStyle = p.bldg; g.fillRect(0, 0, W, H);
+  const pal = p.neon || p.glow || p.windows;
+  const accent = pal[variant % pal.length];
+  const lit = p.windows[variant % p.windows.length];
+  const pane = day ? 'rgba(255,255,255,0.28)' : 'rgba(150,180,230,0.10)'; // unlit glass
+  // Which windows are on (fixed per style, so no random speckle): row, column.
+  const on = [[[0, 1], [2, 2]], [[1, 0]], [[3, 1], [0, 2], [1, 2]]][variant];
+  const rows = 4, cols = 3, ww = 12, wh = 9;
+  for (let r = 0; r < rows; r++) {
+    for (let k = 0; k < cols; k++) {
+      const x = 8 + k * 18, y = 5 + r * 16;
+      const isOn = !day && on.some(([rr, kk]) => rr === r && kk === k);
+      g.globalAlpha = isOn ? 0.75 : 1;
+      g.fillStyle = isOn ? lit : pane;
+      g.fillRect(x, y, ww, wh);
     }
   }
+  // Floor lines.
+  g.globalAlpha = day ? 0.12 : 0.25; g.fillStyle = '#000';
+  for (let r = 0; r < rows; r++) g.fillRect(0, 15 + r * 16, W, 2);
+  // Neon edge strip (night themes) or a light corner line (day themes).
+  g.globalAlpha = day ? 0.3 : 0.9; g.fillStyle = day ? '#ffffff' : accent; g.fillRect(0, 0, 2, H);
+  if (!day) { g.globalAlpha = 0.22; g.fillRect(2, 0, 3, H); }
   g.globalAlpha = 1;
-  // Kaido Night: a neon trim strip down some walls.
-  if (p.neon) {
-    const col = p.neon[Math.floor(Math.random() * p.neon.length)];
-    g.fillStyle = col; g.globalAlpha = 0.85; g.fillRect(0, 0, 2, s);
-    g.globalAlpha = 0.25; g.fillRect(2, 0, 3, s);
-    g.globalAlpha = 1;
-  }
-  return g.getImageData(0, 0, s, s);
+  return g.getImageData(0, 0, W, H);
 }
 
 // Glossy water: deep blue with light ripples. Several frames make it shimmer.
@@ -135,24 +141,45 @@ export function applyTheme(map, theme, { lite = false, beforeId } = {}) {
     }
   }
 
-  // 3D buildings: one layer we control, so every theme gets them.
-  for (const l of layers) if (l.type === 'fill-extrusion' && l.id !== 'dz-buildings') { try { map.setLayoutProperty(l.id, 'visibility', 'none'); } catch { /* ignore */ } }
+  // Buildings: every footprint drawn flat, and only the big ones (about 6+ floors) rise in 3D,
+  // so the map reads like a clean city model instead of a field of boxes.
+  for (const l of layers) if (l.type === 'fill-extrusion' && !/^dz-bldg/.test(l.id)) { try { map.setLayoutProperty(l.id, 'visibility', 'none'); } catch { /* ignore */ } }
   if (!lite && map.getSource('openmaptiles')) {
-    const night = !p && themeBase(theme, true) === 'dark';
-    const textured = !!p;
-    if (textured && !map.hasImage('dz-windows')) {
-      try { map.addImage('dz-windows', windowTile(p, theme !== 'wasteland'), { pixelRatio: 2 }); } catch { /* ignore */ }
+    const night = p ? p.base !== 'day' : themeBase(theme, true) === 'dark';
+    const wall = p ? p.bldg : night ? '#2b2f3d' : '#d9d4cc';
+    const top = p ? p.bldgTop : night ? '#363b4c' : '#e6e1d9';
+    const tall = ['>=', ['coalesce', ['get', 'render_height'], 0], 30];
+    const h = ['coalesce', ['get', 'render_height'], 6];
+    map.addLayer({
+      id: 'dz-bldg-flat', type: 'fill', source: 'openmaptiles', 'source-layer': 'building', minzoom: 13,
+      paint: { 'fill-color': wall, 'fill-outline-color': top, 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 13, 0, 14.5, 0.85] },
+    }, beforeId);
+    let pattern = null;
+    if (p) {
+      try {
+        for (let v = 0; v < 3; v++) { const id = `dz-wall-${theme}-${v}`; if (!map.hasImage(id)) map.addImage(id, wallTile(p, v, p.base === 'day'), { pixelRatio: 1 }); }
+        pattern = ['match', ['%', ['to-number', ['coalesce', ['id'], 0]], 3], 0, `dz-wall-${theme}-0`, 1, `dz-wall-${theme}-1`, `dz-wall-${theme}-2`];
+      } catch { pattern = null; }
     }
     map.addLayer({
-      id: 'dz-buildings', type: 'fill-extrusion', source: 'openmaptiles', 'source-layer': 'building', minzoom: 14,
+      id: 'dz-bldg-3d', type: 'fill-extrusion', source: 'openmaptiles', 'source-layer': 'building', minzoom: 14, filter: tall,
       paint: {
-        ...(textured && map.hasImage('dz-windows')
-          ? { 'fill-extrusion-pattern': 'dz-windows' }
-          : { 'fill-extrusion-color': night ? '#2b2f3d' : '#d9d4cc' }),
-        'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 6],
+        ...(pattern ? { 'fill-extrusion-pattern': pattern } : { 'fill-extrusion-color': wall }),
+        'fill-extrusion-height': h,
         'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
-        'fill-extrusion-opacity': 0.9,
+        'fill-extrusion-opacity': ['interpolate', ['linear'], ['zoom'], 14, 0, 14.6, 1],
         'fill-extrusion-vertical-gradient': true,
+      },
+    }, beforeId);
+    // Solid roof cap so the window texture only shows on the walls.
+    map.addLayer({
+      id: 'dz-bldg-roof', type: 'fill-extrusion', source: 'openmaptiles', 'source-layer': 'building', minzoom: 14, filter: tall,
+      paint: {
+        'fill-extrusion-color': top,
+        'fill-extrusion-height': ['+', h, 0.6],
+        'fill-extrusion-base': h,
+        'fill-extrusion-opacity': ['interpolate', ['linear'], ['zoom'], 14, 0, 14.6, 1],
+        'fill-extrusion-vertical-gradient': false,
       },
     }, beforeId);
   }
