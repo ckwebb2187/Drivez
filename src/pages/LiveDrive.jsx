@@ -12,6 +12,7 @@ import { formatNavDistance, formatEta, arrivalTime } from '@/lib/nav';
 import { LocationMarker, PinMarker, TurnIcon, ReportMarkers, ReportButton } from '@/components/MapBits';
 import { useReports, useReportAlerts, REPORT_TYPES } from '@/lib/reports';
 import MusicButton from '@/components/MusicButton';
+import { WeatherLayer, WeatherButton, WeatherTimeBadge } from '@/components/Weather';
 
 const MAX_POINTS = 400;
 
@@ -133,6 +134,7 @@ export default function LiveDrive() {
             <Polyline positions={drive.route.map(p => [p.lat, p.lng])} pathOptions={{ color: '#00BFFF', weight: 4, opacity: 0.9 }} />
           )}
           <ReportMarkers reports={roadReports.reports} onVote={roadReports.vote} onRemove={roadReports.remove} />
+          <WeatherLayer />
           <LocationMarker pos={drive.currentPosition || herePos} heading={drive.heading} car={myCar} />
         </DarkMap>
       </div>
@@ -282,6 +284,8 @@ export default function LiveDrive() {
 
             {/* Music + report shortcuts */}
             <div className={`absolute right-3 ${barOpen ? 'bottom-[214px]' : 'bottom-[156px]'} transition-all pointer-events-auto flex flex-col gap-3`}>
+              <WeatherTimeBadge className="self-end" />
+              <WeatherButton className="!w-[50px] !h-[50px]" />
               <MusicButton size={50} />
               <ReportButton size={50} onReport={(type) => roadReports.report(type, drive.currentPosition)} disabled={!drive.currentPosition} />
             </div>

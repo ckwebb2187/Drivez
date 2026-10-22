@@ -6,6 +6,7 @@ import { BaseLayer } from '@/components/DarkMap';
 import { LocationMarker, PinMarker, FollowMe, FitBounds, CarMarker, ReportMarkers, ReportButton } from '@/components/MapBits';
 import { useReports } from '@/lib/reports';
 import MusicButton from '@/components/MusicButton';
+import { WeatherLayer, WeatherButton, WeatherTimeBadge } from '@/components/Weather';
 import TripCard from '@/components/TripCard';
 import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
@@ -141,6 +142,7 @@ export default function MapHome() {
       <div className="absolute inset-0 isolate">
         <MapContainer center={pos || FALLBACK_CENTER} zoom={pos ? 15 : 4} zoomControl={false} attributionControl style={{ height: '100%', width: '100%' }}>
           <BaseLayer />
+          <WeatherLayer />
           <FollowMe pos={pos} follow={follow && !route} onUserMove={() => setFollow(false)} />
           {route && <FitBounds points={route.coords} padding={[40, 150]} paddingBottom={280} />}
           {route && (
@@ -230,6 +232,8 @@ export default function MapHome() {
 
       {/* Floating buttons */}
       <div className={`absolute right-3 z-10 flex flex-col items-end gap-3 transition-all ${route || routing || routeErr ? 'bottom-[290px]' : 'bottom-[124px]'} ${sheetOpen && !route && !routing && !routeErr ? 'opacity-0 pointer-events-none' : ''}`}>
+        <WeatherTimeBadge />
+        <WeatherButton />
         <MusicButton />
         <ReportButton onReport={(type) => roadReports.report(type, pos)} disabled={!pos} />
         {(!follow || route) && pos && (

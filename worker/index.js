@@ -381,6 +381,29 @@ async function handleApi(req, env, ctx, url) {
     return json({ ok: true });
   }
 
+  // --- weather map overlays ---
+  if (path === "/wx/config" && method === "GET") {
+    return json({ accuweather: !!env.ACCUWEATHER_API_KEY });
+  }
+  const wx = path.match(/^\/wx\/accu\/(radar|satellite)\/(\d{1,2})\/(\d+)\/(\d+)\.png$/);
+  if (wx && method === "GET") {
+    if (!env.ACCUWEATHER_API_KEY) throw new HttpError(404, "AccuWeather isn't set up.");
+    const [, kind, z, x, y] = wx;
+    // One cached copy per tile for 5 minutes, shared by everyone, so AccuWeather is called as little as possible.
+    const bucket = Math.floor(Date.now() / 300000);
+    const cacheKey = new Request(`${url.origin}/__wx/${kind}/${z}/${x}/${y}.png?b=${bucket}`);
+    const cache = caches.default;
+    let res = await cache.match(cacheKey);
+    if (!res) {
+      const product = kind === "radar" ? "radar/globalSIR" : "satellite/globalIR";
+      const up = await fetch(`https://api.accuweather.com/maps/v1/${product}/zxy/tile/${z}/${x}/${y}.png?apikey=${encodeURIComponent(env.ACCUWEATHER_API_KEY)}`, { redirect: "follow" });
+      if (!up.ok) throw new HttpError(up.status === 401 || up.status === 403 ? 502 : up.status, `AccuWeather said ${up.status}`);
+      res = new Response(up.body, { headers: { "content-type": "image/png", "cache-control": "public, max-age=300" } });
+      ctx.waitUntil(cache.put(cacheKey, res.clone()));
+    }
+    return res;
+  }
+
   // --- bulk import of saved places and drives (Google Maps, Waze, GPX/KML files) ---
   if (path === "/import" && method === "POST") {
     const places = Array.isArray(body.places) ? body.places.slice(0, 2000) : [];

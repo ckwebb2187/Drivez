@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, CircleMarker, Tooltip } from 'react-leaflet';
 import { ChevronLeft, Radio, LocateFixed } from 'lucide-react';
+import { WeatherLayer, WeatherButton } from '@/components/Weather';
 import { BaseLayer } from '@/components/DarkMap';
 import { CarMarker, LocationMarker, FollowMe, FitBounds } from '@/components/MapBits';
 import { useApp } from '@/lib/AppContext';
@@ -52,6 +53,7 @@ export default function LiveMap() {
       <div className="absolute inset-0 isolate">
         <MapContainer center={pos || FALLBACK_CENTER} zoom={pos ? 14 : 4} zoomControl={false} style={{ height: '100%', width: '100%' }}>
           <BaseLayer />
+          <WeatherLayer />
           <FollowMe pos={pos} follow={follow} onUserMove={() => setFollow(false)} />
           {fitPoints && <FitBounds points={fitPoints} padding={[60, 120]} paddingBottom={260} />}
           {drivers.map((d) => d.car ? (
@@ -74,6 +76,7 @@ export default function LiveMap() {
         >
           <ChevronLeft className="w-5 h-5 text-foreground" />
         </button>
+        <div className="ml-auto"><WeatherButton className="!w-10 !h-10" /></div>
         {pos && !follow && (
           <button onClick={() => setFollow(true)} className="w-10 h-10 rounded-full glass border border-border flex items-center justify-center" aria-label="Center on me">
             <LocateFixed className="w-5 h-5 text-[#4285F4]" />
