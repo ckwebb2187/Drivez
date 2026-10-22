@@ -83,11 +83,16 @@ export function AppProvider({ children }) {
 
   // The car you're driving: the one marked "driving this", else your first car.
   const activeVehicle = useMemo(() => vehicles.find(v => v.is_primary) || vehicles[0] || null, [vehicles]);
-  const myCar = useMemo(() => activeVehicle ? { body: activeVehicle.body || 'sedan', color: activeVehicle.color || '#00BFFF', image: activeVehicle.image_url || null } : null, [activeVehicle]);
+  const myCar = useMemo(() => activeVehicle ? { body: activeVehicle.body || 'sedan', color: activeVehicle.color || '#00BFFF', image: activeVehicle.image_url || null, model3d: activeVehicle.model3d || null, paint: activeVehicle.paint || null } : null, [activeVehicle]);
 
   const setPrimaryVehicle = async (id) => {
     await Promise.all(vehicles.filter(v => !!v.is_primary !== (v.id === id)).map(v => base44.entities.Vehicle.update(v.id, { is_primary: v.id === id })));
     setVehicles(prev => prev.map(v => ({ ...v, is_primary: v.id === id })));
+  };
+
+  const updateVehicle = async (id, patch) => {
+    await base44.entities.Vehicle.update(id, patch);
+    setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...patch } : v));
   };
 
   const stats = useMemo(() => {
@@ -223,7 +228,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       user, stats, weeklyStats, vehicles, trips, savedRoutes, loading, activeVehicle, myCar, setPrimaryVehicle,
-      toggleGhostMode, updateUser, addVehicle, removeVehicle, setVehicleImage, addTrip,
+      toggleGhostMode, updateUser, addVehicle, removeVehicle, setVehicleImage, updateVehicle, addTrip,
       addRoute, deleteRoute, shareRouteWithFriends, places, addPlace, deletePlace, renamePlace, home, work, setHomeWork, refreshData: loadData
     }}>
       {children}

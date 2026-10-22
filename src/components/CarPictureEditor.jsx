@@ -3,10 +3,13 @@ import { createPortal } from 'react-dom';
 import { X, RotateCw, Loader2, ImagePlus, Trash2, ArrowUp } from 'lucide-react';
 import { cutOutCar, turnCar, canvasToPngBase64 } from '@/lib/carImage';
 import { useApp } from '@/lib/AppContext';
+import { CAR_MODELS } from '@/lib/carModels';
 
 // Upload your own top-down car picture: background removed, front turned to face up.
 export default function CarPictureEditor({ vehicle, onClose }) {
-  const { setVehicleImage } = useApp();
+  const { setVehicleImage, updateVehicle } = useApp();
+  const [model3d, setModel3d] = useState(vehicle.model3d || '');
+  const chooseModel = async (m) => { setModel3d(m); try { await updateVehicle(vehicle.id, { model3d: m || null }); } catch (e) { setError(e.message); } };
   const fileRef = useRef(null);
   const [cut, setCut] = useState(null);       // cut-out canvas
   const [turns, setTurns] = useState(0);
@@ -78,6 +81,18 @@ export default function CarPictureEditor({ vehicle, onClose }) {
           <button onClick={save} disabled={busy} className="w-full mt-2 h-12 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2">
             {busy && <Loader2 className="w-4 h-4 animate-spin" />} Use this picture
           </button>
+        )}
+        {!cut && (
+          <div className="mt-4">
+            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">3D car on the drive map</div>
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={() => chooseModel('')} className={`px-3 h-9 rounded-full text-xs font-semibold border ${!model3d ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary border-border text-foreground'}`}>Use my picture</button>
+              {Object.entries(CAR_MODELS).map(([k, m]) => (
+                <button key={k} onClick={() => chooseModel(k)} className={`px-3 h-9 rounded-full text-xs font-semibold border ${model3d === k ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary border-border text-foreground'}`}>{m.label}</button>
+              ))}
+            </div>
+            {model3d && CAR_MODELS[model3d] && <p className="text-[10px] text-muted-foreground mt-2">{CAR_MODELS[model3d].credit}</p>}
+          </div>
         )}
         {vehicle.image_url && !cut && (
           <button onClick={remove} disabled={busy} className="w-full mt-2 h-11 rounded-xl text-sm font-semibold text-destructive flex items-center justify-center gap-2">

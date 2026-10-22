@@ -5,6 +5,7 @@ import { carMarkup } from '@/lib/cars';
 import { REPORT_TYPES } from '@/lib/reports';
 import { distM } from '@/lib/nav';
 import { useWeatherTiles, useWeatherPrefs } from '@/components/Weather';
+import { CAR_MODELS } from '@/lib/carModels';
 import { useLiveTraffic, trafficTileUrl } from '@/lib/traffic';
 
 // The 3D driving map, in the style of Waze / Google Maps navigation:
@@ -231,6 +232,8 @@ export default function DriveMap({
         const { car3dLayer, prepareCarPicture } = await import('@/lib/car3d'); // 3D engine loads only for driving
         let colors = { body: car.color || '#1f5ad6', glow: null };
         if (car.image) { try { colors = await prepareCarPicture(car.image); } catch { /* keep plain colors */ } }
+        const model = car.model3d && CAR_MODELS[car.model3d];
+        if (model) colors = { ...colors, modelUrl: model.url, frontAxis: model.frontAxis, paintMaterials: model.paintMaterials, paint: car.paint || colors.body || car.color };
         if (cancelled || !readyRef.current) return;
         if (map.getLayer('dz-car3d')) map.removeLayer('dz-car3d');
         try {
@@ -255,7 +258,7 @@ export default function DriveMap({
       if (readyRef.current) { try { if (map.getLayer('dz-car3d')) map.removeLayer('dz-car3d'); } catch { /* already gone */ } }
       live.current.car3d = false;
     };
-  }, [car?.body, car?.color, car?.image]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [car?.body, car?.color, car?.image, car?.model3d, car?.paint]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // New GPS fix: start gliding from where the car is drawn now to the new spot.
   useEffect(() => {

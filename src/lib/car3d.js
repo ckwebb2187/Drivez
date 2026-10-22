@@ -198,14 +198,22 @@ export function car3dLayer({ id = 'dz-car3d', colors, getPose, screenLength = 11
       const fill = new THREE.DirectionalLight('#9fb4ff', 0.8);
       fill.position.set(4, 3, 5);
       scene.add(fill);
-      car = colors?.picture ? buildPictureCar(colors) : buildCar(colors);
-      scene.add(car);
+      if (colors?.modelUrl) {
+        // Real 3D model: show the picture version until it has loaded.
+        if (colors.picture) { car = buildPictureCar(colors); scene.add(car); }
+        buildModelCar({ url: colors.modelUrl, paint: colors.paint, glow: colors.glow, picture: colors.picture, frontAxis: colors.frontAxis, paintMaterials: colors.paintMaterials })
+          .then((m) => { if (car) scene.remove(car); car = m; scene.add(m); map.triggerRepaint(); })
+          .catch((e) => console.warn('Car model failed to load', e));
+      } else {
+        car = colors?.picture ? buildPictureCar(colors) : buildCar(colors);
+        scene.add(car);
+      }
       renderer = new THREE.WebGLRenderer({ canvas: map.getCanvas(), context: gl, antialias: true });
       renderer.autoClear = false;
     },
     render(gl, args) {
       const pose = getPose();
-      if (!pose) return;
+      if (!pose || !car) return;
       const merc = maplibregl.MercatorCoordinate.fromLngLat(pose.lngLat, 0);
       // Keep the car about `screenLength` px long whatever the zoom (like Waze).
       const mpp = (78271.517 * Math.cos((pose.lngLat[1] * Math.PI) / 180)) / 2 ** map.getZoom();
@@ -271,4 +279,63 @@ export async function prepareCarPicture(src) {
     body: bn ? hex(br, bg, bb, bn) : null,
     glow: gn > 200 ? hex(gr, gg, gb, gn) : null,
   };
+}
+
+// ---------- Real 3D model (.glb) ----------
+// Loads a car model, centers it, makes it LEN long facing forward (-Z), repaints
+// the body, and adds the underglow (shaped from the car picture when there is one).
+export async function buildModelCar({ url, paint = null, glow = null, picture = null, aspect = 0.42, frontAxis = '-z', paintMaterials = null }) {
+  const [{ GLTFLoader }, { MeshoptDecoder }] = await Promise.all([
+    import('three/examples/jsm/loaders/GLTFLoader.js'),
+    import('three/examples/jsm/libs/meshopt_decoder.module.js'),
+  ]);
+  const loader = new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  const gltf = await loader.loadAsync(url);
+  const model = gltf.scene;
+
+  // Face forward: rotate so the model's front points to -Z.
+  const turn = { '-z': 0, '+z': Math.PI, '+x': Math.PI / 2, '-x': -Math.PI / 2 }[frontAxis] || 0;
+  model.rotation.y = turn;
+  model.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const k = LEN / Math.max(size.x, size.z);
+  const holder = new THREE.Group();
+  model.position.sub(box.getCenter(new THREE.Vector3())).setY(-box.min.y); // centered, wheels on the road
+  holder.add(model);
+  holder.scale.setScalar(k);
+
+  // Repaint the body (materials whose names look like paint).
+  if (paint) {
+    const isPaint = paintMaterials
+      ? (m) => paintMaterials.includes(m.name)
+      : (m) => /paint|body|carpaint|car_paint|exterior/i.test(m.name || '');
+    model.traverse((o) => {
+      if (!o.isMesh) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+        if (m && isPaint(m) && m.color) { m.color.set(paint); if ('metalness' in m) { m.metalness = 0.6; m.roughness = 0.3; } }
+      }
+    });
+  }
+
+  const car = new THREE.Group();
+  car.add(holder);
+  if (glow) {
+    const PL = LEN * 1.02, PW = LEN * (picture ? picture.width / picture.height : aspect);
+    const pad = 1.5;
+    const tex = picture ? glowFromMask(picture, glow, pad) : glowTexture(glow);
+    const pool = new THREE.Mesh(
+      new THREE.PlaneGeometry(PW * pad, PL * pad),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, opacity: 0.95 })
+    );
+    pool.rotation.x = -Math.PI / 2;
+    pool.position.y = 0.04;
+    pool.renderOrder = 1;
+    car.add(pool);
+    const lamp = new THREE.PointLight(glow, 10, 5, 1.5);
+    lamp.position.set(0, 0.15, 0);
+    car.add(lamp);
+  }
+  return car;
 }
