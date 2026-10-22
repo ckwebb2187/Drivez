@@ -373,6 +373,14 @@ export default function LiveDrive({ active = true }) {
         />
       </div>
 
+      {/* Ask Gemini on the home map (top right, under the search bar). Kept outside the
+          screen animations: anything inside them that comes and goes resets the trip planner. */}
+      {drive.status === 'idle' && !preview && (
+        <div className="absolute right-3 top-[calc(max(12px,env(safe-area-inset-top))+108px)] z-[520]">
+          <AskGemini size={46} context={askContext} onAction={onAskAction} />
+        </div>
+      )}
+
       <AnimatePresence mode="wait">
         {/* Idle: the map is the home screen — search, plan and go from here */}
         {drive.status === 'idle' && (
@@ -390,13 +398,6 @@ export default function LiveDrive({ active = true }) {
               guideRoute={guideRoute}
               onClearGuide={() => { setRouteId(null); navigate('/', { replace: true }); }}
             />
-          </motion.div>
-        )}
-
-        {/* Ask Gemini on the home map (top right, under the search bar) */}
-        {drive.status === 'idle' && !preview && (
-          <motion.div key="ask-idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute right-3 top-[calc(max(12px,env(safe-area-inset-top))+108px)] z-[520]">
-            <AskGemini size={46} context={askContext} onAction={onAskAction} />
           </motion.div>
         )}
 
