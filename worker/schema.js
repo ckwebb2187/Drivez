@@ -54,4 +54,5 @@ export const SCHEMA = [
   )`,
   `CREATE INDEX IF NOT EXISTS reports_area ON reports(expires, lat, lng)`,
   `CREATE TABLE IF NOT EXISTS report_votes (report_id TEXT NOT NULL, user_id TEXT NOT NULL, still_there INTEGER NOT NULL, PRIMARY KEY (report_id, user_id))`,
+  `CREATE TABLE IF NOT EXISTS avatars (user_id TEXT PRIMARY KEY, mime TEXT NOT NULL, data BLOB NOT NULL, updated INTEGER NOT NULL)`,
 ];

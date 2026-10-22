@@ -177,12 +177,13 @@ function fmtDuration(s) {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
   return h ? `${h}h ${m}m` : m ? `${m}m ${sec}s` : `${sec}s`;
 }
-async function postTripToDiscord(webhook, user, trip, vehicle) {
+async function postTripToDiscord(webhook, user, trip, vehicle, origin) {
+  const icon = user.avatar_url ? new URL(user.avatar_url, origin || "https://drivez.invalid").href : undefined;
   const embed = {
     title: `🏁 ${trip.title || "Drive"}`,
     description: [trip.start_location, trip.end_location].filter(Boolean).join(" → ") || undefined,
     color: parseInt(String(user.color || "#00BFFF").slice(1), 16),
-    author: { name: `${user.display_name} on Drivez`, icon_url: user.avatar_url || undefined },
+    author: { name: `${user.display_name} on Drivez`, icon_url: icon },
     fields: [
       { name: "Distance", value: `${trip.distance ?? 0} mi`, inline: true },
       { name: "Top speed", value: `${trip.top_speed ?? 0} mph`, inline: true },
@@ -313,6 +314,14 @@ async function handleApi(req, env, ctx, url) {
     return new Response(null, { status: 302, headers: { location: `${url.origin}${st.next}`, "set-cookie": await startSession(db, user.id) } });
   }
 
+  // Profile pictures are public so friends, the map and Discord can show them.
+  const av = path.match(/^\/avatar\/([A-Za-z0-9_-]+)$/);
+  if (av && method === "GET") {
+    const row = await db.prepare("SELECT mime, data FROM avatars WHERE user_id = ?").bind(av[1]).first();
+    if (!row) throw new HttpError(404, "No picture");
+    return new Response(new Uint8Array(row.data), { headers: { "content-type": row.mime, "cache-control": "public, max-age=31536000, immutable" } });
+  }
+
   // --- everything below needs a signed-in user ---
   const me = await currentUser(req, db);
   if (!me) throw new HttpError(401, "Please log in.");
@@ -339,6 +348,28 @@ async function handleApi(req, env, ctx, url) {
       if (sets.length) await db.prepare(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`).bind(...vals, me.id).run();
       return json(publicUser(await db.prepare("SELECT * FROM users WHERE id = ?").bind(me.id).first()));
     }
+  }
+
+  if (path === "/me/avatar" && method === "POST") {
+    const mime = String(body.mime || "");
+    if (!/^image\/(jpeg|png|webp)$/.test(mime)) throw new HttpError(400, "Use a JPG, PNG or WebP picture.");
+    let bytes;
+    try { bytes = Uint8Array.from(atob(String(body.data || "")), (c) => c.charCodeAt(0)); } catch { throw new HttpError(400, "That picture couldn't be read."); }
+    if (!bytes.length) throw new HttpError(400, "That picture is empty.");
+    if (bytes.length > 700 * 1024) throw new HttpError(413, "That picture is too big. Try a smaller one.");
+    const t = Date.now();
+    await db.batch([
+      db.prepare("INSERT INTO avatars (user_id, mime, data, updated) VALUES (?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET mime = excluded.mime, data = excluded.data, updated = excluded.updated").bind(me.id, mime, bytes, t),
+      db.prepare("UPDATE users SET avatar_url = ? WHERE id = ?").bind(`/api/avatar/${me.id}?v=${t}`, me.id),
+    ]);
+    return json(publicUser(await db.prepare("SELECT * FROM users WHERE id = ?").bind(me.id).first()));
+  }
+  if (path === "/me/avatar" && method === "DELETE") {
+    await db.batch([
+      db.prepare("DELETE FROM avatars WHERE user_id = ?").bind(me.id),
+      db.prepare("UPDATE users SET avatar_url = NULL WHERE id = ?").bind(me.id),
+    ]);
+    return json(publicUser(await db.prepare("SELECT * FROM users WHERE id = ?").bind(me.id).first()));
   }
 
   if (path === "/auth/unlink" && method === "POST") {
@@ -372,7 +403,7 @@ async function handleApi(req, env, ctx, url) {
       await db.prepare("INSERT INTO records (id, entity, owner_id, data, created_date, updated_date) VALUES (?, ?, ?, ?, ?, ?)").bind(rid, name, me.id, JSON.stringify(data), t, t).run();
       if (name === "Trip" && me.discord_auto && me.discord_webhook) {
         const vehicle = data.vehicle_id ? await db.prepare("SELECT data FROM records WHERE id = ? AND owner_id = ?").bind(data.vehicle_id, me.id).first() : null;
-        ctx.waitUntil(postTripToDiscord(me.discord_webhook, me, data, vehicle ? JSON.parse(vehicle.data) : null).catch(() => {}));
+        ctx.waitUntil(postTripToDiscord(me.discord_webhook, me, data, vehicle ? JSON.parse(vehicle.data) : null, url.origin).catch(() => {}));
       }
       await db.prepare("DELETE FROM live_pos WHERE user_id = ?").bind(me.id).run();
       return json({ ...data, id: rid, created_by_id: me.id, created_by: me.email, created_date: t, updated_date: t });
@@ -399,7 +430,7 @@ async function handleApi(req, env, ctx, url) {
     if (!row) throw new HttpError(404, "Trip not found");
     const trip = JSON.parse(row.data);
     const v = trip.vehicle_id ? await db.prepare("SELECT data FROM records WHERE id = ? AND owner_id = ?").bind(trip.vehicle_id, me.id).first() : null;
-    await postTripToDiscord(me.discord_webhook, me, trip, v ? JSON.parse(v.data) : null);
+    await postTripToDiscord(me.discord_webhook, me, trip, v ? JSON.parse(v.data) : null, url.origin);
     return json({ ok: true });
   }
   if (path === "/discord/test" && method === "POST") {

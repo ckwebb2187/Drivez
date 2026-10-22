@@ -7,7 +7,9 @@ import { X, Settings2, ExternalLink, Loader2 } from 'lucide-react';
 // from ListenBrainz, which YumaPlayer can update (Settings → ListenBrainz scrobbling).
 // "Open YumaPlayer" switches to the app on Android.
 const PACKAGE = 're.muwmix.yumaplayer';
-const INTENT = `intent://#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${PACKAGE};end`;
+// Chrome only opens app screens that accept web links, so we use YumaPlayer's own
+// "yumaplayer://together" link. Without session details it simply opens the app.
+const INTENT = `intent://together#Intent;scheme=yumaplayer;package=${PACKAGE};end`;
 const LB_KEY = 'dz_listenbrainz_user';
 
 const readUser = () => { try { return localStorage.getItem(LB_KEY) || ''; } catch { return ''; } };
