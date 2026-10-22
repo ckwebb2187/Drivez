@@ -40,4 +40,18 @@ export const SCHEMA = [
     UNIQUE(requester_id, addressee_id)
   )`,
   `CREATE TABLE IF NOT EXISTS live (user_id TEXT PRIMARY KEY, lat REAL, lng REAL, speed INTEGER, updated INTEGER)`,
+  `CREATE TABLE IF NOT EXISTS live_pos (user_id TEXT PRIMARY KEY, lat REAL, lng REAL, speed INTEGER, heading REAL, car_body TEXT, car_color TEXT, updated INTEGER)`,
+  `CREATE TABLE IF NOT EXISTS reports (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    lat REAL NOT NULL,
+    lng REAL NOT NULL,
+    created INTEGER NOT NULL,
+    expires INTEGER NOT NULL,
+    confirms INTEGER NOT NULL DEFAULT 0,
+    dismissals INTEGER NOT NULL DEFAULT 0
+  )`,
+  `CREATE INDEX IF NOT EXISTS reports_area ON reports(expires, lat, lng)`,
+  `CREATE TABLE IF NOT EXISTS report_votes (report_id TEXT NOT NULL, user_id TEXT NOT NULL, still_there INTEGER NOT NULL, PRIMARY KEY (report_id, user_id))`,
 ];

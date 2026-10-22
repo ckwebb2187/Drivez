@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2 } from 'lucide-react';
-import { Polyline, CircleMarker } from 'react-leaflet';
+import { Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X } from 'lucide-react';
+import { Polyline } from 'react-leaflet';
 import DarkMap from '@/components/DarkMap';
 import SpeedHUD from '@/components/SpeedHUD';
 import { useGpsDrive } from '@/lib/useGpsDrive';
 import { useApp } from '@/lib/AppContext';
 import { formatDuration } from '@/lib/helpers';
+import { useNavigation } from '@/lib/useNavigation';
+import { formatNavDistance, formatEta, arrivalTime } from '@/lib/nav';
+import { LocationMarker, PinMarker, TurnIcon, ReportMarkers, ReportButton } from '@/components/MapBits';
+import { useReports, useReportAlerts, REPORT_TYPES } from '@/lib/reports';
+import MusicButton from '@/components/MusicButton';
 
 const MAX_POINTS = 400;
 
@@ -25,8 +30,19 @@ async function reverseGeocode(lat, lng) {
 
 export default function LiveDrive() {
   const navigate = useNavigate();
-  const { vehicles, savedRoutes, addTrip } = useApp();
-  const drive = useGpsDrive();
+  const { activeVehicle, myCar, savedRoutes, addTrip } = useApp();
+  const drive = useGpsDrive(myCar);
+  const location = useLocation();
+  const navPlan = location.state?.nav || null;
+  const [voiceOn, setVoiceOn] = useState(() => { try { return localStorage.getItem('dz_voice') !== '0'; } catch { return true; } });
+  const nav = useNavigation(navPlan, drive.currentPosition, voiceOn && drive.status === 'driving');
+  const toggleVoice = () => { const v = !voiceOn; setVoiceOn(v); try { localStorage.setItem('dz_voice', v ? '1' : '0'); } catch { /* ignore */ } if (!v) window.speechSynthesis?.cancel(); };
+
+  const roadReports = useReports(drive.currentPosition);
+  const [reportAlert, dismissAlert] = useReportAlerts(roadReports.reports, drive.status === 'driving' ? drive.currentPosition : null, nav.active ? nav.route.coords : null, voiceOn);
+
+  // Tapping "Go" on the home map starts the drive straight away.
+  useEffect(() => { if (navPlan && drive.status === 'idle') drive.start(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [tripTitle, setTripTitle] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -35,11 +51,17 @@ export default function LiveDrive() {
   const routeId = urlParams.get('route');
   const guideRoute = routeId ? savedRoutes.find(r => r.id === routeId) : null;
 
-  const center = drive.currentPosition || (guideRoute && guideRoute.route.length > 0 ? guideRoute.route[Math.floor(guideRoute.route.length / 2)] : [37.7749, -122.4194]);
+  // Show where you are on the map even before the drive starts.
+  const [herePos, setHerePos] = useState(null);
+  useEffect(() => {
+    navigator.geolocation?.getCurrentPosition((p) => setHerePos([p.coords.latitude, p.coords.longitude]), () => {}, { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 });
+  }, []);
+
+  const center = drive.currentPosition || herePos || (navPlan ? [navPlan.dest.lat, navPlan.dest.lng] : null) || (guideRoute && guideRoute.route.length > 0 ? guideRoute.route[Math.floor(guideRoute.route.length / 2)] : [39.8283, -98.5795]);
 
   useEffect(() => {
     if (drive.status === 'ended' && !tripTitle) {
-      setTripTitle(`Drive — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
+      setTripTitle(navPlan ? `Drive to ${navPlan.dest.name}` : `Drive — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
     }
   }, [drive.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -74,7 +96,7 @@ export default function LiveDrive() {
         duration: drive.elapsedTime,
         top_speed: drive.maxSpeed,
         avg_speed: avg,
-        vehicle_id: vehicles[0] ? vehicles[0].id : null,
+        vehicle_id: activeVehicle ? activeVehicle.id : null,
         route_points: routePoints,
         start_location: startLocation,
         end_location: endLocation
@@ -96,20 +118,22 @@ export default function LiveDrive() {
     <div className="relative h-full overflow-hidden">
       {/* Map */}
       <div className="absolute inset-0">
-        <DarkMap center={center} zoom={16} follow={drive.status === 'driving'}>
+        <DarkMap center={center} zoom={navPlan ? 17 : 16} follow={drive.status === 'driving' || (!!herePos && drive.status === 'idle')}>
+          {nav.active && (
+            <>
+              <Polyline positions={nav.route.coords} pathOptions={{ color: '#1a3d7a', weight: 11, opacity: 0.9 }} />
+              <Polyline positions={nav.route.coords} pathOptions={{ color: '#4285F4', weight: 7, opacity: 1 }} />
+            </>
+          )}
+          {navPlan && <PinMarker pos={[navPlan.dest.lat, navPlan.dest.lng]} />}
           {guideRoute && guideRoute.route.length > 1 && (
             <Polyline positions={guideRoute.route} pathOptions={{ color: '#6b6b9f', weight: 3, opacity: 0.6, dashArray: '6 8' }} />
           )}
           {drive.route.length > 1 && (
             <Polyline positions={drive.route.map(p => [p.lat, p.lng])} pathOptions={{ color: '#00BFFF', weight: 4, opacity: 0.9 }} />
           )}
-          {drive.currentPosition && (
-            <CircleMarker
-              center={drive.currentPosition}
-              radius={7}
-              pathOptions={{ color: '#39FF14', fillColor: '#39FF14', fillOpacity: 1 }}
-            />
-          )}
+          <ReportMarkers reports={roadReports.reports} onVote={roadReports.vote} onRemove={roadReports.remove} />
+          <LocationMarker pos={drive.currentPosition || herePos} heading={drive.heading} car={myCar} />
         </DarkMap>
       </div>
 
@@ -212,8 +236,30 @@ export default function LiveDrive() {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 z-[500] pointer-events-none"
           >
+            {nav.active && (
+              <div className="absolute top-0 left-0 right-0 p-3 pt-[max(12px,env(safe-area-inset-top))] pointer-events-auto">
+                <div className="rounded-2xl shadow-2xl overflow-hidden" style={{ background: nav.arrived ? '#188038' : '#0F7B3F' }}>
+                  <div className="flex items-center gap-3 px-4 py-3.5 text-white">
+                    {nav.arrived ? <Check className="w-9 h-9" strokeWidth={2.6} /> : <TurnIcon step={nav.step} className="w-9 h-9 shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-2xl font-bold leading-none">{nav.arrived ? 'Arrived' : nav.rerouting ? 'Rerouting…' : formatNavDistance(nav.distToStep)}</div>
+                      <div className="text-[15px] font-semibold mt-1 leading-snug line-clamp-2">{nav.arrived ? navPlan.dest.name : nav.step.text}</div>
+                    </div>
+                    <button onClick={toggleVoice} className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center shrink-0" aria-label={voiceOn ? 'Mute directions' : 'Unmute directions'}>
+                      {voiceOn ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+                    </button>
+                  </div>
+                  {!nav.arrived && nav.nextStep && nav.step.type !== 'arrive' && (
+                    <div className="flex items-center gap-2 px-4 py-2 bg-black/20 text-white/90 text-xs font-medium">
+                      Then <TurnIcon step={nav.nextStep} className="w-4 h-4" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Top bar */}
-            <div className="absolute top-0 left-0 right-0 p-5 pt-12">
+            {!nav.active && <div className="absolute top-0 left-0 right-0 p-5 pt-12">
               <div className="glass rounded-2xl px-4 py-3 border border-border flex items-center justify-between pointer-events-auto">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
@@ -235,11 +281,43 @@ export default function LiveDrive() {
                   </div>
                 </div>
               </div>
+            </div>}
+
+            {/* Report warning */}
+            {reportAlert && (
+              <div className={`absolute left-3 right-[76px] ${nav.active ? 'top-[150px]' : 'top-[120px]'} pointer-events-auto`}>
+                <button onClick={dismissAlert} className="w-full flex items-center gap-3 rounded-2xl px-4 py-3 shadow-2xl text-left" style={{ background: REPORT_TYPES[reportAlert.type]?.color || '#F9AB00' }}>
+                  <span className="text-2xl">{REPORT_TYPES[reportAlert.type]?.emoji}</span>
+                  <span className="flex-1 text-white">
+                    <span className="block text-sm font-bold">{REPORT_TYPES[reportAlert.type]?.label} ahead</span>
+                    <span className="block text-xs opacity-90">{formatNavDistance(reportAlert.distance)} · reported by {reportAlert.by}</span>
+                  </span>
+                  <X className="w-4 h-4 text-white/80" />
+                </button>
+              </div>
+            )}
+
+            {/* Music + report shortcuts */}
+            <div className={`absolute right-4 ${nav.active ? 'bottom-[calc(7rem+330px)]' : 'bottom-[calc(7rem+250px)]'} pointer-events-auto flex flex-col gap-3`}>
+              <MusicButton />
+              <ReportButton onReport={(type) => roadReports.report(type, drive.currentPosition)} disabled={!drive.currentPosition} />
             </div>
 
             {/* Bottom HUD */}
             <div className="absolute bottom-0 left-0 right-0 p-5 pb-28">
               <div className="glass rounded-3xl p-6 border border-border pointer-events-auto">
+                {nav.active && !nav.arrived && (
+                  <div className="flex items-center justify-between mb-3 pb-3 border-b border-border">
+                    <div>
+                      <span className="text-xl font-bold text-[#34A853]">{formatEta(nav.remainingS)}</span>
+                      <span className="text-sm text-muted-foreground"> · {formatNavDistance(nav.remainingM)}</span>
+                      <div className="text-[11px] text-muted-foreground">Arrive {arrivalTime(nav.remainingS)}</div>
+                    </div>
+                    <button onClick={() => navigate('/drive', { replace: true, state: null })} className="h-9 px-3 rounded-full bg-secondary text-xs font-semibold text-foreground flex items-center gap-1">
+                      <X className="w-3.5 h-3.5" /> End route
+                    </button>
+                  </div>
+                )}
                 <SpeedHUD speed={drive.currentSpeed} maxSpeed={drive.maxSpeed} />
                 <button
                   onClick={drive.end}

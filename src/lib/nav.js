@@ -1,0 +1,144 @@
+// Search, directions and turn-by-turn helpers.
+// Place search: Photon (komoot, free). Directions: OSRM public server (free).
+
+const toRad = (d) => (d * Math.PI) / 180;
+
+// Distance in metres between two [lat, lng] points.
+export function distM(a, b) {
+  const R = 6371000;
+  const dLat = toRad(b[0] - a[0]);
+  const dLng = toRad(b[1] - a[1]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+// Shortest distance in metres from point p to a polyline of [lat, lng] points.
+export function distToLineM(p, line) {
+  if (!line?.length) return Infinity;
+  const kx = Math.cos(toRad(p[0])) * 111320, ky = 110540;
+  let best = Infinity;
+  for (let i = 0; i < line.length - 1; i++) {
+    const ax = (line[i][1] - p[1]) * kx, ay = (line[i][0] - p[0]) * ky;
+    const bx = (line[i + 1][1] - p[1]) * kx, by = (line[i + 1][0] - p[0]) * ky;
+    const dx = bx - ax, dy = by - ay;
+    const len = dx * dx + dy * dy;
+    const t = len ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len)) : 0;
+    best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+  }
+  return best;
+}
+
+export function formatNavDistance(m) {
+  const mi = m / 1609.34;
+  if (mi < 0.1) return `${Math.max(50, Math.round((m * 3.281) / 50) * 50)} ft`;
+  return `${mi < 10 ? mi.toFixed(1) : Math.round(mi)} mi`;
+}
+
+export function spokenDistance(m) {
+  const mi = m / 1609.34;
+  if (mi < 0.1) return `${Math.max(50, Math.round((m * 3.281) / 50) * 50)} feet`;
+  if (mi < 0.3) return 'a quarter mile';
+  if (mi < 0.6) return 'half a mile';
+  return `${mi.toFixed(1)} miles`;
+}
+
+export function formatEta(seconds) {
+  const m = Math.max(1, Math.round(seconds / 60));
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)} hr ${m % 60} min`;
+}
+
+export function arrivalTime(seconds) {
+  return new Date(Date.now() + seconds * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function compass(bearing) {
+  return ['north', 'northeast', 'east', 'southeast', 'south', 'southwest', 'west', 'northwest'][Math.round(((bearing || 0) % 360) / 45) % 8];
+}
+
+export function stepText(s) {
+  const on = s.name ? ` onto ${s.name}` : '';
+  const m = s.modifier || '';
+  if (m === 'uturn') return `Make a U-turn${on}`;
+  switch (s.type) {
+    case 'depart': return `Head ${compass(s.bearing)}${s.name ? ` on ${s.name}` : ''}`;
+    case 'arrive': return 'Arrive at your destination';
+    case 'turn':
+    case 'end of road': return m === 'straight' ? `Continue straight${on}` : `Turn ${m}${on}`;
+    case 'merge': return `Merge${m && m !== 'straight' ? ` ${m}` : ''}${on}`;
+    case 'on ramp': return `Take the ramp${m.includes('left') || m.includes('right') ? ` on the ${m.replace('slight ', '')}` : ''}${on}`;
+    case 'off ramp': return `Take the exit${m.includes('left') || m.includes('right') ? ` on the ${m.replace('slight ', '')}` : ''}${on}`;
+    case 'fork': return `Keep ${m.replace('slight ', '') || 'straight'} at the fork${on}`;
+    case 'roundabout':
+    case 'rotary':
+    case 'roundabout turn': return `At the roundabout, take the ${ordinal(s.exit || 1)} exit${on}`;
+    default:
+      if (m.includes('left') || m.includes('right')) return `Keep ${m.replace('slight ', '')}${on}`;
+      return `Continue${on}`;
+  }
+}
+
+function ordinal(n) {
+  return ['first', 'second', 'third', 'fourth', 'fifth', 'sixth'][n - 1] || `${n}th`;
+}
+
+// Place search, biased towards the user's position when known.
+export async function searchPlaces(q, near) {
+  const params = new URLSearchParams({ q, limit: '6', lang: 'en' });
+  if (near) { params.set('lat', near[0]); params.set('lon', near[1]); }
+  const res = await fetch(`https://photon.komoot.io/api/?${params}`);
+  if (!res.ok) throw new Error('Search is unavailable right now');
+  const data = await res.json();
+  return (data.features || []).map((f) => {
+    const p = f.properties || {};
+    const street = [p.housenumber, p.street].filter(Boolean).join(' ');
+    const name = p.name || street || p.city || 'Dropped pin';
+    const address = [p.name ? street : '', p.city || p.district, p.state].filter(Boolean).join(', ');
+    const [lng, lat] = f.geometry.coordinates;
+    return {
+      id: `${p.osm_type}${p.osm_id}`,
+      name, address, lat, lng,
+      distance: near ? distM(near, [lat, lng]) : null,
+    };
+  });
+}
+
+// Driving directions from `from` to `to` ([lat, lng]).
+export async function getRoute(from, to) {
+  const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson&steps=true`;
+  const res = await fetch(url);
+  const data = await res.json().catch(() => ({}));
+  if (data.code !== 'Ok' || !data.routes?.length) throw new Error("Couldn't find a driving route there");
+  const r = data.routes[0];
+  const steps = r.legs.flatMap((leg) => leg.steps).map((s) => {
+    const step = {
+      lat: s.maneuver.location[1],
+      lng: s.maneuver.location[0],
+      type: s.maneuver.type,
+      modifier: s.maneuver.modifier,
+      bearing: s.maneuver.bearing_after,
+      exit: s.maneuver.exit,
+      name: s.name || s.ref || '',
+      distance: s.distance,
+      duration: s.duration,
+    };
+    step.text = stepText(step);
+    return step;
+  });
+  return {
+    coords: r.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+    distanceM: r.distance,
+    distance: Math.round((r.distance / 1609.34) * 10) / 10,
+    duration: r.duration,
+    steps,
+  };
+}
+
+export function speak(text) {
+  try {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.02;
+    window.speechSynthesis.speak(u);
+  } catch { /* speech not available */ }
+}

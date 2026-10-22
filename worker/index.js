@@ -4,6 +4,7 @@ import { SCHEMA } from "./schema.js";
 import { FILES } from "./static/index.js";
 
 const ENTITIES = new Set(["Vehicle", "Trip", "Route"]);
+const BODY_TYPES = new Set(["sports", "sedan", "suv", "truck", "moto"]);
 const SESSION_COOKIE = "dz_session";
 const SESSION_DAYS = 60;
 const LIVE_FRESH_MS = 2 * 60 * 1000;
@@ -149,6 +150,22 @@ async function friendIds(db, userId) {
     "SELECT CASE WHEN requester_id = ?1 THEN addressee_id ELSE requester_id END AS fid FROM friends WHERE status = 'accepted' AND (requester_id = ?1 OR addressee_id = ?1)"
   ).bind(userId).all();
   return results.map((r) => r.fid);
+}
+
+// ---------- road reports ----------
+const MIN = 60 * 1000;
+const REPORT_LIFETIME = { police: 45 * MIN, crash: 90 * MIN, hazard: 120 * MIN, traffic: 45 * MIN, closure: 240 * MIN };
+
+// "Still there" extends a report; two "not there" votes (or more than confirms) remove it.
+async function vote(db, reportId, userId, stillThere, type) {
+  const prev = await db.prepare("SELECT still_there FROM report_votes WHERE report_id = ? AND user_id = ?").bind(reportId, userId).first();
+  if (prev && !!prev.still_there === stillThere) return;
+  const stmts = [db.prepare("INSERT INTO report_votes (report_id, user_id, still_there) VALUES (?, ?, ?) ON CONFLICT(report_id, user_id) DO UPDATE SET still_there = excluded.still_there").bind(reportId, userId, stillThere ? 1 : 0)];
+  const undo = prev ? (prev.still_there ? "confirms = confirms - 1, " : "dismissals = dismissals - 1, ") : "";
+  if (stillThere) stmts.push(db.prepare(`UPDATE reports SET ${undo}confirms = confirms + 1, expires = MAX(expires, ?) WHERE id = ?`).bind(Date.now() + REPORT_LIFETIME[type], reportId));
+  else stmts.push(db.prepare(`UPDATE reports SET ${undo}dismissals = dismissals + 1 WHERE id = ?`).bind(reportId));
+  await db.batch(stmts);
+  await db.prepare("DELETE FROM reports WHERE id = ? AND dismissals >= 2 AND dismissals > confirms").bind(reportId).run();
 }
 
 // ---------- Discord ----------
@@ -312,7 +329,7 @@ async function handleApi(req, env, ctx, url) {
         if (taken) throw new HttpError(409, `@${u} is taken. Try another username.`);
         sets.push("username = ?"); vals.push(u);
       }
-      if (body.ghost_mode != null) { sets.push("ghost_mode = ?"); vals.push(body.ghost_mode ? 1 : 0); if (body.ghost_mode) await db.prepare("DELETE FROM live WHERE user_id = ?").bind(me.id).run(); }
+      if (body.ghost_mode != null) { sets.push("ghost_mode = ?"); vals.push(body.ghost_mode ? 1 : 0); if (body.ghost_mode) await db.prepare("DELETE FROM live_pos WHERE user_id = ?").bind(me.id).run(); }
       if (body.discord_webhook !== undefined) {
         const w = String(body.discord_webhook || "").trim();
         if (w && !validWebhook(w)) throw new HttpError(400, "That doesn't look like a Discord webhook link. It should start with https://discord.com/api/webhooks/");
@@ -357,7 +374,7 @@ async function handleApi(req, env, ctx, url) {
         const vehicle = data.vehicle_id ? await db.prepare("SELECT data FROM records WHERE id = ? AND owner_id = ?").bind(data.vehicle_id, me.id).first() : null;
         ctx.waitUntil(postTripToDiscord(me.discord_webhook, me, data, vehicle ? JSON.parse(vehicle.data) : null).catch(() => {}));
       }
-      await db.prepare("DELETE FROM live WHERE user_id = ?").bind(me.id).run();
+      await db.prepare("DELETE FROM live_pos WHERE user_id = ?").bind(me.id).run();
       return json({ ...data, id: rid, created_by_id: me.id, created_by: me.email, created_date: t, updated_date: t });
     }
     const row = id ? await db.prepare("SELECT * FROM records WHERE id = ? AND entity = ? AND owner_id = ?").bind(id, name, me.id).first() : null;
@@ -439,22 +456,73 @@ async function handleApi(req, env, ctx, url) {
     if (me.ghost_mode) return json({ ok: true, hidden: true });
     const lat = +body.lat, lng = +body.lng;
     if (!isFinite(lat) || !isFinite(lng)) throw new HttpError(400, "Bad position");
-    await db.prepare("INSERT INTO live (user_id, lat, lng, speed, updated) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET lat = excluded.lat, lng = excluded.lng, speed = excluded.speed, updated = excluded.updated")
-      .bind(me.id, lat, lng, Math.round(+body.speed || 0), Date.now()).run();
+    const heading = isFinite(+body.heading) && body.heading !== null ? +body.heading : null;
+    const body_ = BODY_TYPES.has(body.carBody) ? body.carBody : null;
+    const color = /^#[0-9a-f]{6}$/i.test(body.carColor || "") ? body.carColor : null;
+    await db.prepare(`INSERT INTO live_pos (user_id, lat, lng, speed, heading, car_body, car_color, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id) DO UPDATE SET lat = excluded.lat, lng = excluded.lng, speed = excluded.speed, heading = excluded.heading, car_body = excluded.car_body, car_color = excluded.car_color, updated = excluded.updated`)
+      .bind(me.id, lat, lng, Math.round(+body.speed || 0), heading, body_, color, Date.now()).run();
     return json({ ok: true });
   }
   if (path === "/live/stop" && method === "POST") {
-    await db.prepare("DELETE FROM live WHERE user_id = ?").bind(me.id).run();
+    await db.prepare("DELETE FROM live_pos WHERE user_id = ?").bind(me.id).run();
     return json({ ok: true });
   }
   if (path === "/live" && method === "GET") {
     const ids = await friendIds(db, me.id);
     if (!ids.length) return json({ drivers: [] });
     const { results } = await db.prepare(
-      `SELECT l.*, u.display_name, u.username, u.avatar_url, u.color FROM live l JOIN users u ON u.id = l.user_id
+      `SELECT l.*, u.display_name, u.username, u.avatar_url, u.color FROM live_pos l JOIN users u ON u.id = l.user_id
        WHERE l.updated > ? AND u.ghost_mode = 0 AND l.user_id IN (${ids.map(() => "?").join(",")})`
     ).bind(Date.now() - LIVE_FRESH_MS, ...ids).all();
-    return json({ drivers: results.map((r) => ({ ...card({ ...r, id: r.user_id }), lat: r.lat, lng: r.lng, speed: r.speed, updated: new Date(r.updated).toISOString() })) });
+    return json({ drivers: results.map((r) => ({ ...card({ ...r, id: r.user_id }), lat: r.lat, lng: r.lng, speed: r.speed, heading: r.heading, car: r.car_body ? { body: r.car_body, color: r.car_color || r.color } : null, updated: new Date(r.updated).toISOString() })) });
+  }
+
+  // --- road reports (police, crashes, hazards, traffic, closures) ---
+  if (path === "/reports" && method === "GET") {
+    const lat = +url.searchParams.get("lat"), lng = +url.searchParams.get("lng");
+    const radius = Math.min(+url.searchParams.get("km") || 40, 150) / 111; // degrees, roughly
+    if (!isFinite(lat) || !isFinite(lng)) throw new HttpError(400, "Missing position");
+    const { results } = await db.prepare(
+      `SELECT r.*, u.display_name, v.still_there AS my_vote FROM reports r JOIN users u ON u.id = r.user_id
+       LEFT JOIN report_votes v ON v.report_id = r.id AND v.user_id = ?
+       WHERE r.expires > ? AND r.lat BETWEEN ? AND ? AND r.lng BETWEEN ? AND ? ORDER BY r.created DESC LIMIT 300`
+    ).bind(me.id, Date.now(), lat - radius, lat + radius, lng - radius * 1.5, lng + radius * 1.5).all();
+    return json({ reports: results.map((r) => ({
+      id: r.id, type: r.type, lat: r.lat, lng: r.lng, created: new Date(r.created).toISOString(),
+      by: r.user_id === me.id ? "You" : r.display_name, mine: r.user_id === me.id,
+      confirms: r.confirms, myVote: r.my_vote == null ? null : !!r.my_vote,
+    })) });
+  }
+  if (path === "/reports" && method === "POST") {
+    const type = String(body.type || "");
+    if (!REPORT_LIFETIME[type]) throw new HttpError(400, "Unknown report type");
+    const lat = +body.lat, lng = +body.lng;
+    if (!isFinite(lat) || !isFinite(lng)) throw new HttpError(400, "Missing position");
+    // Merge with a matching report close by instead of stacking duplicates.
+    const near = await db.prepare(
+      "SELECT id FROM reports WHERE type = ? AND expires > ? AND abs(lat - ?) < 0.0015 AND abs(lng - ?) < 0.002 LIMIT 1"
+    ).bind(type, Date.now(), lat, lng).first();
+    if (near) {
+      await vote(db, near.id, me.id, true, type);
+      return json({ ok: true, merged: true, id: near.id });
+    }
+    const id = uid(), t = Date.now();
+    await db.prepare("INSERT INTO reports (id, user_id, type, lat, lng, created, expires) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .bind(id, me.id, type, lat, lng, t, t + REPORT_LIFETIME[type]).run();
+    return json({ ok: true, id });
+  }
+  const rv = path.match(/^\/reports\/(\w+)\/(vote|delete)$/);
+  if (rv && method === "POST") {
+    const r = await db.prepare("SELECT * FROM reports WHERE id = ?").bind(rv[1]).first();
+    if (!r) throw new HttpError(404, "That report has expired");
+    if (rv[2] === "delete") {
+      if (r.user_id !== me.id) throw new HttpError(403, "Only the person who reported it can remove it");
+      await db.prepare("DELETE FROM reports WHERE id = ?").bind(r.id).run();
+      return json({ ok: true });
+    }
+    await vote(db, r.id, me.id, !!body.stillThere, r.type);
+    return json({ ok: true });
   }
 
   // --- leaderboard ---
@@ -513,7 +581,9 @@ export default {
       env.DB.prepare("DELETE FROM sessions WHERE expires < ?").bind(t),
       env.DB.prepare("DELETE FROM resets WHERE expires < ?").bind(t),
       env.DB.prepare("DELETE FROM oauth_states WHERE expires < ?").bind(t),
-      env.DB.prepare("DELETE FROM live WHERE updated < ?").bind(t - LIVE_FRESH_MS),
+      env.DB.prepare("DELETE FROM live_pos WHERE updated < ?").bind(t - LIVE_FRESH_MS),
+      env.DB.prepare("DELETE FROM report_votes WHERE report_id IN (SELECT id FROM reports WHERE expires < ?)").bind(t),
+      env.DB.prepare("DELETE FROM reports WHERE expires < ?").bind(t),
     ]);
   },
 };

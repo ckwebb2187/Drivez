@@ -1,16 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Radio } from 'lucide-react';
-import { CircleMarker, Tooltip } from 'react-leaflet';
-import DarkMap from '@/components/DarkMap';
+import { MapContainer, CircleMarker, Tooltip } from 'react-leaflet';
+import { ChevronLeft, Radio, LocateFixed } from 'lucide-react';
+import { BaseLayer } from '@/components/DarkMap';
+import { CarMarker, LocationMarker, FollowMe, FitBounds } from '@/components/MapBits';
 import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
 import { formatTimeAgo } from '@/lib/helpers';
 
+const FALLBACK_CENTER = [39.8283, -98.5795];
+
 export default function LiveMap() {
   const navigate = useNavigate();
-  const { trips } = useApp();
+  const { myCar } = useApp();
   const [drivers, setDrivers] = useState([]);
+  const [pos, setPos] = useState(null);
+  const [heading, setHeading] = useState(null);
+  const [follow, setFollow] = useState(true);
+  const [fitted, setFitted] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -20,37 +27,62 @@ export default function LiveMap() {
     return () => { alive = false; clearInterval(t); };
   }, []);
 
-  const lastTrip = trips[0];
-  const center = drivers[0]
-    ? [drivers[0].lat, drivers[0].lng]
-    : lastTrip && lastTrip.route.length > 0
-      ? lastTrip.route[Math.floor(lastTrip.route.length / 2)]
-      : [37.7749, -122.4194];
+  useEffect(() => {
+    if (!('geolocation' in navigator)) return;
+    const id = navigator.geolocation.watchPosition(
+      (p) => {
+        setPos([p.coords.latitude, p.coords.longitude]);
+        if (p.coords.heading != null && !Number.isNaN(p.coords.heading) && (p.coords.speed || 0) > 1) setHeading(p.coords.heading);
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 5000 }
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, []);
+
+  // Once both you and driving friends are known, zoom to fit everyone (once).
+  const fitPoints = useMemo(() => {
+    if (fitted || !pos || !drivers.length) return null;
+    return [pos, ...drivers.map((d) => [d.lat, d.lng])];
+  }, [pos, drivers, fitted]);
+  useEffect(() => { if (fitPoints) { setFollow(false); setFitted(true); } }, [fitPoints]);
 
   return (
     <div className="relative h-screen overflow-hidden">
-      <div className="absolute inset-0">
-        <DarkMap center={center} zoom={13} follow={drivers.length > 0}>
-          {drivers.map((d) => (
+      <div className="absolute inset-0 isolate">
+        <MapContainer center={pos || FALLBACK_CENTER} zoom={pos ? 14 : 4} zoomControl={false} style={{ height: '100%', width: '100%' }}>
+          <BaseLayer />
+          <FollowMe pos={pos} follow={follow} onUserMove={() => setFollow(false)} />
+          {fitPoints && <FitBounds points={fitPoints} padding={[60, 120]} paddingBottom={260} />}
+          {drivers.map((d) => d.car ? (
+            <CarMarker key={d.userId} pos={[d.lat, d.lng]} car={d.car} heading={d.heading} label={`${d.name} · ${d.speed} mph`} />
+          ) : (
             <CircleMarker key={d.userId} center={[d.lat, d.lng]} radius={9} pathOptions={{ color: '#fff', weight: 2, fillColor: d.color || '#39FF14', fillOpacity: 1 }}>
               <Tooltip permanent direction="top" offset={[0, -10]}>{d.name} · {d.speed} mph</Tooltip>
             </CircleMarker>
           ))}
-        </DarkMap>
+          <LocationMarker pos={pos} heading={heading} car={myCar} />
+        </MapContainer>
       </div>
 
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 p-4 pt-12 z-[500]">
+      <div className="absolute top-0 left-0 right-0 p-4 pt-12 z-10 flex items-center justify-between">
         <button
           onClick={() => navigate(-1)}
           className="w-10 h-10 rounded-full glass border border-border flex items-center justify-center"
+          aria-label="Back"
         >
           <ChevronLeft className="w-5 h-5 text-foreground" />
         </button>
+        {pos && !follow && (
+          <button onClick={() => setFollow(true)} className="w-10 h-10 rounded-full glass border border-border flex items-center justify-center" aria-label="Center on me">
+            <LocateFixed className="w-5 h-5 text-[#4285F4]" />
+          </button>
+        )}
       </div>
 
       {/* Bottom panel */}
-      <div className="absolute bottom-0 left-0 right-0 z-[500]">
+      <div className="absolute bottom-0 left-0 right-0 z-10">
         <div className="glass rounded-t-3xl border-t border-border p-6 pb-10">
           {drivers.length === 0 ? (
             <div className="text-center">

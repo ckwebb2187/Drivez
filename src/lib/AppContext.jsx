@@ -78,6 +78,15 @@ export function AppProvider({ children }) {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // The car you're driving: the one marked "driving this", else your first car.
+  const activeVehicle = useMemo(() => vehicles.find(v => v.is_primary) || vehicles[0] || null, [vehicles]);
+  const myCar = useMemo(() => activeVehicle ? { body: activeVehicle.body || 'sedan', color: activeVehicle.color || '#00BFFF' } : null, [activeVehicle]);
+
+  const setPrimaryVehicle = async (id) => {
+    await Promise.all(vehicles.filter(v => !!v.is_primary !== (v.id === id)).map(v => base44.entities.Vehicle.update(v.id, { is_primary: v.id === id })));
+    setVehicles(prev => prev.map(v => ({ ...v, is_primary: v.id === id })));
+  };
+
   const stats = useMemo(() => {
     const lifetimeMiles = Math.round(trips.reduce((s, t) => s + (t.distance || 0), 0));
     const totalDrives = trips.length;
@@ -175,7 +184,7 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      user, stats, weeklyStats, vehicles, trips, savedRoutes, loading,
+      user, stats, weeklyStats, vehicles, trips, savedRoutes, loading, activeVehicle, myCar, setPrimaryVehicle,
       toggleGhostMode, updateUser, addVehicle, removeVehicle, addTrip,
       addRoute, deleteRoute, shareRouteWithFriends, refreshData: loadData
     }}>

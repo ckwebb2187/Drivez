@@ -57,6 +57,26 @@ function MapResizer() {
   return null;
 }
 
+// The base map on its own, for screens that build their own MapContainer.
+export function BaseLayer() {
+  const [vector] = useState(webglAvailable);
+  const map = useMap();
+  useEffect(() => {
+    if (!vector) map.getContainer().classList.add('map-dark');
+    map.attributionControl?.setPrefix(false); // hide the "🇺🇦 Leaflet" label; keep the required map credit
+  }, [map, vector]);
+  return vector ? (
+    <VectorBase />
+  ) : (
+    <TileLayer
+      url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      maxZoom={19}
+      detectRetina
+    />
+  );
+}
+
 export default function DarkMap({
   center = [37.7749, -122.4194],
   zoom = 14,
@@ -64,25 +84,15 @@ export default function DarkMap({
   children,
   className = ''
 }) {
-  const [vector] = useState(webglAvailable);
   return (
     <MapContainer
       center={center}
       zoom={zoom}
-      className={`${vector ? '' : 'map-dark'} ${className}`}
+      className={className}
       zoomControl={false}
       style={{ height: '100%', width: '100%' }}
     >
-      {vector ? (
-        <VectorBase />
-      ) : (
-        <TileLayer
-          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          maxZoom={19}
-          detectRetina
-        />
-      )}
+      <BaseLayer />
       <MapResizer />
       {follow && <MapController center={center} follow={follow} zoom={zoom} />}
       {children}

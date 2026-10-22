@@ -91,3 +91,13 @@ input[type=range]::-webkit-slider-thumb {
   border-radius: 50%;
   background: hsl(195 100% 50%);
 }
+
+/* Map popups and labels */
+.dz-popup .leaflet-popup-content-wrapper { background: hsl(240 8% 9%); color: hsl(0 0% 98%); border: 1px solid hsl(240 6% 18%); border-radius: 16px; }
+.dz-popup .leaflet-popup-tip { background: hsl(240 8% 9%); }
+.dz-popup .leaflet-popup-content { margin: 12px 14px; }
+.dz-pop-btn { flex: 1; padding: 8px 10px; border-radius: 10px; font-size: 12px; font-weight: 700; background: hsl(240 6% 16%); color: hsl(0 0% 98%); }
+.dz-pop-btn:disabled { opacity: .6; }
+.dz-pop-yes { background: hsl(195 100% 50%); color: hsl(240 10% 4%); }
+.leaflet-tooltip.dz-car-label { background: rgba(10,10,15,.85); color: #fff; border: 0; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 600; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
+.leaflet-tooltip.dz-car-label::before { display: none; }

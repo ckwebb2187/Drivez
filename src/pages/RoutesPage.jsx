@@ -8,12 +8,6 @@ import ShareRouteModal from '@/components/ShareRouteModal';
 import RouteThumbnail from '@/components/RouteThumbnail';
 import { useApp } from '@/lib/AppContext';
 
-const PRESETS = [
-  { label: 'City Loop', from: 'San Francisco, CA', to: 'Oakland, CA' },
-  { label: 'Coastal', from: 'San Francisco, CA', to: 'Half Moon Bay, CA' },
-  { label: 'Canyon', from: 'Sausalito, CA', to: 'Mount Tamalpais State Park, CA' },
-  { label: 'Airport', from: 'Union Square, San Francisco', to: 'San Francisco International Airport' }
-];
 
 async function geocode(query) {
   const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`);
@@ -197,27 +191,16 @@ export default function RoutesPage() {
               value={startPlace}
               onChange={e => setStartPlace(e.target.value)}
               className="w-full bg-secondary rounded-xl px-4 py-3 text-foreground text-sm border border-border focus:border-primary outline-none mb-3"
-              placeholder="e.g. San Francisco, CA"
+              placeholder="e.g. Navy Pier, Chicago"
             />
             <label className="text-xs text-muted-foreground mb-1 block">Destination</label>
             <input
               value={endPlace}
               onChange={e => setEndPlace(e.target.value)}
               className="w-full bg-secondary rounded-xl px-4 py-3 text-foreground text-sm border border-border focus:border-primary outline-none mb-3"
-              placeholder="e.g. Pacifica, CA"
+              placeholder="e.g. Wrigley Field"
             />
 
-            <div className="flex gap-2 flex-wrap mb-4">
-              {PRESETS.map(p => (
-                <button
-                  key={p.label}
-                  onClick={() => { setStartPlace(p.from); setEndPlace(p.to); }}
-                  className="bg-secondary text-foreground px-3 py-1.5 rounded-full text-xs font-medium border border-border"
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
 
             {planError && <p className="text-xs text-destructive mb-3">{planError}</p>}
 

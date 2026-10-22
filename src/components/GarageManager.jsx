@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { Plus, Trash2, X, Car as CarIcon, Loader2 } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
+import { BODY_TYPES, carSvg } from '@/lib/cars';
+
+export function CarPic({ body, color, className = 'w-6 h-12' }) {
+  return <span className={`inline-block ${className}`} dangerouslySetInnerHTML={{ __html: carSvg(body, color).replace('width="40" height="80"', 'width="100%" height="100%"') }} />;
+}
 
 function VehicleForm({ onSave, onClose, saving, error }) {
   const [make, setMake] = useState('');
@@ -8,11 +13,12 @@ function VehicleForm({ onSave, onClose, saving, error }) {
   const [year, setYear] = useState('');
   const [nickname, setNickname] = useState('');
   const [color, setColor] = useState('#00BFFF');
+  const [body, setBody] = useState('sedan');
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!make || !model) return;
-    onSave({ make, model, year: parseInt(year) || new Date().getFullYear(), nickname, color });
+    onSave({ make, model, year: parseInt(year) || new Date().getFullYear(), nickname, color, body });
   };
 
   return (
@@ -44,9 +50,21 @@ function VehicleForm({ onSave, onClose, saving, error }) {
               className="w-full bg-secondary rounded-xl px-4 py-3 text-foreground text-sm border border-border focus:border-primary outline-none" />
           </div>
           <div>
+            <label className="text-xs text-muted-foreground mb-2 block">Shown on the map as</label>
+            <div className="grid grid-cols-5 gap-2">
+              {BODY_TYPES.map(b => (
+                <button key={b.key} type="button" onClick={() => setBody(b.key)}
+                  className={`flex flex-col items-center gap-1 py-2 rounded-xl border ${body === b.key ? 'border-primary bg-primary/10' : 'border-border bg-secondary'}`}>
+                  <CarPic body={b.key} color={color} className="w-5 h-10" />
+                  <span className="text-[9px] text-muted-foreground leading-tight text-center">{b.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
             <label className="text-xs text-muted-foreground mb-2 block">Color</label>
-            <div className="flex gap-2">
-              {['#00BFFF', '#39FF14', '#FF4757', '#FF6B35', '#9B59B6', '#F39C12'].map(c => (
+            <div className="flex gap-2 flex-wrap">
+              {['#00BFFF', '#39FF14', '#FF4757', '#FF6B35', '#9B59B6', '#F39C12', '#F5F5F5', '#2B2B2B'].map(c => (
                 <button key={c} type="button" onClick={() => setColor(c)}
                   className={`w-8 h-8 rounded-full transition-transform ${color === c ? 'scale-125 ring-2 ring-white ring-offset-2 ring-offset-card' : ''}`}
                   style={{ backgroundColor: c }} />
@@ -66,7 +84,7 @@ function VehicleForm({ onSave, onClose, saving, error }) {
 }
 
 export default function GarageManager({ compact = false }) {
-  const { vehicles, trips, addVehicle, removeVehicle } = useApp();
+  const { vehicles, trips, addVehicle, removeVehicle, activeVehicle, setPrimaryVehicle } = useApp();
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -107,8 +125,8 @@ export default function GarageManager({ compact = false }) {
       <div className="space-y-2">
         {vehicles.map(v => (
           <div key={v.id} className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${v.color || '#00BFFF'}20` }}>
-              <CarIcon className="w-5 h-5" style={{ color: v.color || '#00BFFF' }} />
+            <div className="w-12 h-14 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${v.color || '#00BFFF'}18` }}>
+              <CarPic body={v.body || 'sedan'} color={v.color || '#00BFFF'} className="w-6 h-12" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
@@ -121,6 +139,11 @@ export default function GarageManager({ compact = false }) {
                 <span className="text-[11px] text-muted-foreground">{drivesFor(v.id)} drives</span>
               </div>
             </div>
+            {activeVehicle?.id === v.id ? (
+              <span className="text-[10px] font-bold text-accent bg-accent/10 rounded-full px-2 py-1">Driving</span>
+            ) : (
+              <button onClick={() => setPrimaryVehicle(v.id).catch(e => setError(e.message))} className="text-[10px] font-bold text-primary bg-primary/10 rounded-full px-2 py-1">Drive this</button>
+            )}
             {!compact && (
               <button onClick={() => handleRemove(v.id)} className="text-muted-foreground hover:text-destructive p-1">
                 <Trash2 className="w-4 h-4" />
@@ -132,7 +155,7 @@ export default function GarageManager({ compact = false }) {
           <div className="bg-card rounded-2xl p-8 border border-border text-center">
             <CarIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Your garage is empty</p>
-            <p className="text-xs text-muted-foreground mt-1">Add your first vehicle to tag drives with it</p>
+            <p className="text-xs text-muted-foreground mt-1">Add your car to show it on the map instead of a dot</p>
           </div>
         )}
       </div>

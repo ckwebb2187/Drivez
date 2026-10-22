@@ -5,7 +5,9 @@ import { api } from '@/api/base44Client';
 const MPS_TO_MPH = 2.23694;
 const LIVE_EVERY_MS = 10000; // share position with friends every 10 s
 
-export function useGpsDrive() {
+export function useGpsDrive(car) {
+  const carRef = useRef(car);
+  carRef.current = car;
   const [status, setStatus] = useState('idle'); // idle | acquiring | driving | ended
   const [error, setError] = useState(null); // 'denied' | 'unsupported'
   const [currentSpeed, setCurrentSpeed] = useState(0);
@@ -16,6 +18,7 @@ export function useGpsDrive() {
   const [maxSpeed, setMaxSpeed] = useState(0);
   const [speedHistory, setSpeedHistory] = useState([]);
   const [gpsWaiting, setGpsWaiting] = useState(false);
+  const [heading, setHeading] = useState(null);
 
   const watchIdRef = useRef(null);
   const timerRef = useRef(null);
@@ -61,7 +64,7 @@ export function useGpsDrive() {
   }, []);
 
   const handleFix = useCallback((pos) => {
-    const { latitude, longitude, speed, accuracy } = pos.coords;
+    const { latitude, longitude, speed, accuracy, heading: hd } = pos.coords;
     if (accuracy > 50) { setGpsWaiting(true); return; } // ignore GPS points with accuracy worse than 50 m
 
     if (!gotFixRef.current) {
@@ -91,6 +94,7 @@ export function useGpsDrive() {
     lastFixRef.current = { lat: latitude, lng: longitude, timestamp: pos.timestamp };
 
     setCurrentPosition([latitude, longitude]);
+    if (hd != null && !Number.isNaN(hd) && mph > 2) setHeading(hd);
     setCurrentSpeed(mph);
     setMaxSpeed(prev => Math.max(prev, mph));
     setSpeedHistory(prev => [...prev, mph]);
@@ -99,7 +103,7 @@ export function useGpsDrive() {
     // Share live position with friends (the server skips this in Ghost Mode)
     if (Date.now() - lastLiveRef.current > LIVE_EVERY_MS) {
       lastLiveRef.current = Date.now();
-      api.post('/live', { lat: latitude, lng: longitude, speed: mph }).catch(() => {});
+      api.post('/live', { lat: latitude, lng: longitude, speed: mph, heading: hd != null && !Number.isNaN(hd) ? hd : null, carBody: carRef.current?.body, carColor: carRef.current?.color }).catch(() => {});
     }
   }, []);
 
@@ -164,6 +168,7 @@ export function useGpsDrive() {
     setMaxSpeed(0);
     setSpeedHistory([]);
     setGpsWaiting(false);
+    setHeading(null);
   }, [stopWatching, releaseWakeLock, stopLive]);
 
   // Reacquire the wake lock when returning to the foreground mid-drive
@@ -177,6 +182,6 @@ export function useGpsDrive() {
 
   return {
     status, error, currentSpeed, distance, elapsedTime, route,
-    currentPosition, maxSpeed, speedHistory, gpsWaiting, start, end, reset
+    currentPosition, heading, maxSpeed, speedHistory, gpsWaiting, start, end, reset
   };
 }

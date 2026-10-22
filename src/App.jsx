@@ -7,7 +7,7 @@ import { AuthProvider } from '@/lib/AuthContext';
 import ScrollToTop from './components/ScrollToTop';
 import { AppProvider } from '@/lib/AppContext';
 import Layout from '@/components/Layout';
-import Feed from '@/pages/Feed';
+import MapHome from '@/pages/MapHome';
 import LiveDrive from '@/pages/LiveDrive';
 import History from '@/pages/History';
 import Leaderboard from '@/pages/Leaderboard';
@@ -36,7 +36,7 @@ export default function App() {
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route element={<ProtectedRoute />}>
                 <Route element={<Layout />}>
-                  <Route path="/" element={<Feed />} />
+                  <Route path="/" element={<MapHome />} />
                   <Route path="/drive" element={<LiveDrive />} />
                   <Route path="/history" element={<History />} />
                   <Route path="/leaderboard" element={<Leaderboard />} />
