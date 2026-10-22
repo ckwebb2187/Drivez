@@ -10,6 +10,7 @@ import { WeatherLayer, TrafficLayer, WeatherButton, WeatherTimeBadge } from '@/c
 import SetPlaceModal from '@/components/SetPlaceModal';
 import NamePlaceSheet from '@/components/NamePlaceSheet';
 import { suggestDrives } from '@/lib/predict';
+import ServiceDueCard from '@/components/ServiceDueCard';
 import TripCard from '@/components/TripCard';
 import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
@@ -25,7 +26,7 @@ const FALLBACK_CENTER = [39.8283, -98.5795]; // middle of the US until we know w
 export default function MapHome() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, stats, trips, vehicles, savedRoutes, myCar, places, addPlace, deletePlace, renamePlace, home, work, addRoute } = useApp();
+  const { user, scene, activeVehicle, stats, trips, vehicles, savedRoutes, myCar, places, addPlace, deletePlace, renamePlace, home, work, addRoute } = useApp();
   const [naming, setNaming] = useState(false);
   const [setting, setSetting] = useState(null); // 'home' | 'work' while choosing the address
 
@@ -279,6 +280,9 @@ export default function MapHome() {
         {!showResults && !route && !routing && !routeErr && weatherAlerts.length > 0 && (
           <AlertsBanner alerts={weatherAlerts} pos={pos} onRoute={(city) => plan(city, [])} className="mt-2" />
         )}
+
+        {/* Car service due (oil change etc.) */}
+        {scene && !showResults && !route && !routing && !routeErr && activeVehicle && <ServiceDueCard vehicle={activeVehicle} trips={trips} />}
 
         {/* Suggested drive */}
         {!showResults && !route && !routing && !routeErr && suggestion && dismissed !== suggKey && (

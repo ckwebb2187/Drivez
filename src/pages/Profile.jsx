@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Ghost, MapPin, Calendar, Eye, EyeOff, Pencil, LogOut, Loader2, Camera, Trash2, ImagePlus, Upload, Star, ChevronRight } from 'lucide-react';
+import { Ghost, MapPin, Calendar, Eye, EyeOff, Pencil, LogOut, Loader2, Camera, Trash2, ImagePlus, Upload, Star, ChevronRight, Navigation, Flame } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import { base44, api } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
@@ -13,9 +13,12 @@ import DiscordSettings from '@/components/DiscordSettings';
 import AppUpdate from '@/components/AppUpdate';
 import PrivacySettings from '@/components/PrivacySettings';
 import { getInitials } from '@/lib/helpers';
+import ProfileSharing from '@/components/ProfileSharing';
 
 export default function Profile() {
-  const { user, stats, weeklyStats, toggleGhostMode } = useApp();
+  const { user, scene, setAppMode, stats, weeklyStats, toggleGhostMode } = useApp();
+  const [modeBusy, setModeBusy] = useState(false);
+  const switchMode = async (m) => { if (m === user.appMode) return; setModeBusy(true); try { await setAppMode(m); } finally { setModeBusy(false); } };
   const [editing, setEditing] = useState(false);
   const { checkUserAuth } = useAuth();
   const fileRef = useRef(null);
@@ -196,6 +199,13 @@ export default function Profile() {
         <GarageManager />
       </div>
 
+      {/* Social driver profile + QR sticker */}
+      {scene && (
+        <div className="px-5 mb-6">
+          <ProfileSharing />
+        </div>
+      )}
+
       {/* Friends */}
       <div className="px-5 mb-6">
         <FriendsView />
@@ -221,6 +231,24 @@ export default function Profile() {
       {/* Discord */}
       <div className="px-5 mb-6">
         <DiscordSettings />
+      </div>
+
+      {/* App mode */}
+      <div className="px-5 mb-6">
+        <div className="bg-card rounded-2xl border border-border p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-bold text-foreground">App mode</h3>
+            {modeBusy && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {[['nav', Navigation, 'Just navigation'], ['scene', Flame, 'Car scene']].map(([m, Icon, label]) => (
+              <button key={m} onClick={() => switchMode(m)} className={`rounded-xl border px-3 py-3 flex items-center gap-2 text-sm font-semibold ${(user.appMode || 'scene') === m ? 'border-primary bg-primary/10 text-primary' : 'border-border text-foreground'}`}>
+                <Icon className="w-4 h-4" />{label}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">{scene ? 'All car features are on.' : 'Car features (mods, stats, rankings, driver profile) are hidden. Nothing is deleted.'}</p>
+        </div>
       </div>
 
       {/* Privacy */}

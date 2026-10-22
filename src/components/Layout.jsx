@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { Home, Gauge, Clock, Trophy, User, ChevronRight } from 'lucide-react';
 import LiveDrive from '@/pages/LiveDrive';
+import SetupModeModal from '@/components/SetupModeModal';
+import { useApp } from '@/lib/AppContext';
 
 const tabs = [
   { to: '/', icon: Home, label: 'Home' },
@@ -13,6 +15,8 @@ const tabs = [
 
 export default function Layout() {
   const { pathname } = useLocation();
+  const { user, scene } = useApp();
+  const shownTabs = scene ? tabs : tabs.filter((t) => t.to !== '/leaderboard');
   const onDrive = pathname === '/drive';
   // The drive screen is kept running once opened, so switching tabs never loses a drive.
   const [driveOpened, setDriveOpened] = useState(onDrive);
@@ -37,6 +41,7 @@ export default function Layout() {
           <LiveDrive active={onDrive} />
         </div>
       )}
+      {user && !user.appMode && <SetupModeModal />}
       {!onDrive && driving && (
         <NavLink to="/drive" className="fixed left-3 right-3 bottom-[92px] z-50 rounded-2xl bg-[#188038] text-white shadow-2xl px-4 h-12 flex items-center gap-2 text-sm font-semibold">
           <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> Drive in progress
@@ -45,7 +50,7 @@ export default function Layout() {
       )}
       <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border">
         <div className="flex items-center justify-around max-w-md mx-auto px-2 h-20">
-          {tabs.map((tab) => {
+          {shownTabs.map((tab) => {
             const Icon = tab.icon;
             if (tab.center) {
               return (

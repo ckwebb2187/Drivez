@@ -51,7 +51,9 @@ export function AppProvider({ children }) {
       color: authUser.color || '#00BFFF',
       discordConnected: !!authUser.discord_connected,
       discordWebhookSet: !!authUser.discord_webhook_set,
-      discordAuto: !!authUser.discord_auto
+      discordAuto: !!authUser.discord_auto,
+      appMode: authUser.app_mode || null,          // null until they pick on first launch
+      profile: authUser.profile || { socials: {}, clubs: [], show: {} }
     };
   }, [authUser]);
 
@@ -149,6 +151,11 @@ export function AppProvider({ children }) {
     await checkUserAuth();
   };
 
+  // "Car scene" turns on the enthusiast features; "Just navigation" hides them.
+  const scene = user ? user.appMode !== 'nav' : true;
+  const setAppMode = async (mode) => { await base44.auth.updateMe({ app_mode: mode }); await checkUserAuth(); };
+  const saveProfile = async (profile) => { await base44.auth.updateMe({ profile }); await checkUserAuth(); };
+
   const addVehicle = async (vehicle) => {
     const rec = await base44.entities.Vehicle.create(vehicle);
     setVehicles(prev => [rec, ...prev]);
@@ -227,7 +234,7 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      user, stats, weeklyStats, vehicles, trips, savedRoutes, loading, activeVehicle, myCar, setPrimaryVehicle,
+      user, scene, setAppMode, saveProfile, stats, weeklyStats, vehicles, trips, savedRoutes, loading, activeVehicle, myCar, setPrimaryVehicle,
       toggleGhostMode, updateUser, addVehicle, removeVehicle, setVehicleImage, updateVehicle, addTrip,
       addRoute, deleteRoute, shareRouteWithFriends, places, addPlace, deletePlace, renamePlace, home, work, setHomeWork, refreshData: loadData
     }}>

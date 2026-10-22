@@ -93,7 +93,32 @@ function publicUser(u) {
     color: u.color, created_date: u.created_date, role: "user",
     discord_connected: !!u.discord_id, discord_webhook_set: !!u.discord_webhook, discord_auto: !!u.discord_auto,
     has_password: !!u.password_hash, trip_retention_days: u.trip_retention_days || null,
+    app_mode: u.app_mode || null, profile: readProfile(u.profile),
   };
+}
+
+// Social profile settings: links, clubs, and who can see each part.
+const PROFILE_PARTS = ["car", "mods", "socials", "clubs", "stats", "bio"];
+const SOCIALS = ["instagram", "facebook", "tiktok", "youtube"];
+function readProfile(raw) {
+  let p = {};
+  try { p = raw ? JSON.parse(raw) : {}; } catch { p = {}; }
+  const show = {};
+  for (const k of PROFILE_PARTS) show[k] = ["everyone", "friends", "me"].includes(p.show?.[k]) ? p.show[k] : "friends";
+  const socials = {};
+  for (const k of SOCIALS) if (p.socials?.[k]) socials[k] = p.socials[k];
+  return { socials, clubs: Array.isArray(p.clubs) ? p.clubs : [], show };
+}
+function cleanProfile(p) {
+  const out = readProfile(null);
+  for (const k of PROFILE_PARTS) if (["everyone", "friends", "me"].includes(p?.show?.[k])) out.show[k] = p.show[k];
+  for (const k of SOCIALS) {
+    // Keep just the handle: strip @, spaces and any pasted profile link.
+    const h = String(p?.socials?.[k] || "").trim().replace(/^https?:\/\/[^/]+\/(@)?/i, "").replace(/^@/, "").replace(/[/?#].*$/, "").slice(0, 60);
+    if (h) out.socials[k] = h;
+  }
+  out.clubs = (Array.isArray(p?.clubs) ? p.clubs : []).map((c) => String(c).trim().slice(0, 60)).filter(Boolean).slice(0, 10);
+  return out;
 }
 const card = (u) => ({ userId: u.id, id: u.id, name: u.display_name, username: u.username, avatarUrl: u.avatar_url, color: u.color });
 
@@ -464,6 +489,37 @@ async function handleApi(req, env, ctx, url) {
     return new Response(new Uint8Array(row.data), { headers: { "content-type": row.mime, "cache-control": "public, max-age=31536000, immutable" } });
   }
 
+  // Public driver profile (what a QR sticker opens). Shows only the parts the owner allows.
+  const pu = path.match(/^\/u\/([a-z0-9_]{1,24})$/);
+  if (pu && method === "GET") {
+    const u = await db.prepare("SELECT * FROM users WHERE username = ?").bind(pu[1]).first();
+    if (!u) throw new HttpError(404, "No driver with that name.");
+    // ?as=public shows the page the way a stranger sees it.
+    const viewer = url.searchParams.get("as") === "public" ? null : await currentUser(req, db).catch(() => null);
+    const isMe = viewer?.id === u.id;
+    const isFriend = !!viewer && !isMe && (await friendIds(db, viewer.id)).includes(u.id);
+    const prof = readProfile(u.profile);
+    const can = (k) => isMe || prof.show[k] === "everyone" || (prof.show[k] === "friends" && isFriend);
+    const out = { username: u.username, name: u.display_name, avatarUrl: u.avatar_url, color: u.color, joined: u.created_date, isMe, isFriend, signedIn: !!viewer };
+    if (can("bio")) { out.bio = u.bio || ""; out.location = u.location || ""; }
+    if (can("car") || can("mods")) {
+      const { results } = await db.prepare("SELECT data, created_date FROM records WHERE entity = 'Vehicle' AND owner_id = ? ORDER BY created_date DESC").bind(u.id).all();
+      const cars = results.map((r) => JSON.parse(r.data));
+      const v = cars.find((c) => c.is_primary) || cars[0];
+      if (v) {
+        if (can("car")) out.car = { make: v.make, model: v.model, year: v.year, nickname: v.nickname || "", color: v.color, body: v.body, image_url: v.image_url || null };
+        if (can("mods")) out.mods = (v.mods || []).map((m) => ({ name: m.name, category: m.category || "", note: m.note || "" }));
+      }
+    }
+    if (can("socials")) out.socials = prof.socials;
+    if (can("clubs")) out.clubs = prof.clubs;
+    if (can("stats")) {
+      const st = await db.prepare("SELECT COUNT(*) AS drives, COALESCE(SUM(json_extract(data, '$.distance')), 0) AS miles FROM records WHERE entity = 'Trip' AND owner_id = ?").bind(u.id).first();
+      out.stats = { drives: st.drives, miles: Math.round(st.miles) };
+    }
+    return json(out, 200, { "cache-control": "no-store" });
+  }
+
   // Custom car pictures are public too (friends see your car on the map).
   const ci = path.match(/^\/car-image\/([A-Za-z0-9_-]+)$/);
   if (ci && method === "GET") {
@@ -495,6 +551,8 @@ async function handleApi(req, env, ctx, url) {
         sets.push("discord_webhook = ?"); vals.push(w || null);
       }
       if (body.discord_auto != null) { sets.push("discord_auto = ?"); vals.push(body.discord_auto ? 1 : 0); }
+      if (body.app_mode != null) { sets.push("app_mode = ?"); vals.push(body.app_mode === "nav" ? "nav" : "scene"); }
+      if (body.profile != null) { sets.push("profile = ?"); vals.push(JSON.stringify(cleanProfile(body.profile))); }
       if (sets.length) await db.prepare(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`).bind(...vals, me.id).run();
       return json(publicUser(await db.prepare("SELECT * FROM users WHERE id = ?").bind(me.id).first()));
     }

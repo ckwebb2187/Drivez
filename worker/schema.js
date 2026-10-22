@@ -62,4 +62,6 @@ export const SCHEMA = [
 export const MIGRATIONS = [
   `ALTER TABLE live_pos ADD COLUMN car_image TEXT`,
   `ALTER TABLE users ADD COLUMN trip_retention_days INTEGER`,
+  `ALTER TABLE users ADD COLUMN app_mode TEXT`,
+  `ALTER TABLE users ADD COLUMN profile TEXT`,
 ];

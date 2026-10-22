@@ -11,7 +11,7 @@ import { formatDuration, formatTimeAgo } from '@/lib/helpers';
 export default function TripDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { trips, vehicles, addRoute, loading } = useApp();
+  const { trips, vehicles, addRoute, loading, scene } = useApp();
   const trip = trips.find(t => t.id === id);
 
   const [replayProgress, setReplayProgress] = useState(1);
@@ -160,7 +160,7 @@ export default function TripDetailPage() {
         </div>
 
         {/* Personal drive stats (just for you, no leaderboard) */}
-        {(trip.smoothness != null || trip.max_g || trip.best_0_60) && (
+        {scene && (trip.smoothness != null || trip.max_g || trip.best_0_60) && (
           <div className="bg-card rounded-2xl p-4 border border-border mt-3">
             <div className="text-sm font-semibold text-foreground mb-3">Drive stats</div>
             <div className="grid grid-cols-3 gap-2">

@@ -17,6 +17,7 @@ import LiveMap from '@/pages/LiveMap';
 import RoutesPage from '@/pages/RoutesPage';
 import PlacesPage from '@/pages/PlacesPage';
 import ImportPage from '@/pages/ImportPage';
+import PublicProfile from '@/pages/PublicProfile';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
@@ -37,6 +38,7 @@ export default function App() {
                 <Route path="/forgot-password" element={<ForgotPassword />} />
               </Route>
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/u/:username" element={<PublicProfile />} />
               <Route element={<ProtectedRoute />}>
                 <Route element={<Layout />}>
                   <Route path="/" element={<MapHome />} />

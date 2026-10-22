@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { Plus, Trash2, X, Car as CarIcon, Loader2, ImagePlus } from 'lucide-react';
+import { Plus, Trash2, X, Car as CarIcon, Loader2, ImagePlus, ChevronRight } from 'lucide-react';
 import CarPictureEditor from '@/components/CarPictureEditor';
+import VehicleDetail from '@/components/VehicleDetail';
+import { odometer, reminders } from '@/lib/maintenance';
 import { useApp } from '@/lib/AppContext';
 import { BODY_TYPES, carSvg } from '@/lib/cars';
 
@@ -91,6 +93,7 @@ export default function GarageManager({ compact = false }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [picFor, setPicFor] = useState(null);
+  const [openId, setOpenId] = useState(null);
 
   const handleAdd = async (v) => {
     setSaving(true);
@@ -119,6 +122,7 @@ export default function GarageManager({ compact = false }) {
   return (
     <div>
       {picFor && <CarPictureEditor vehicle={picFor} onClose={() => setPicFor(null)} />}
+      {openId && vehicles.some(v => v.id === openId) && <VehicleDetail vehicle={vehicles.find(v => v.id === openId)} onClose={() => setOpenId(null)} />}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-bold text-foreground">Garage</h3>
         <button onClick={() => setShowForm(true)} className="flex items-center gap-1 text-xs text-primary font-medium">
@@ -133,17 +137,23 @@ export default function GarageManager({ compact = false }) {
               <CarPic body={v.body || 'sedan'} color={v.color || '#00BFFF'} image={v.image_url} className="w-6 h-12" />
               <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-primary border-2 border-card flex items-center justify-center"><ImagePlus className="w-2.5 h-2.5 text-primary-foreground" /></span>
             </button>
-            <div className="flex-1 min-w-0">
+            <button onClick={() => setOpenId(v.id)} className="flex-1 min-w-0 text-left">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-foreground">{v.make} {v.model}</span>
-                {v.nickname && <span className="text-[11px] text-primary">"{v.nickname}"</span>}
+                <span className="text-sm font-bold text-foreground truncate">{v.make} {v.model}</span>
+                {v.nickname && <span className="text-[11px] text-primary truncate">"{v.nickname}"</span>}
               </div>
               <div className="flex items-center gap-3 mt-0.5">
                 <span className="text-[11px] text-muted-foreground">{v.year}</span>
-                <span className="text-[11px] text-muted-foreground">{milesFor(v.id).toLocaleString()} mi</span>
+                {odometer(v, trips) != null
+                  ? <span className="text-[11px] text-muted-foreground">{odometer(v, trips).toLocaleString()} mi</span>
+                  : <span className="text-[11px] text-muted-foreground">{milesFor(v.id).toLocaleString()} mi in app</span>}
                 <span className="text-[11px] text-muted-foreground">{drivesFor(v.id)} drives</span>
               </div>
-            </div>
+              {(() => { const due = reminders(v, trips).filter(r => r.status === 'overdue' || r.status === 'soon'); return due.length > 0 && (
+                <div className={`text-[10px] font-semibold mt-1 ${due.some(r => r.status === 'overdue') ? 'text-destructive' : 'text-amber-400'}`}>🔧 {due.map(r => r.label).join(', ')} due</div>
+              ); })()}
+              <div className="text-[10px] text-primary mt-1 flex items-center">Service, mods & odometer <ChevronRight className="w-3 h-3" /></div>
+            </button>
             {activeVehicle?.id === v.id ? (
               <span className="text-[10px] font-bold text-accent bg-accent/10 rounded-full px-2 py-1">Driving</span>
             ) : (

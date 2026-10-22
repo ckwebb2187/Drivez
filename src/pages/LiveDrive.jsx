@@ -30,7 +30,7 @@ async function reverseGeocode(lat, lng) {
 
 export default function LiveDrive({ active = true }) {
   const navigate = useNavigate();
-  const { activeVehicle, myCar, savedRoutes, addTrip } = useApp();
+  const { activeVehicle, myCar, savedRoutes, addTrip, scene } = useApp();
   const drive = useGpsDrive(myCar);
   const location = useLocation();
   // This screen stays alive in the background while you visit other tabs, so the
@@ -464,6 +464,7 @@ export default function LiveDrive({ active = true }) {
               </div>
 
               {/* Personal drive stats (just for you; no leaderboard) */}
+              {scene && <>
               <div className="grid grid-cols-3 gap-2 mb-5">
                 <div className="bg-card/80 rounded-2xl p-3 border border-border text-center">
                   <div className="text-xl font-bold speed-font text-[#34A853]">{drive.stats.smoothness}</div>
@@ -481,6 +482,7 @@ export default function LiveDrive({ active = true }) {
               {(drive.stats.hardBrakes > 0 || drive.stats.hardAccels > 0) && (
                 <p className="text-[11px] text-muted-foreground text-center -mt-3 mb-4">{drive.stats.hardBrakes} hard brake{drive.stats.hardBrakes === 1 ? '' : 's'} · {drive.stats.hardAccels} hard launch{drive.stats.hardAccels === 1 ? '' : 'es'}</p>
               )}
+              </>}
 
               {saveError && <p className="text-xs text-destructive mb-3 text-center">{saveError}</p>}
 
