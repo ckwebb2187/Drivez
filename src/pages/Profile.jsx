@@ -14,6 +14,7 @@ import AppUpdate from '@/components/AppUpdate';
 import PrivacySettings from '@/components/PrivacySettings';
 import { getInitials } from '@/lib/helpers';
 import ProfileSharing from '@/components/ProfileSharing';
+import MapLookSettings from '@/components/MapLookSettings';
 
 export default function Profile() {
   const { user, scene, setAppMode, stats, weeklyStats, toggleGhostMode } = useApp();
@@ -231,6 +232,11 @@ export default function Profile() {
       {/* Discord */}
       <div className="px-5 mb-6">
         <DiscordSettings />
+      </div>
+
+      {/* Map look: theme, battery saver, Japanese names */}
+      <div className="px-5 mb-6">
+        <MapLookSettings />
       </div>
 
       {/* App mode */}

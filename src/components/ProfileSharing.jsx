@@ -120,12 +120,12 @@ function QrSheet({ username, name, onClose }) {
     g.fillStyle = '#ffffff'; g.beginPath(); g.roundRect(150, 240, 900, 900, 40); g.fill();
     g.drawImage(code, 170, 260, 860, 860);
     g.font = '700 72px system-ui, sans-serif'; g.fillStyle = '#ffffff'; g.fillText(`@${username}`, 600, 1260);
-    g.font = '500 44px system-ui, sans-serif'; g.fillStyle = '#9aa4b2'; g.fillText('Mods · socials · crew — on Drivez', 600, 1340);
+    g.font = '500 44px system-ui, sans-serif'; g.fillStyle = '#9aa4b2'; g.fillText('Mods · socials · crew — on Kaido Maps', 600, 1340);
     const a = document.createElement('a');
     a.href = c.toDataURL('image/png'); a.download = `drivez-sticker-${username}.png`; a.click();
   };
   const share = async () => {
-    try { await navigator.share({ title: `${name} on Drivez`, url }); } catch { try { await navigator.clipboard.writeText(url); } catch { /* ignore */ } }
+    try { await navigator.share({ title: `${name} on Kaido Maps`, url }); } catch { try { await navigator.clipboard.writeText(url); } catch { /* ignore */ } }
   };
 
   return createPortal(

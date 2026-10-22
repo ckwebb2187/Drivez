@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { applyTheme, animateWater, themeBase, useMapLook, isLite } from '@/lib/mapTheme';
+import MapAtmosphere from '@/components/MapAtmosphere';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { carMarkup } from '@/lib/cars';
@@ -62,9 +64,22 @@ function reportElement(type) {
   return el;
 }
 
-export default function DriveMap({
+// Wrapper: picks the world theme, redraws the map when it changes, and adds weather / theme effects on top.
+export default function DriveMap(props) {
+  const [look] = useMapLook();
+  const lite = isLite(look);
+  const base = themeBase(look.theme, isDaytime());
+  return (
+    <>
+      <DriveMapInner key={`${look.theme}-${base}-${lite}`} {...props} theme={look.theme} base={base} lite={lite} />
+      <MapAtmosphere theme={look.theme} pos={props.pos} active={props.active !== false} lite={lite} weatherFx={look.weatherFx} />
+    </>
+  );
+}
+
+function DriveMapInner({
   pos, heading, speed = 0, car, driving, routeCoords, dest, stops = [], guide, trail, reports = [],
-  follow = true, onUserMove, className = '', active = true,
+  follow = true, onUserMove, className = '', active = true, theme = 'standard', base = 'day', lite = false,
 }) {
   const box = useRef(null);
   const mapRef = useRef(null);
@@ -86,7 +101,7 @@ export default function DriveMap({
   useEffect(() => {
     const map = new maplibregl.Map({
       container: box.current,
-      style: day.current ? STYLE_DAY : STYLE_NIGHT,
+      style: base === 'day' ? STYLE_DAY : STYLE_NIGHT,
       center: pos ? toLngLat(pos) : [-98.58, 39.83],
       zoom: pos ? 16 : 3.5,
       pitch: 0,
@@ -119,18 +134,9 @@ export default function DriveMap({
       let lastRoad = -1;
       layers.forEach((l, i) => { if (l.type === 'line' || l.type === 'fill-extrusion') lastRoad = i; });
       const firstSymbol = layers.slice(lastRoad + 1).find((l) => l.type === 'symbol')?.id;
-      // 3D buildings (the day style has them; add them to the night style).
-      if (!map.getLayer('building-3d') && map.getSource('openmaptiles')) {
-        map.addLayer({
-          id: 'dz-buildings', type: 'fill-extrusion', source: 'openmaptiles', 'source-layer': 'building', minzoom: 14,
-          paint: {
-            'fill-extrusion-color': '#2b2f3d',
-            'fill-extrusion-height': ['coalesce', ['get', 'render_height'], 6],
-            'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
-            'fill-extrusion-opacity': 0.85,
-          },
-        }, firstSymbol);
-      }
+      // World theme colors + 3D buildings (themed windows), then gentle water motion.
+      try { applyTheme(map, theme, { lite, beforeId: firstSymbol }); } catch { /* keep the plain style */ }
+      if (!lite) live.current.stopWater = animateWater(map, theme);
       map.addSource('dz-guide', { type: 'geojson', data: EMPTY });
       map.addSource('dz-trail', { type: 'geojson', data: EMPTY });
       map.addSource('dz-behind', { type: 'geojson', data: EMPTY });
@@ -186,6 +192,7 @@ export default function DriveMap({
       window.removeEventListener('resize', resize);
       window.removeEventListener('pointerup', up);
       window.removeEventListener('touchend', up);
+      live.current.stopWater?.();
       readyRef.current = false; // tell the other cleanups the map is gone
       try { map.remove(); } catch { /* already gone */ }
     };

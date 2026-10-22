@@ -4,6 +4,7 @@ import { TileLayer, useMap } from 'react-leaflet';
 import { CloudRain, X, Play, Pause, Check } from 'lucide-react';
 import { api } from '@/api/base44Client';
 import { useLiveTraffic, trafficTileUrl } from '@/lib/traffic';
+import { ThemePicker } from '@/components/MapLookSettings';
 
 // Weather overlays for the maps. AccuWeather tiles come through the Drivez server
 // (which holds the API key); the free options load straight from their providers.
@@ -157,10 +158,15 @@ export function WeatherButton({ className = '' }) {
         <div className="fixed inset-0 z-[1500] bg-black/50 flex items-end justify-center" onClick={() => setOpen(false)}>
           <div className="w-full max-w-md bg-card border-t border-border rounded-t-3xl p-5 pb-8 dz-pop-in" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-base font-bold text-foreground flex items-center gap-2"><CloudRain className="w-5 h-5 text-[#64b5f6]" /> Map layers</h3>
+              <h3 className="text-base font-bold text-foreground flex items-center gap-2"><CloudRain className="w-5 h-5 text-[#64b5f6]" /> Map look & layers</h3>
               <button onClick={() => setOpen(false)} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center" aria-label="Close"><X className="w-4 h-4" /></button>
             </div>
-            <div className="space-y-1.5 max-h-[50vh] overflow-y-auto no-scrollbar">
+            <div className="mb-3">
+              <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">World theme</div>
+              <ThemePicker compact />
+            </div>
+            <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">Weather radar</div>
+            <div className="space-y-1.5 max-h-[40vh] overflow-y-auto no-scrollbar">
               {WEATHER_LAYERS.filter((l) => !l.accu || accu).map((l) => {
                             const selected = prefs.layer === l.id;
                 return (

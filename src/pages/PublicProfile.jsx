@@ -17,7 +17,7 @@ export default function PublicProfile() {
     api.get(`/u/${encodeURIComponent(String(username).toLowerCase())}${asPublic ? '?as=public' : ''}`).then(setP).catch((e) => setError(e.message || 'Not found'));
   }, [username, asPublic]);
 
-  if (error) return <div className="min-h-screen flex flex-col items-center justify-center gap-3 p-6 text-center"><p className="text-sm text-muted-foreground">{error}</p><Link to="/" className="text-sm text-primary">Open Drivez</Link></div>;
+  if (error) return <div className="min-h-screen flex flex-col items-center justify-center gap-3 p-6 text-center"><p className="text-sm text-muted-foreground">{error}</p><Link to="/" className="text-sm text-primary">Open Kaido Maps</Link></div>;
   if (!p) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
 
   const socials = Object.entries(p.socials || {}).filter(([k, h]) => h && SOCIAL_LINKS[k]);
@@ -98,7 +98,7 @@ export default function PublicProfile() {
         {hiddenNote && <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" />{p.isMe ? 'Everything is hidden from strangers. Change it in Profile → Driver profile.' : 'This driver keeps their profile private.'}</p>}
 
         {!p.signedIn && !asPublic && (
-          <Link to="/register" className="block w-full text-center bg-primary text-primary-foreground rounded-xl py-3 text-sm font-semibold mt-4">Join Drivez</Link>
+          <Link to="/register" className="block w-full text-center bg-primary text-primary-foreground rounded-xl py-3 text-sm font-semibold mt-4">Join Kaido Maps</Link>
         )}
       </div>
     </div>

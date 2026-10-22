@@ -4,6 +4,7 @@ import { Home, Gauge, Clock, Trophy, User, ChevronRight } from 'lucide-react';
 import LiveDrive from '@/pages/LiveDrive';
 import SetupModeModal from '@/components/SetupModeModal';
 import { useApp } from '@/lib/AppContext';
+import { useMapLook, featureName } from '@/lib/mapTheme';
 
 const tabs = [
   { to: '/', icon: Home, label: 'Home' },
@@ -16,7 +17,8 @@ const tabs = [
 export default function Layout() {
   const { pathname } = useLocation();
   const { user, scene } = useApp();
-  const shownTabs = scene ? tabs : tabs.filter((t) => t.to !== '/leaderboard');
+  const [look] = useMapLook();
+  const shownTabs = (scene ? tabs : tabs.filter((t) => t.to !== '/leaderboard')).map((t) => (t.to === '/' && look.jpNames ? { ...t, label: 'Chizu' } : t));
   const onDrive = pathname === '/drive';
   // The drive screen is kept running once opened, so switching tabs never loses a drive.
   const [driveOpened, setDriveOpened] = useState(onDrive);

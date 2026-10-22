@@ -11,6 +11,7 @@ import SetPlaceModal from '@/components/SetPlaceModal';
 import NamePlaceSheet from '@/components/NamePlaceSheet';
 import { suggestDrives } from '@/lib/predict';
 import ServiceDueCard from '@/components/ServiceDueCard';
+import ParkedCard from '@/components/ParkedCard';
 import TripCard from '@/components/TripCard';
 import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
@@ -61,7 +62,7 @@ export default function MapHome() {
         setPos([p.coords.latitude, p.coords.longitude]);
         if (p.coords.heading != null && !Number.isNaN(p.coords.heading) && (p.coords.speed || 0) > 1) setHeading(p.coords.heading);
       },
-      (e) => { if (e.code === 1) setLocError('Turn on location for Drivez to see where you are.'); },
+      (e) => { if (e.code === 1) setLocError('Turn on location for Kaido Maps to see where you are.'); },
       { enableHighAccuracy: true, maximumAge: 5000 }
     );
     return () => navigator.geolocation.clearWatch(id);
@@ -280,6 +281,9 @@ export default function MapHome() {
         {!showResults && !route && !routing && !routeErr && weatherAlerts.length > 0 && (
           <AlertsBanner alerts={weatherAlerts} pos={pos} onRoute={(city) => plan(city, [])} className="mt-2" />
         )}
+
+        {/* Where you parked */}
+        {!showResults && !route && !routing && !routeErr && <ParkedCard pos={pos} />}
 
         {/* Car service due (oil change etc.) */}
         {scene && !showResults && !route && !routing && !routeErr && activeVehicle && <ServiceDueCard vehicle={activeVehicle} trips={trips} />}

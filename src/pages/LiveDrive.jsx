@@ -108,6 +108,17 @@ export default function LiveDrive({ active = true }) {
     }
   }, [drive.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Remember where you parked when a drive ends; forget it when the next one starts.
+  useEffect(() => {
+    try {
+      if (drive.status === 'driving') localStorage.removeItem('dz-parked');
+      if (drive.status === 'ended') {
+        const last = drive.route[drive.route.length - 1];
+        if (last) localStorage.setItem('dz-parked', JSON.stringify({ lat: last.lat, lng: last.lng, at: Date.now(), car: activeVehicle ? (activeVehicle.nickname || `${activeVehicle.make} ${activeVehicle.model}`) : null }));
+      }
+    } catch { /* private mode */ }
+  }, [drive.status]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSave = async () => {
     if (!drive.route.length || saving) return;
     setSaving(true);
@@ -200,7 +211,7 @@ export default function LiveDrive({ active = true }) {
               </div>
               <h2 className="text-lg font-bold text-foreground text-center">Ready to Drive</h2>
               <p className="text-xs text-muted-foreground text-center mt-1 mb-5">
-                Keep Drivez open while you drive. Your route, speed and distance are tracked with GPS.
+                Keep Kaido Maps open while you drive. Your route, speed and distance are tracked with GPS.
               </p>
 
               {drive.error && (
@@ -208,7 +219,7 @@ export default function LiveDrive({ active = true }) {
                   <MapPinOff className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>
                     {drive.error === 'denied'
-                      ? 'Location permission denied. Enable location for Drivez in your browser settings, then try again.'
+                      ? 'Location permission denied. Enable location for Kaido Maps in your browser settings, then try again.'
                       : drive.error === 'unsupported'
                       ? 'Your browser does not support location tracking.'
                       : drive.error === 'timeout'
@@ -261,7 +272,7 @@ export default function LiveDrive({ active = true }) {
               <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
               <h2 className="text-lg font-bold text-foreground">Waiting for GPS signal…</h2>
               <p className="text-xs text-muted-foreground mt-1 mb-2">
-                Make sure location access is allowed for Drivez.
+                Make sure location access is allowed for Kaido Maps.
               </p>
               <p className="text-xs text-muted-foreground font-semibold mb-5 speed-font">
                 {formatDuration(drive.elapsedTime)}

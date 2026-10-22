@@ -80,7 +80,7 @@ export default function AppUpdate() {
       <div className="bg-card rounded-2xl p-4 border border-border">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-semibold text-foreground">Drivez {VERSION}</div>
+            <div className="text-sm font-semibold text-foreground">Kaido Maps {VERSION}</div>
             <div className="text-[11px] text-muted-foreground">
               {state === 'available' ? 'A new version is ready' : state === 'current' ? 'You’re on the latest version' : state === 'error' ? 'Couldn’t check for updates' : 'Checking for updates…'}
               {BUILT && state !== 'available' ? ` · ${BUILT.toLocaleDateString()}` : ''}

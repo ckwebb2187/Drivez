@@ -8,6 +8,7 @@ export const REPORT_TYPES = {
   hazard: { label: 'Hazard', emoji: '⚠️', color: '#F9AB00', say: 'Hazard reported ahead' },
   traffic: { label: 'Traffic jam', emoji: '🚦', color: '#FF6D00', say: 'Traffic jam reported ahead' },
   closure: { label: 'Road closed', emoji: '⛔', color: '#9AA0A6', say: 'Road closure reported ahead' },
+  train: { label: 'Train on crossing', emoji: '🚂', color: '#795548', say: 'Train blocking the crossing ahead' },
   flood: { label: 'Flooded road', emoji: '🌊', color: '#1E88E5', say: 'Flooded road reported ahead. Turn around, don\'t drown' },
   bump: { label: 'Speed bump', emoji: '〰️', color: '#8E24AA', say: 'Speed bump ahead', low: true },
   pothole: { label: 'Pothole', emoji: '🕳️', color: '#6D4C41', say: 'Pothole ahead', low: true },

@@ -30,7 +30,7 @@ export default function PrivacySettings() {
       <h3 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-accent" /> Privacy</h3>
       <div className="bg-card rounded-2xl p-4 border border-border space-y-4">
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Drivez never sells or shares your location. There are no ads or trackers. Your live location is only shown to friends while you drive, unless Ghost Mode is on.
+          Kaido Maps never sells or shares your location. There are no ads or trackers. Your live location is only shown to friends while you drive, unless Ghost Mode is on.
         </p>
         <div>
           <div className="text-sm font-semibold text-foreground mb-2">Automatically delete old drives</div>

@@ -51,7 +51,7 @@ export default function Leaderboard() {
     <div className="min-h-full">
       <div className="px-5 pt-12 pb-4">
         <h1 className="text-2xl font-bold text-foreground">Leaderboard</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Top speeds logged on Drivez</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Top speeds logged on Kaido Maps</p>
       </div>
 
       <div className="flex gap-2 px-5 mb-5">

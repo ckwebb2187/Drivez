@@ -180,7 +180,7 @@ async function friendIds(db, userId) {
 // ---------- road reports ----------
 const MIN = 60 * 1000;
 const DAY = 24 * 60 * MIN;
-const REPORT_LIFETIME = { police: 45 * MIN, crash: 90 * MIN, hazard: 120 * MIN, traffic: 45 * MIN, closure: 240 * MIN, bump: 180 * DAY, pothole: 30 * DAY, dip: 180 * DAY, flood: 12 * 60 * MIN };
+const REPORT_LIFETIME = { police: 45 * MIN, crash: 90 * MIN, hazard: 120 * MIN, traffic: 45 * MIN, closure: 240 * MIN, train: 30 * MIN, bump: 180 * DAY, pothole: 30 * DAY, dip: 180 * DAY, flood: 12 * 60 * MIN };
 
 // "Still there" extends a report; two "not there" votes (or more than confirms) remove it.
 async function vote(db, reportId, userId, stillThere, type) {
@@ -209,7 +209,7 @@ async function postTripToDiscord(webhook, user, trip, vehicle, origin) {
     title: `🏁 ${trip.title || "Drive"}`,
     description: [trip.start_location, trip.end_location].filter(Boolean).join(" → ") || undefined,
     color: parseInt(String(user.color || "#00BFFF").slice(1), 16),
-    author: { name: `${user.display_name} on Drivez`, icon_url: icon },
+    author: { name: `${user.display_name} on Kaido Maps`, icon_url: icon },
     fields: [
       { name: "Distance", value: `${trip.distance ?? 0} mi`, inline: true },
       { name: "Top speed", value: `${trip.top_speed ?? 0} mph`, inline: true },
@@ -218,12 +218,12 @@ async function postTripToDiscord(webhook, user, trip, vehicle, origin) {
       ...(vehicle ? [{ name: "Vehicle", value: `${vehicle.year || ""} ${vehicle.make} ${vehicle.model}${vehicle.nickname ? ` "${vehicle.nickname}"` : ""}`.trim(), inline: true }] : []),
     ],
     timestamp: trip.end_time || now(),
-    footer: { text: "Drivez" },
+    footer: { text: "Kaido Maps" },
   };
   const r = await fetch(`${webhook}?wait=true`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ username: "Drivez", embeds: [embed] }),
+    body: JSON.stringify({ username: "Kaido Maps", embeds: [embed] }),
   });
   if (!r.ok) throw new HttpError(502, `Discord rejected the post (${r.status}). Check the webhook link.`);
 }
@@ -419,7 +419,7 @@ async function handleApi(req, env, ctx, url) {
       await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { authorization: `Bearer ${env.RESEND_API_KEY}`, "content-type": "application/json" },
-        body: JSON.stringify({ from: env.RESEND_FROM, to: email, subject: "Reset your Drivez password", html: `<p>Tap to choose a new Drivez password (valid for 1 hour):</p><p><a href="${link}">${link}</a></p><p>If you didn't ask for this, ignore this email.</p>` }),
+        body: JSON.stringify({ from: env.RESEND_FROM, to: email, subject: "Reset your Kaido Maps password", html: `<p>Tap to choose a new Kaido Maps password (valid for 1 hour):</p><p><a href="${link}">${link}</a></p><p>If you didn't ask for this, ignore this email.</p>` }),
       });
     }
     return json({ ok: true });
@@ -836,7 +836,7 @@ async function handleApi(req, env, ctx, url) {
   }
   if (path === "/discord/test" && method === "POST") {
     if (!me.discord_webhook) throw new HttpError(400, "Save a webhook link first.");
-    const r = await fetch(`${me.discord_webhook}?wait=true`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "Drivez", content: `✅ Drivez is connected! ${me.display_name}'s drives can now be posted here.` }) });
+    const r = await fetch(`${me.discord_webhook}?wait=true`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "Kaido Maps", content: `✅ Kaido Maps is connected! ${me.display_name}'s drives can now be posted here.` }) });
     if (!r.ok) throw new HttpError(502, `Discord rejected the test (${r.status}). Check the webhook link.`);
     return json({ ok: true });
   }
@@ -859,7 +859,7 @@ async function handleApi(req, env, ctx, url) {
   if (path === "/friends/request" && method === "POST") {
     const who = String(body.who || "").trim().toLowerCase().replace(/^@/, "");
     const other = await db.prepare("SELECT * FROM users WHERE username = ? OR email = ?").bind(who, who).first();
-    if (!other) throw new HttpError(404, "No Drivez user with that username or email.");
+    if (!other) throw new HttpError(404, "No Kaido Maps user with that username or email.");
     if (other.id === me.id) throw new HttpError(400, "That's you!");
     const existing = await db.prepare("SELECT * FROM friends WHERE (requester_id = ?1 AND addressee_id = ?2) OR (requester_id = ?2 AND addressee_id = ?1)").bind(me.id, other.id).first();
     if (existing?.status === "accepted") return json({ message: `You're already friends with ${other.display_name}.` });

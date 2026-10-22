@@ -33,7 +33,7 @@ export default function Login() {
     <AuthLayout
       icon={LogIn}
       title="Welcome back"
-      subtitle="Log in to Drivez"
+      subtitle="Log in to Kaido Maps"
       footer={
         <>
           Don't have an account?{" "}

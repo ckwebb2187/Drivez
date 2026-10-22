@@ -170,7 +170,7 @@ export default function ImportPage() {
           <div className="mt-4 bg-card border border-border rounded-2xl p-4 text-center">
             <CheckCircle2 className="w-8 h-8 text-primary mx-auto mb-2" />
             <p className="text-sm font-bold text-foreground">Imported {done.places.toLocaleString()} places and {done.trips.toLocaleString()} drives</p>
-            {done.skipped > 0 && <p className="text-[11px] text-muted-foreground mt-1">{done.skipped.toLocaleString()} were already in Drivez, so they were skipped.</p>}
+            {done.skipped > 0 && <p className="text-[11px] text-muted-foreground mt-1">{done.skipped.toLocaleString()} were already in Kaido Maps, so they were skipped.</p>}
             <div className="flex gap-2 mt-3">
               <button onClick={() => navigate('/places')} className="flex-1 bg-secondary rounded-xl py-2.5 text-xs font-bold text-foreground">See places</button>
               <button onClick={() => navigate('/history')} className="flex-1 bg-secondary rounded-xl py-2.5 text-xs font-bold text-foreground">See drives</button>
