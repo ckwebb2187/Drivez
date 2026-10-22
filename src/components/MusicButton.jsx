@@ -29,19 +29,31 @@ async function findArt(track) {
 }
 
 // What's playing right now for a ListenBrainz user, refreshed every `every` ms.
+// If nothing is "playing now" (it can lag or expire), show the last song from the past 20 minutes.
+const LB = 'https://api.listenbrainz.org/1/user/';
 function useNowPlaying(user, every) {
   const [track, setTrack] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   useEffect(() => {
-    if (!user) { setTrack(null); return; }
+    if (!user) { setTrack(null); setError(''); return; }
     let alive = true;
     const load = async () => {
       setLoading(true);
       try {
-        const d = await (await fetch(`https://api.listenbrainz.org/1/user/${encodeURIComponent(user)}/playing-now`)).json();
-        const m = d.payload?.listens?.[0]?.track_metadata;
+        const u = encodeURIComponent(user);
+        const r = await fetch(`${LB}${u}/playing-now`);
+        if (r.status === 404) { if (alive) { setError(`ListenBrainz has no user "${user}". Check the spelling in ⚙.`); setTrack(null); } return; }
+        const d = await r.json();
+        let m = d.payload?.listens?.[0]?.track_metadata;
+        let recent = false;
+        if (!m) {
+          const last = (await (await fetch(`${LB}${u}/listens?count=1`)).json()).payload?.listens?.[0];
+          if (last && Date.now() / 1000 - last.listened_at < 20 * 60) { m = last.track_metadata; recent = true; }
+        }
+        if (alive) setError('');
         if (!m) { if (alive) setTrack(null); return; }
-        const t = { title: m.track_name, artist: m.artist_name, album: m.release_name };
+        const t = { title: m.track_name, artist: m.artist_name, album: m.release_name, recent };
         t.art = await findArt(t);
         if (alive) setTrack(t);
       } catch { /* keep last */ } finally { if (alive) setLoading(false); }
@@ -50,7 +62,7 @@ function useNowPlaying(user, every) {
     const id = setInterval(load, every);
     return () => { alive = false; clearInterval(id); };
   }, [user, every]);
-  return { track, loading };
+  return { track, loading, error };
 }
 
 function Bars() {
@@ -66,21 +78,33 @@ export default function MusicButton({ size = 52 }) {
   const [user, setUser] = useState(readUser);
   const [setup, setSetup] = useState(false);
   const [draft, setDraft] = useState(user);
-  const { track, loading } = useNowPlaying(user, open ? 10000 : 45000);
+  const { track, loading, error } = useNowPlaying(user, open ? 10000 : 45000);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const cardRef = useRef(null);
 
-  const saveUser = () => {
+  const saveUser = async () => {
     const u = draft.trim();
+    setSaveError('');
+    if (u) {
+      setSaving(true);
+      try {
+        const r = await fetch(`${LB}${encodeURIComponent(u)}/listen-count`);
+        if (r.status === 404) { setSaveError(`No ListenBrainz user named "${u}".`); return; }
+      } catch { /* offline: save anyway */ } finally { setSaving(false); }
+    }
     try { localStorage.setItem(LB_KEY, u); } catch { /* ignore */ }
     setUser(u);
     setSetup(false);
   };
+  // Open the setup steps straight away the first time, so it's clear what's needed.
+  const toggle = () => { if (!open && !user) { setDraft(''); setSetup(true); } setOpen(!open); };
   const openApp = () => { window.location.href = INTENT; };
 
   return (
     <>
       <button
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         aria-label="Music"
         className="relative rounded-full p-[2.5px] shadow-xl active:scale-95 transition-transform"
         style={{ width: size, height: size, background: 'conic-gradient(from 200deg, #7cc8ff, #c39bff, #ff8fd0, #7cc8ff)' }}
@@ -106,7 +130,7 @@ export default function MusicButton({ size = 52 }) {
               <div className="flex-1 min-w-0">
                 {setup ? null : track ? (
                   <>
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-[#ff8fd0]">Now playing · YumaPlayer</div>
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-[#ff8fd0]">{track.recent ? 'Last played' : 'Now playing'} · YumaPlayer</div>
                     <div className="text-sm font-bold text-white truncate">{track.title}</div>
                     <div className="text-xs text-white/60 truncate">{track.artist}</div>
                   </>
@@ -114,7 +138,7 @@ export default function MusicButton({ size = 52 }) {
                   <>
                     <div className="text-sm font-bold text-white">YumaPlayer</div>
                     <div className="text-xs text-white/60 truncate">
-                      {loading ? 'Checking what’s playing…' : user ? 'Nothing playing right now' : 'Show your song here — tap ⚙'}
+                      {error || (loading ? 'Checking what’s playing…' : user ? 'Nothing playing. Play a song in YumaPlayer.' : 'Show your song here. Tap ⚙')}
                     </div>
                   </>
                 )}
@@ -131,14 +155,18 @@ export default function MusicButton({ size = 52 }) {
 
             {setup ? (
               <div className="px-3 pb-3">
-                <p className="text-[11px] text-white/60 mb-2 leading-snug">
-                  In YumaPlayer: Settings → ListenBrainz scrobbling → turn it on and set your token. Then enter your ListenBrainz username here.
-                </p>
+                <ol className="text-[11px] text-white/70 mb-2 leading-snug list-decimal pl-4 space-y-1">
+                  <li>Make a free account at <a href="https://listenbrainz.org/login/" target="_blank" rel="noreferrer" className="text-[#7cc8ff] underline">listenbrainz.org</a>.</li>
+                  <li>Open <a href="https://listenbrainz.org/settings/" target="_blank" rel="noreferrer" className="text-[#7cc8ff] underline">ListenBrainz settings</a> and copy your <b>User token</b>.</li>
+                  <li>In YumaPlayer: Settings → Integrations → turn on <b>ListenBrainz scrobbling</b> → <b>Set ListenBrainz token</b> → paste it.</li>
+                  <li>Type your ListenBrainz <b>username</b> below (not the token).</li>
+                </ol>
                 <div className="flex gap-2">
                   <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="ListenBrainz username" autoCapitalize="none" autoCorrect="off"
                     className="flex-1 min-w-0 bg-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-white/40 outline-none border border-white/10 focus:border-[#c39bff]" />
-                  <button onClick={saveUser} className="px-4 rounded-xl text-sm font-bold text-[#140f24]" style={{ background: 'linear-gradient(135deg,#7cc8ff,#ff8fd0)' }}>Save</button>
+                  <button onClick={saveUser} disabled={saving} className="px-4 rounded-xl text-sm font-bold text-[#140f24] disabled:opacity-60" style={{ background: 'linear-gradient(135deg,#7cc8ff,#ff8fd0)' }}>{saving ? '…' : 'Save'}</button>
                 </div>
+                {saveError && <p className="text-[11px] text-[#ff8f8f] mt-1.5">{saveError}</p>}
               </div>
             ) : (
               <div className="px-3 pb-3">

@@ -14,7 +14,11 @@ export default function TripCard({ trip, vehicle }) {
       <div className="relative h-32 bg-secondary">
         <RouteThumbnail route={trip.route} className="w-full h-full" color={trip.userColor || '#00BFFF'} />
         <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full glass max-w-[70%]">
-          <span className="text-[10px] font-medium text-foreground truncate block">{trip.startLocation}{trip.endLocation ? ` → ${trip.endLocation}` : ''}</span>
+          <span className="text-[10px] font-medium text-foreground truncate block">
+            {trip.imported && !trip.start_location
+              ? `From ${trip.source === 'waze' ? 'Waze' : trip.source === 'gpx' ? 'GPX file' : 'Google Maps'}`
+              : <>{trip.startLocation}{trip.endLocation ? ` → ${trip.endLocation}` : ''}</>}
+          </span>
         </div>
         {trip.isFriendTrip && (
           <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 rounded-full glass">
@@ -37,8 +41,8 @@ export default function TripCard({ trip, vehicle }) {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1">
               <TrendingUp className="w-3.5 h-3.5 text-primary" />
-              <span className="text-sm font-bold text-primary">{trip.topSpeed}</span>
-              <span className="text-[10px] text-muted-foreground">mph</span>
+              <span className="text-sm font-bold text-primary">{trip.imported ? trip.avgSpeed : trip.topSpeed}</span>
+              <span className="text-[10px] text-muted-foreground">{trip.imported ? 'mph avg' : 'mph'}</span>
             </div>
             <div className="flex items-center gap-1">
               <Gauge className="w-3.5 h-3.5 text-muted-foreground" />

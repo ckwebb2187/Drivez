@@ -3,7 +3,7 @@
 import { SCHEMA } from "./schema.js";
 import { FILES } from "./static/index.js";
 
-const ENTITIES = new Set(["Vehicle", "Trip", "Route"]);
+const ENTITIES = new Set(["Vehicle", "Trip", "Route", "Place"]);
 const BODY_TYPES = new Set(["sports", "sedan", "suv", "truck", "moto"]);
 const SESSION_COOKIE = "dz_session";
 const SESSION_DAYS = 60;
@@ -381,12 +381,58 @@ async function handleApi(req, env, ctx, url) {
     return json({ ok: true });
   }
 
-  // --- generic records: Vehicle, Trip, Route ---
+  // --- bulk import of saved places and drives (Google Maps, Waze, GPX/KML files) ---
+  if (path === "/import" && method === "POST") {
+    const places = Array.isArray(body.places) ? body.places.slice(0, 2000) : [];
+    const trips = Array.isArray(body.trips) ? body.trips.slice(0, 1000) : [];
+    const num = (v) => (Number.isFinite(+v) ? +v : null);
+    const str = (v, max) => (v == null ? "" : String(v).slice(0, max));
+    const keys = [...places, ...trips].map((x) => str(x.import_key, 200)).filter(Boolean);
+    const seen = new Set();
+    for (let i = 0; i < keys.length; i += 90) {
+      const chunk = keys.slice(i, i + 90);
+      const { results } = await db.prepare(
+        `SELECT json_extract(data, '$.import_key') AS k FROM records WHERE owner_id = ? AND entity IN ('Place','Trip') AND json_extract(data, '$.import_key') IN (${chunk.map(() => "?").join(",")})`
+      ).bind(me.id, ...chunk).all();
+      for (const r of results) seen.add(r.k);
+    }
+    const stmts = [];
+    const insert = (entity, data, created) => {
+      if (!data.import_key || seen.has(data.import_key)) return false;
+      seen.add(data.import_key);
+      stmts.push(db.prepare("INSERT INTO records (id, entity, owner_id, data, created_date, updated_date) VALUES (?, ?, ?, ?, ?, ?)").bind(uid(), entity, me.id, JSON.stringify(data), created, now()));
+      return true;
+    };
+    let addedPlaces = 0, addedTrips = 0;
+    for (const p of places) {
+      const lat = num(p.lat), lng = num(p.lng);
+      if (lat == null || lng == null || Math.abs(lat) > 90 || Math.abs(lng) > 180) continue;
+      if (insert("Place", { name: str(p.name, 120) || "Saved place", address: str(p.address, 200), lat, lng, list: str(p.list, 60), note: str(p.note, 300), source: str(p.source, 20), import_key: str(p.import_key, 200) }, now())) addedPlaces++;
+    }
+    for (const t of trips) {
+      const start = new Date(t.start_time);
+      if (Number.isNaN(start.getTime())) continue;
+      const pts = (Array.isArray(t.route_points) ? t.route_points : []).slice(0, 400)
+        .map((p) => ({ lat: num(p.lat), lng: num(p.lng), speed: num(p.speed) ?? 0 })).filter((p) => p.lat != null && p.lng != null);
+      if (pts.length < 2) continue;
+      const data = {
+        title: str(t.title, 80) || "Drive", start_time: start.toISOString(), end_time: t.end_time ? new Date(t.end_time).toISOString() : null,
+        distance: Math.max(0, Math.round((num(t.distance) || 0) * 10) / 10), duration: Math.max(0, Math.round(num(t.duration) || 0)),
+        top_speed: 0, avg_speed: Math.max(0, Math.round(num(t.avg_speed) || 0)), vehicle_id: null, route_points: pts,
+        start_location: str(t.start_location, 120), end_location: str(t.end_location, 120), source: str(t.source, 20), imported: true, import_key: str(t.import_key, 200),
+      };
+      if (insert("Trip", data, data.start_time)) addedTrips++;
+    }
+    for (let i = 0; i < stmts.length; i += 100) await db.batch(stmts.slice(i, i + 100));
+    return json({ places: addedPlaces, trips: addedTrips, skipped: places.length + trips.length - addedPlaces - addedTrips });
+  }
+
+  // --- generic records: Vehicle, Trip, Route, Place ---
   const ent = path.match(/^\/entities\/(\w+)(?:\/(\w+))?$/);
   if (ent && ENTITIES.has(ent[1])) {
     const [, name, id] = ent;
     if (method === "GET" && !id) {
-      const limit = Math.min(+url.searchParams.get("limit") || 100, 500);
+      const limit = Math.min(+url.searchParams.get("limit") || 100, name === "Place" ? 5000 : 500);
       const q = name === "Route"
         ? db.prepare(`SELECT r.*, u.email AS owner_email FROM records r JOIN users u ON u.id = r.owner_id
             WHERE r.entity = 'Route' AND (r.owner_id = ?1 OR EXISTS (SELECT 1 FROM json_each(r.data, '$.shared_with') WHERE lower(value) = ?2))

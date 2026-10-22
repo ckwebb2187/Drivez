@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { Ghost, MapPin, Calendar, Eye, EyeOff, Pencil, LogOut, Loader2, Camera, Trash2, ImagePlus } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Ghost, MapPin, Calendar, Eye, EyeOff, Pencil, LogOut, Loader2, Camera, Trash2, ImagePlus, Upload, Star, ChevronRight } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import { base44, api } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
@@ -197,6 +198,23 @@ export default function Profile() {
       {/* Friends */}
       <div className="px-5 mb-6">
         <FriendsView />
+      </div>
+
+      {/* Saved places + import */}
+      <div className="px-5 mb-6 space-y-2">
+        <Link to="/places" className="w-full bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
+          <Star className="w-5 h-5 text-amber-400" />
+          <span className="flex-1 text-sm font-semibold text-foreground">Saved places</span>
+          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+        </Link>
+        <Link to="/import" className="w-full bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
+          <Upload className="w-5 h-5 text-primary" />
+          <div className="flex-1">
+            <div className="text-sm font-semibold text-foreground">Import from Google Maps & Waze</div>
+            <div className="text-[11px] text-muted-foreground">Saved places and past drives</div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+        </Link>
       </div>
 
       {/* Discord */}

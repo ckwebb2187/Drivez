@@ -33,6 +33,7 @@ export function AppProvider({ children }) {
   const [vehicles, setVehicles] = useState([]);
   const [trips, setTrips] = useState([]);
   const [savedRoutes, setSavedRoutes] = useState([]);
+  const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const user = useMemo(() => {
@@ -57,20 +58,22 @@ export function AppProvider({ children }) {
   const color = user?.color;
   const loadData = useCallback(async () => {
     if (!authUser) {
-      setVehicles([]); setTrips([]); setSavedRoutes([]);
+      setVehicles([]); setTrips([]); setSavedRoutes([]); setPlaces([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const [v, t, r] = await Promise.all([
+      const [v, t, r, pl] = await Promise.all([
         base44.entities.Vehicle.list('-created_date', 100),
         base44.entities.Trip.list('-created_date', 200),
-        base44.entities.Route.list('-created_date', 100)
+        base44.entities.Route.list('-created_date', 100),
+        base44.entities.Place.list('-created_date', 5000).catch(() => [])
       ]);
       setVehicles(v);
       setTrips(t.map(x => mapTrip(x, color)));
       setSavedRoutes(r.map(mapRoute));
+      setPlaces(pl);
     } finally {
       setLoading(false);
     }
@@ -175,6 +178,17 @@ export function AppProvider({ children }) {
     setSavedRoutes(prev => prev.filter(r => r.id !== id));
   };
 
+  const addPlace = async (p) => {
+    const rec = await base44.entities.Place.create({ name: p.name, address: p.address || '', lat: p.lat, lng: p.lng, list: p.list || 'Saved', source: 'drivez' });
+    setPlaces(prev => [rec, ...prev]);
+    return rec;
+  };
+
+  const deletePlace = async (id) => {
+    await base44.entities.Place.delete(id);
+    setPlaces(prev => prev.filter(p => p.id !== id));
+  };
+
   const shareRouteWithFriends = async (routeId, emails) => {
     const r = savedRoutes.find(x => x.id === routeId);
     const merged = [...new Set([...(r ? r.sharedWith : []), ...emails])];
@@ -186,7 +200,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       user, stats, weeklyStats, vehicles, trips, savedRoutes, loading, activeVehicle, myCar, setPrimaryVehicle,
       toggleGhostMode, updateUser, addVehicle, removeVehicle, addTrip,
-      addRoute, deleteRoute, shareRouteWithFriends, refreshData: loadData
+      addRoute, deleteRoute, shareRouteWithFriends, places, addPlace, deletePlace, refreshData: loadData
     }}>
       {children}
     </AppContext.Provider>

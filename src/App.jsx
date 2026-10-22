@@ -15,6 +15,8 @@ import Profile from '@/pages/Profile';
 import TripDetailPage from '@/pages/TripDetailPage';
 import LiveMap from '@/pages/LiveMap';
 import RoutesPage from '@/pages/RoutesPage';
+import PlacesPage from '@/pages/PlacesPage';
+import ImportPage from '@/pages/ImportPage';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
@@ -45,6 +47,8 @@ export default function App() {
                 <Route path="/trip/:id" element={<TripDetailPage />} />
                 <Route path="/live-map" element={<LiveMap />} />
                 <Route path="/routes" element={<RoutesPage />} />
+                <Route path="/places" element={<PlacesPage />} />
+                <Route path="/import" element={<ImportPage />} />
               </Route>
               <Route path="*" element={<PageNotFound />} />
             </Routes>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { MapContainer, Polyline, CircleMarker, Tooltip } from 'react-leaflet';
-import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff } from 'lucide-react';
+import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star } from 'lucide-react';
 import { BaseLayer } from '@/components/DarkMap';
 import { LocationMarker, PinMarker, FollowMe, FitBounds, CarMarker, ReportMarkers, ReportButton } from '@/components/MapBits';
 import { useReports } from '@/lib/reports';
@@ -9,14 +9,15 @@ import MusicButton from '@/components/MusicButton';
 import TripCard from '@/components/TripCard';
 import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
-import { searchPlaces, getRoute, formatEta, arrivalTime, formatNavDistance } from '@/lib/nav';
+import { searchPlaces, getRoute, formatEta, arrivalTime, formatNavDistance, distM } from '@/lib/nav';
 import { getInitials } from '@/lib/helpers';
 
 const FALLBACK_CENTER = [39.8283, -98.5795]; // middle of the US until we know where you are
 
 export default function MapHome() {
   const navigate = useNavigate();
-  const { user, stats, trips, vehicles, savedRoutes, myCar } = useApp();
+  const location = useLocation();
+  const { user, stats, trips, vehicles, savedRoutes, myCar, places, addPlace, deletePlace } = useApp();
 
   // Your location
   const [pos, setPos] = useState(null);
@@ -110,7 +111,28 @@ export default function MapHome() {
     return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   }, []);
 
-  const showResults = focused && !dest && query.trim().length >= 3;
+  // Your saved places: matching ones go first in search; nearest ones show when the box is empty.
+  const savedMatches = useMemo(() => {
+    const s = query.trim().toLowerCase();
+    const withDist = (p) => ({ ...p, distance: pos ? distM(pos, [p.lat, p.lng]) : null, saved: true });
+    if (!s) return places.map(withDist).sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0)).slice(0, 6);
+    return places.filter((p) => `${p.name} ${p.address}`.toLowerCase().includes(s)).map(withDist)
+      .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0)).slice(0, 5);
+  }, [places, query, pos]);
+  const savedHere = dest ? places.find((p) => Math.abs(p.lat - dest.lat) < 1e-4 && Math.abs(p.lng - dest.lng) < 1e-4) : null;
+  const toggleSave = async () => {
+    if (!dest) return;
+    try { if (savedHere) await deletePlace(savedHere.id); else await addPlace(dest); } catch { /* ignore */ }
+  };
+
+  // Opened from Saved places: route straight there.
+  useEffect(() => {
+    const g = location.state?.go;
+    if (g) { navigate('.', { replace: true, state: null }); choose(g); }
+  }, [location.state]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const showResults = focused && !dest && (query.trim().length >= 3 || (query.trim().length === 0 && savedMatches.length > 0));
+  const searchList = [...savedMatches, ...(query.trim().length >= 3 ? results.filter((r) => !savedMatches.some((m) => Math.abs(m.lat - r.lat) < 1e-4 && Math.abs(m.lng - r.lng) < 1e-4)) : [])];
   const quickRoutes = savedRoutes.slice(0, 3);
 
   return (
@@ -174,7 +196,8 @@ export default function MapHome() {
         {/* Quick chips (like Google Maps) */}
         {!showResults && !route && (
           <div className="flex gap-2 mt-2 overflow-x-auto no-scrollbar">
-            <Chip to="/routes" icon={RouteIcon} label="Saved routes" />
+            <Chip to="/places" icon={Star} label="Saved" />
+            <Chip to="/routes" icon={RouteIcon} label="Routes" />
             <Chip to="/live-map" icon={Radio} label={friends.length ? `${friends.length} friend${friends.length > 1 ? 's' : ''} driving` : 'Friends live'} />
             <Chip to="/history" icon={Clock} label="Trips" />
           </div>
@@ -183,10 +206,10 @@ export default function MapHome() {
         {/* Search results */}
         {showResults && (
           <div className="mt-2 bg-card/98 backdrop-blur rounded-2xl shadow-2xl border border-border overflow-hidden max-h-[60vh] overflow-y-auto">
-            {results.length === 0 && !searching && <p className="px-4 py-4 text-sm text-muted-foreground">No places found</p>}
-            {results.map((r) => (
+            {searchList.length === 0 && !searching && <p className="px-4 py-4 text-sm text-muted-foreground">No places found</p>}
+            {searchList.map((r) => (
               <button key={r.id} onMouseDown={(e) => e.preventDefault()} onClick={() => choose(r)} className="w-full flex items-center gap-3 px-4 py-3 text-left border-b border-border last:border-0 active:bg-secondary">
-                <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0"><MapPin className="w-4 h-4 text-muted-foreground" /></div>
+                <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0">{r.saved ? <Star className="w-4 h-4 text-amber-400 fill-amber-400" /> : <MapPin className="w-4 h-4 text-muted-foreground" />}</div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-foreground truncate">{r.name}</div>
                   <div className="text-xs text-muted-foreground truncate">{r.address}</div>
@@ -229,9 +252,14 @@ export default function MapHome() {
               </div>
             ) : (
               <>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold text-[#34A853]">{formatEta(route.duration)}</span>
-                  <span className="text-sm text-muted-foreground">({route.distance} mi)</span>
+                <div className="flex items-start gap-2">
+                  <div className="flex-1 flex items-baseline gap-2">
+                    <span className="text-2xl font-bold text-[#34A853]">{formatEta(route.duration)}</span>
+                    <span className="text-sm text-muted-foreground">({route.distance} mi)</span>
+                  </div>
+                  <button onClick={toggleSave} className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0 -mt-1" aria-label={savedHere ? 'Remove from saved places' : 'Save this place'}>
+                    <Star className={`w-4 h-4 ${savedHere ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground'}`} />
+                  </button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">Arrive around {arrivalTime(route.duration)} · {dest.name}</p>
                 <div className="flex gap-2 mt-4">

@@ -35,7 +35,7 @@ function entity(name) {
 }
 
 export const base44 = {
-  entities: { Vehicle: entity('Vehicle'), Trip: entity('Trip'), Route: entity('Route') },
+  entities: { Vehicle: entity('Vehicle'), Trip: entity('Trip'), Route: entity('Route'), Place: entity('Place') },
   auth: {
     me: () => api.get('/auth/me'),
     updateMe: (data) => api.patch('/auth/me', data),
