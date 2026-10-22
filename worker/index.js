@@ -92,7 +92,7 @@ function publicUser(u) {
     bio: u.bio || "", location: u.location || "", ghost_mode: !!u.ghost_mode, avatar_url: u.avatar_url,
     color: u.color, created_date: u.created_date, role: "user",
     discord_connected: !!u.discord_id, discord_webhook_set: !!u.discord_webhook, discord_auto: !!u.discord_auto,
-    has_password: !!u.password_hash,
+    has_password: !!u.password_hash, trip_retention_days: u.trip_retention_days || null,
   };
 }
 const card = (u) => ({ userId: u.id, id: u.id, name: u.display_name, username: u.username, avatarUrl: u.avatar_url, color: u.color });
@@ -154,7 +154,8 @@ async function friendIds(db, userId) {
 
 // ---------- road reports ----------
 const MIN = 60 * 1000;
-const REPORT_LIFETIME = { police: 45 * MIN, crash: 90 * MIN, hazard: 120 * MIN, traffic: 45 * MIN, closure: 240 * MIN };
+const DAY = 24 * 60 * MIN;
+const REPORT_LIFETIME = { police: 45 * MIN, crash: 90 * MIN, hazard: 120 * MIN, traffic: 45 * MIN, closure: 240 * MIN, bump: 180 * DAY, pothole: 30 * DAY, dip: 180 * DAY, flood: 12 * 60 * MIN };
 
 // "Still there" extends a report; two "not there" votes (or more than confirms) remove it.
 async function vote(db, reportId, userId, stillThere, type) {
@@ -200,6 +201,64 @@ async function postTripToDiscord(webhook, user, trip, vehicle, origin) {
     body: JSON.stringify({ username: "Drivez", embeds: [embed] }),
   });
   if (!r.ok) throw new HttpError(502, `Discord rejected the post (${r.status}). Check the webhook link.`);
+}
+
+// ---------- weather alerts ----------
+const NWS_UA = { "user-agent": "Drivez/1.0 (https://drivez.webb-home.workers.dev)", accept: "application/geo+json" };
+async function nwsAlerts(lat, lng, ctx) {
+  const u = `https://api.weather.gov/alerts/active?point=${lat.toFixed(3)},${lng.toFixed(3)}`;
+  const d = await cachedJSON(ctx, u, 300, NWS_UA).catch(() => ({ features: [] }));
+  return (d.features || []).map((f) => {
+    const p = f.properties || {};
+    return {
+      id: p.id || f.id, event: p.event, severity: p.severity, urgency: p.urgency, headline: p.headline,
+      description: (p.description || "").slice(0, 1500), instruction: (p.instruction || "").slice(0, 1000),
+      area: p.areaDesc, ends: p.ends || p.expires, sender: p.senderName,
+      geometry: f.geometry && f.geometry.type ? f.geometry : null,
+    };
+  });
+}
+
+// ---------- OpenStreetMap (Overpass) ----------
+const OSM_KINDS = {
+  bumps: (bb) => `node["traffic_calming"~"bump|hump|table|cushion|dip|rumble_strip"](${bb});out 800;`,
+  shops: (bb) => `(nwr["shop"~"car_repair|car_parts|tyres"](${bb});nwr["craft"="car_repair"](${bb});nwr["amenity"="fuel"]["fuel:octane_93"="yes"](${bb});nwr["amenity"="fuel"]["fuel:e0"="yes"](${bb});nwr["amenity"="fuel"]["fuel:ethanol_free"="yes"](${bb}););out center tags 300;`,
+};
+const OVERPASS = ["https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.openstreetmap.fr/api/interpreter", "https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
+async function osmLookup(kind, [s, w, n, e], ctx) {
+  const r = (v) => (Math.round(v * 50) / 50).toFixed(2); // ~2 km grid so nearby lookups share the cache
+  const bbox = `${r(s)},${r(w)},${r(n)},${r(e)}`;
+  const query = `[out:json][timeout:25];${OSM_KINDS[kind](bbox)}`;
+  const key = new Request(`https://drivez.cache/osm/${kind}/${bbox}`);
+  const hit = await caches.default.match(key);
+  if (hit) return hit.json();
+  let data = null;
+  for (const host of OVERPASS) {
+    try {
+      const res = await fetch(`${host}?data=${encodeURIComponent(query)}`, { headers: { "user-agent": NWS_UA["user-agent"], accept: "application/json" }, signal: AbortSignal.timeout(9000) });
+      if (res.ok) { data = await res.json(); break; }
+      console.log("overpass", host, res.status);
+    } catch (e) { console.log("overpass", host, String(e)); /* try the next mirror */ }
+  }
+  if (!data) throw new HttpError(502, "Map data is busy right now. Try again in a minute.");
+  const items = (data.elements || []).map((el) => {
+    const t = el.tags || {};
+    const lat = el.lat ?? el.center?.lat, lng = el.lon ?? el.center?.lon;
+    if (lat == null) return null;
+    if (kind === "bumps") return { id: `osm${el.id}`, lat, lng, type: /dip/.test(t.traffic_calming) ? "dip" : "bump", what: t.traffic_calming };
+    const fuel = t.amenity === "fuel";
+    const name = t.name || t.brand || (fuel ? "Gas station" : "Auto shop");
+    const tuner = /perform|motorsport|tuning|tune|jdm|import|racing|speed|turbo|dyno/i.test(`${name} ${t.description || ""} ${t.service || ""}`);
+    const category = fuel ? "fuel" : t.shop === "car_parts" ? "parts" : t.shop === "tyres" ? "tires" : tuner ? "tuner" : "mechanic";
+    return {
+      id: `osm${el.type[0]}${el.id}`, lat, lng, name, category,
+      octane93: t["fuel:octane_93"] === "yes", ethanolFree: t["fuel:e0"] === "yes" || t["fuel:ethanol_free"] === "yes",
+      address: [t["addr:housenumber"], t["addr:street"], t["addr:city"]].filter(Boolean).join(" "),
+      phone: t.phone || t["contact:phone"] || "", website: t.website || t["contact:website"] || "", hours: t.opening_hours || "",
+    };
+  }).filter(Boolean);
+  ctx.waitUntil(caches.default.put(key, new Response(JSON.stringify(items), { headers: { "content-type": "application/json", "cache-control": `public, max-age=${kind === "bumps" ? 7 * 86400 : 86400}` } })));
+  return items;
 }
 
 // ---------- place search ----------
@@ -290,7 +349,7 @@ async function handleApi(req, env, ctx, url) {
   const db = env.DB;
   const path = url.pathname.replace(/^\/api/, "");
   const method = req.method;
-  const body = ["POST", "PATCH", "PUT"].includes(method) ? await req.json().catch(() => ({})) : {};
+  const body = ["POST", "PATCH", "PUT", "DELETE"].includes(method) ? await req.json().catch(() => ({})) : {};
 
   // --- public auth endpoints ---
   if (path === "/auth/config") {
@@ -519,6 +578,54 @@ async function handleApi(req, env, ctx, url) {
       length: sm.lengthInMeters,
       legs: (d.routes[0].legs || []).map((l) => ({ travelTime: l.summary?.travelTimeInSeconds, delay: l.summary?.trafficDelayInSeconds ?? 0 })),
     });
+  }
+
+  // --- National Weather Service alerts (floods, hurricanes, evacuations) ---
+  if (path === "/nws/alerts" && method === "GET") {
+    const lat = +url.searchParams.get("lat"), lng = +url.searchParams.get("lng");
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) throw new HttpError(400, "Need a location");
+    return json({ alerts: await nwsAlerts(lat, lng, ctx) });
+  }
+  if (path === "/nws/route" && method === "POST") {
+    const pts = (Array.isArray(body.points) ? body.points : []).slice(0, 10).map((p) => [+p[0], +p[1]]).filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
+    const all = new Map();
+    for (const list of await Promise.all(pts.map(([a, b]) => nwsAlerts(a, b, ctx).catch(() => [])))) for (const al of list) all.set(al.id, al);
+    return json({ alerts: [...all.values()] });
+  }
+
+  // --- OpenStreetMap lookups (speed bumps, car shops, special fuel) ---
+  if (path === "/osm" && method === "GET") {
+    const kind = url.searchParams.get("kind");
+    const b = ["s", "w", "n", "e"].map((k) => +url.searchParams.get(k));
+    if (!OSM_KINDS[kind] || b.some((v) => !Number.isFinite(v))) throw new HttpError(400, "Bad lookup");
+    if ((b[2] - b[0]) * (b[3] - b[1]) > 1.2) throw new HttpError(400, "Area too big");
+    return json({ items: await osmLookup(kind, b, ctx) });
+  }
+
+  // --- privacy: download everything, auto-delete old trips, delete account ---
+  if (path === "/me/export" && method === "GET") {
+    const records = (await db.prepare("SELECT entity, data, created_date FROM records WHERE owner_id = ?").bind(me.id).all()).results.map((r) => ({ type: r.entity, created: r.created_date, ...JSON.parse(r.data) }));
+    const reports = (await db.prepare("SELECT type, lat, lng, created FROM reports WHERE user_id = ?").bind(me.id).all()).results;
+    const friends = (await db.prepare("SELECT requester_id, addressee_id, status, created_date FROM friends WHERE requester_id = ? OR addressee_id = ?").bind(me.id, me.id).all()).results;
+    return new Response(JSON.stringify({ exported: new Date().toISOString(), account: publicUser(me), records, reports, friends }, null, 2), {
+      headers: { "content-type": "application/json", "content-disposition": `attachment; filename="drivez-data-${now().slice(0, 10)}.json"` },
+    });
+  }
+  if (path === "/me/privacy" && method === "PATCH") {
+    const days = body.trip_retention_days == null ? null : Math.max(0, Math.min(3650, Math.round(+body.trip_retention_days) || 0)) || null;
+    await db.prepare("UPDATE users SET trip_retention_days = ? WHERE id = ?").bind(days, me.id).run();
+    if (days) await db.prepare("DELETE FROM records WHERE owner_id = ? AND entity = 'Trip' AND created_date < ?").bind(me.id, new Date(Date.now() - days * 86400000).toISOString()).run();
+    return json(publicUser(await db.prepare("SELECT * FROM users WHERE id = ?").bind(me.id).first()));
+  }
+  if (path === "/me" && method === "DELETE") {
+    if (String(body.confirm || "").toUpperCase() !== "DELETE") throw new HttpError(400, 'Type DELETE to confirm.');
+    const id = me.id;
+    await db.batch([
+      "DELETE FROM records WHERE owner_id = ?", "DELETE FROM sessions WHERE user_id = ?", "DELETE FROM friends WHERE requester_id = ?1 OR addressee_id = ?1",
+      "DELETE FROM live_pos WHERE user_id = ?", "DELETE FROM report_votes WHERE user_id = ?", "DELETE FROM reports WHERE user_id = ?",
+      "DELETE FROM avatars WHERE user_id = ?", "DELETE FROM car_images WHERE owner_id = ?", "DELETE FROM users WHERE id = ?",
+    ].map((q) => db.prepare(q).bind(id)));
+    return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json", "set-cookie": `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax` } });
   }
 
   // --- weather map overlays ---
@@ -853,6 +960,11 @@ export default {
       env.DB.prepare("DELETE FROM report_votes WHERE report_id IN (SELECT id FROM reports WHERE expires < ?)").bind(t),
       env.DB.prepare("DELETE FROM reports WHERE expires < ?").bind(t),
     ]);
+    // Auto-delete old trips for people who asked for it (Profile → Privacy).
+    const { results } = await env.DB.prepare("SELECT id, trip_retention_days d FROM users WHERE trip_retention_days > 0").all();
+    for (const u of results) {
+      await env.DB.prepare("DELETE FROM records WHERE owner_id = ? AND entity = 'Trip' AND created_date < ?").bind(u.id, new Date(t - u.d * 86400000).toISOString()).run();
+    }
   },
 };
 

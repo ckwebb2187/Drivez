@@ -10,7 +10,7 @@ import { formatDuration } from '@/lib/helpers';
 import { useNavigation } from '@/lib/useNavigation';
 import { formatNavDistance, formatEta, arrivalTime } from '@/lib/nav';
 import { TurnIcon, ReportButton } from '@/components/MapBits';
-import { useReports, useReportAlerts, REPORT_TYPES } from '@/lib/reports';
+import { useReports, useReportAlerts, useMappedBumps, REPORT_TYPES } from '@/lib/reports';
 import MusicButton from '@/components/MusicButton';
 import { WeatherButton } from '@/components/Weather';
 
@@ -49,7 +49,10 @@ export default function LiveDrive({ active = true }) {
   const toggleVoice = () => { const v = !voiceOn; setVoiceOn(v); try { localStorage.setItem('dz_voice', v ? '1' : '0'); } catch { /* ignore */ } if (!v) window.speechSynthesis?.cancel(); };
 
   const roadReports = useReports(drive.currentPosition);
-  const [reportAlert, dismissAlert] = useReportAlerts(roadReports.reports, drive.status === 'driving' ? drive.currentPosition : null, nav.active ? nav.route.coords : null, voiceOn);
+  // Lowered car: also warn about speed bumps and dips mapped in OpenStreetMap.
+  const mappedBumps = useMappedBumps(drive.status === 'driving' ? drive.currentPosition : null, !!myCar?.lowered);
+  const alertReports = useMemo(() => [...roadReports.reports, ...mappedBumps], [roadReports.reports, mappedBumps]);
+  const [reportAlert, dismissAlert] = useReportAlerts(alertReports, drive.status === 'driving' ? drive.currentPosition : null, nav.active ? nav.route.coords : null, voiceOn, !!myCar?.lowered);
 
   // Tapping "Go" on the home map starts the drive straight away.
   useEffect(() => { if (navPlan && drive.status === 'idle') drive.start(); }, [navPlan]); // eslint-disable-line react-hooks/exhaustive-deps

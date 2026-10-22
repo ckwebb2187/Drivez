@@ -83,7 +83,7 @@ export function AppProvider({ children }) {
 
   // The car you're driving: the one marked "driving this", else your first car.
   const activeVehicle = useMemo(() => vehicles.find(v => v.is_primary) || vehicles[0] || null, [vehicles]);
-  const myCar = useMemo(() => activeVehicle ? { body: activeVehicle.body || 'sedan', color: activeVehicle.color || '#00BFFF', image: activeVehicle.image_url || null, model3d: activeVehicle.model3d || null, paint: activeVehicle.paint || null } : null, [activeVehicle]);
+  const myCar = useMemo(() => activeVehicle ? { body: activeVehicle.body || 'sedan', color: activeVehicle.color || '#00BFFF', image: activeVehicle.image_url || null, model3d: activeVehicle.model3d || null, paint: activeVehicle.paint || null, lowered: !!activeVehicle.lowered } : null, [activeVehicle]);
 
   const setPrimaryVehicle = async (id) => {
     await Promise.all(vehicles.filter(v => !!v.is_primary !== (v.id === id)).map(v => base44.entities.Vehicle.update(v.id, { is_primary: v.id === id })));

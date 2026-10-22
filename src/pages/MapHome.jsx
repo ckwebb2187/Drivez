@@ -15,6 +15,8 @@ import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
 import { searchPlaces, getRoute, optimizeStops, MAX_STOPS, formatEta, arrivalTime, formatNavDistance, distM } from '@/lib/nav';
 import PlaceSearchSheet from '@/components/PlaceSearchSheet';
+import { AlertsBanner, AlertAreas, RouteConditions } from '@/components/WeatherAlerts';
+import { useWeatherAlerts } from '@/lib/alerts';
 import { useTrafficEta } from '@/lib/traffic';
 import { getInitials } from '@/lib/helpers';
 
@@ -48,6 +50,7 @@ export default function MapHome() {
   const [friends, setFriends] = useState([]);
   const inputRef = useRef(null);
   const roadReports = useReports(pos);
+  const weatherAlerts = useWeatherAlerts(pos);
 
   useEffect(() => {
     if (!('geolocation' in navigator)) { setLocError('Your browser can’t share your location.'); return; }
@@ -202,6 +205,7 @@ export default function MapHome() {
           <BaseLayer />
           <WeatherLayer />
           <TrafficLayer />
+          <AlertAreas alerts={weatherAlerts} />
           <FollowMe pos={pos} follow={follow && !route} onUserMove={() => setFollow(false)} />
           {route && <FitBounds points={route.coords} padding={[40, 150]} paddingBottom={280} />}
           {route && (
@@ -269,6 +273,11 @@ export default function MapHome() {
             <Chip to="/live-map" icon={Radio} label={friends.length ? `${friends.length} friend${friends.length > 1 ? 's' : ''} driving` : 'Friends live'} />
             <Chip to="/history" icon={Clock} label="Trips" />
           </div>
+        )}
+
+        {/* Weather / flood / hurricane alerts where you are */}
+        {!showResults && !route && !routing && !routeErr && weatherAlerts.length > 0 && (
+          <AlertsBanner alerts={weatherAlerts} pos={pos} onRoute={(city) => plan(city, [])} className="mt-2" />
         )}
 
         {/* Suggested drive */}
@@ -362,6 +371,7 @@ export default function MapHome() {
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
                       Arrive around {arrivalTime(routeSeconds)} · {stops.length ? `${stops.length + 1} stops` : dest.name}
                     </p>
+                    <RouteConditions route={route} />
                     {traffic && (
                       <p className={`text-[11px] mt-0.5 font-semibold flex items-center gap-1 ${traffic.delay > 300 ? 'text-[#F9AB00]' : traffic.delay > 60 ? 'text-[#FBBC04]' : 'text-[#34A853]'}`}>
                         <TrafficCone className="w-3 h-3" />

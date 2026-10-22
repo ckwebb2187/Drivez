@@ -9,6 +9,8 @@ import { CAR_MODELS } from '@/lib/carModels';
 export default function CarPictureEditor({ vehicle, onClose }) {
   const { setVehicleImage, updateVehicle } = useApp();
   const [model3d, setModel3d] = useState(vehicle.model3d || '');
+  const [lowered, setLowered] = useState(!!vehicle.lowered);
+  const toggleLowered = async () => { const v = !lowered; setLowered(v); try { await updateVehicle(vehicle.id, { lowered: v }); } catch (e) { setError(e.message); } };
   const chooseModel = async (m) => { setModel3d(m); try { await updateVehicle(vehicle.id, { model3d: m || null }); } catch (e) { setError(e.message); } };
   const fileRef = useRef(null);
   const [cut, setCut] = useState(null);       // cut-out canvas
@@ -92,6 +94,15 @@ export default function CarPictureEditor({ vehicle, onClose }) {
               ))}
             </div>
             {model3d && CAR_MODELS[model3d] && <p className="text-[10px] text-muted-foreground mt-2">{CAR_MODELS[model3d].credit}</p>}
+            <button onClick={toggleLowered} className="mt-4 w-full rounded-xl px-4 py-3 flex items-center gap-3 text-left bg-secondary/60">
+              <div className="flex-1">
+                <div className="text-sm font-semibold text-foreground">Lowered car</div>
+                <div className="text-[11px] text-muted-foreground">Warn me about speed bumps, potholes and steep dips</div>
+              </div>
+              <span className={`w-11 h-6 rounded-full relative transition-colors ${lowered ? 'bg-[#34A853]' : 'bg-muted'}`}>
+                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${lowered ? 'left-[22px]' : 'left-0.5'}`} />
+              </span>
+            </button>
           </div>
         )}
         {vehicle.image_url && !cut && (

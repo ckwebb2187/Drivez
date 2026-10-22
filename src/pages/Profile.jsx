@@ -11,6 +11,7 @@ import HeatMapSection from '@/components/HeatMapSection';
 import EditProfileModal from '@/components/EditProfileModal';
 import DiscordSettings from '@/components/DiscordSettings';
 import AppUpdate from '@/components/AppUpdate';
+import PrivacySettings from '@/components/PrivacySettings';
 import { getInitials } from '@/lib/helpers';
 
 export default function Profile() {
@@ -220,6 +221,11 @@ export default function Profile() {
       {/* Discord */}
       <div className="px-5 mb-6">
         <DiscordSettings />
+      </div>
+
+      {/* Privacy */}
+      <div className="px-5 mb-6">
+        <PrivacySettings />
       </div>
 
       {/* App version + updates */}

@@ -61,4 +61,5 @@ export const SCHEMA = [
 // Column additions for tables that already exist (each runs once; errors mean it's already there).
 export const MIGRATIONS = [
   `ALTER TABLE live_pos ADD COLUMN car_image TEXT`,
+  `ALTER TABLE users ADD COLUMN trip_retention_days INTEGER`,
 ];
