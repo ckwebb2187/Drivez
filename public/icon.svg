@@ -1,13 +1,58 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
 <defs>
-<radialGradient id="bg" cx="55%" cy="35%" r="80%"><stop offset="0" stop-color="#18235a"/><stop offset="0.55" stop-color="#0a1033"/><stop offset="1" stop-color="#03051a"/></radialGradient>
-<linearGradient id="w" x1="0" y1="1" x2="0.3" y2="0"><stop offset="0" stop-color="#bfe3ff" stop-opacity="0"/><stop offset="0.3" stop-color="#dff0ff" stop-opacity="0.85"/><stop offset="1" stop-color="#ffffff"/></linearGradient>
-<linearGradient id="r" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#ff1f3d"/><stop offset="1" stop-color="#ff5a4a" stop-opacity="0.9"/></linearGradient>
-<linearGradient id="r2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff1f3d"/><stop offset="1" stop-color="#ff1f3d" stop-opacity="0.2"/></linearGradient>
-<radialGradient id="city" cx="80%" cy="100%" r="60%"><stop offset="0" stop-color="#ff2d55" stop-opacity="0.25"/><stop offset="1" stop-color="#ff2d55" stop-opacity="0"/></radialGradient>
-<filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="10" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<radialGradient id="bg" cx="52%" cy="45%" r="75%"><stop offset="0" stop-color="#0f1b26"/><stop offset="0.6" stop-color="#0a1016"/><stop offset="1" stop-color="#05080b"/></radialGradient>
+<linearGradient id="car" x1="0" y1="0.5" x2="1" y2="0.4"><stop offset="0" stop-color="#1aa3ff"/><stop offset="0.5" stop-color="#2fe0ff"/><stop offset="1" stop-color="#8cff3a"/></linearGradient>
+<linearGradient id="road" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#1aa3ff" stop-opacity="0.1"/><stop offset="0.5" stop-color="#2fe0ff"/><stop offset="1" stop-color="#9dff4a"/></linearGradient>
+<radialGradient id="halo" cx="45%" cy="55%" r="45%"><stop offset="0" stop-color="#1aa3ff" stop-opacity="0.35"/><stop offset="1" stop-color="#1aa3ff" stop-opacity="0"/></radialGradient>
+<filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="soft"><feGaussianBlur stdDeviation="2"/></filter>
 </defs>
 <rect width="1024" height="1024" fill="url(#bg)"/>
-<rect width="1024" height="1024" fill="url(#city)"/>
-<g fill="none" stroke-linecap="round" filter="url(#glow)"><path d="M 40 1010 C 250 930, 340 780, 350 560 L 362 170" stroke="url(#w)" stroke-width="22" opacity="1"/><path d="M 14 1010 C 224 930, 314 780, 324 560 L 336 170" stroke="url(#w)" stroke-width="12" opacity="0.85"/><path d="M -12 1010 C 198 930, 288 780, 298 560 L 310 170" stroke="url(#w)" stroke-width="8" opacity="0.6"/><path d="M -38 1010 C 172 930, 262 780, 272 560 L 284 170" stroke="url(#w)" stroke-width="5" opacity="0.4"/><path d="M 360 575 C 500 500, 640 360, 820 150" stroke="url(#r)" stroke-width="20" opacity="1"/><path d="M 374 591 C 514 516, 654 376, 834 166" stroke="url(#r)" stroke-width="12" opacity="0.85"/><path d="M 388 607 C 528 532, 668 392, 848 182" stroke="url(#r)" stroke-width="8" opacity="0.6"/><path d="M 402 623 C 542 548, 682 408, 862 198" stroke="url(#r)" stroke-width="5" opacity="0.4"/><path d="M 370 545 C 520 640, 670 770, 860 900" stroke="url(#r2)" stroke-width="20" opacity="1"/><path d="M 358 563 C 508 658, 658 788, 848 918" stroke="url(#r2)" stroke-width="12" opacity="0.85"/><path d="M 346 581 C 496 676, 646 806, 836 936" stroke="url(#r2)" stroke-width="8" opacity="0.6"/><path d="M 334 599 C 484 694, 634 824, 824 954" stroke="url(#r2)" stroke-width="5" opacity="0.4"/></g>
+<rect width="1024" height="1024" fill="url(#halo)"/>
+<!-- map grid -->
+<g stroke="#1e5a6a" stroke-width="5" fill="none" opacity="0.55">
+<path d="M 400 130 L 400 330 L 330 330 L 330 470"/><path d="M 600 120 L 600 260 L 700 260 L 700 520"/><path d="M 760 150 L 760 330 L 860 330"/><path d="M 470 160 L 470 250 L 540 250"/><path d="M 820 420 L 820 600"/><path d="M 280 560 L 280 640"/>
+</g>
+<!-- road light trails -->
+<g fill="none" stroke-linecap="round" filter="url(#glow)">
+<path d="M 120 820 L 900 330" stroke="url(#road)" stroke-width="10"/>
+<path d="M 300 900 L 940 380" stroke="url(#road)" stroke-width="14"/>
+<path d="M 500 920 L 960 430" stroke="url(#road)" stroke-width="8" opacity="0.8"/>
+<path d="M 160 760 L 860 300" stroke="#2fe0ff" stroke-width="4" opacity="0.6"/>
+<path d="M 330 860 L 380 830 M 450 785 L 500 755 M 570 712 L 620 682 M 690 640 L 730 615 M 790 578 L 825 556" stroke="#bff6ff" stroke-width="9" opacity="0.85"/>
+</g>
+<!-- network -->
+<g filter="url(#glow)" fill="none" stroke="#7dff5a" stroke-width="6" stroke-linecap="round">
+<path d="M 300 360 L 420 250 L 480 400" stroke="#2fe0ff"/><path d="M 420 250 L 500 200 L 560 290 L 650 300" stroke="#7dff5a"/><path d="M 300 360 L 230 320" stroke="#2fe0ff"/>
+</g>
+<g filter="url(#glow)" fill="#0a1016" stroke-width="7">
+<circle cx="300" cy="360" r="20" stroke="#2fe0ff"/><circle cx="420" cy="250" r="26" stroke="#2fe0ff"/><circle cx="480" cy="400" r="16" stroke="#7dff5a"/><circle cx="560" cy="290" r="16" stroke="#7dff5a"/><circle cx="300" cy="360" r="7" fill="#bff6ff" stroke="none"/><circle cx="420" cy="250" r="9" fill="#bff6ff" stroke="none"/>
+</g>
+<path d="M 205 610 C 215 560 260 520 330 505 L 420 490 C 470 440 540 405 620 400 C 700 396 780 410 830 440 L 870 470 C 885 490 885 520 875 545 L 860 575 C 845 600 820 610 795 612 L 640 640 C 600 660 520 690 420 700 C 330 708 250 700 215 670 Z" fill="#081018" opacity="0.92"/><circle cx="520" cy="672" r="60" fill="#081018"/><circle cx="800" cy="585" r="54" fill="#081018"/>
+<!-- sports car, 3/4 front view, neon wireframe -->
+<g fill="none" stroke="url(#car)" stroke-width="10" stroke-linejoin="round" stroke-linecap="round" filter="url(#glow)">
+<!-- body outline -->
+<path d="M 205 610 C 215 560 260 520 330 505 L 420 490 C 470 440 540 405 620 400 C 700 396 780 410 830 440 L 870 470 C 885 490 885 520 875 545 L 860 575 C 845 600 820 610 795 612 L 640 640 C 600 660 520 690 420 700 C 330 708 250 700 215 670 Z"/>
+<!-- windshield & side glass -->
+<path d="M 430 492 C 480 452 545 425 615 420 L 650 470 C 600 478 520 490 455 505 Z"/>
+<path d="M 640 418 C 700 418 760 430 800 450 L 790 480 L 670 470 Z"/>
+<!-- hood crease & front -->
+<path d="M 330 505 L 455 505 M 240 585 L 420 560 L 455 505 M 240 640 L 400 615 L 470 640"/>
+<!-- headlights -->
+<path d="M 232 600 L 330 575" stroke-width="12"/><path d="M 420 560 L 470 552" stroke-width="12"/>
+<!-- grille / intake -->
+<path d="M 255 665 L 395 650 L 420 690"/>
+<!-- wheels -->
+<circle cx="520" cy="672" r="58"/><circle cx="520" cy="672" r="26"/>
+<circle cx="800" cy="585" r="52"/><circle cx="800" cy="585" r="22"/>
+<!-- wing -->
+<path d="M 820 430 L 905 418 L 910 436 L 860 452" stroke-width="9"/>
+</g>
+<!-- wireframe nodes on the car -->
+<g fill="#bff6ff" filter="url(#glow)">
+<circle cx="330" cy="505" r="9"/><circle cx="455" cy="505" r="9"/><circle cx="420" cy="560" r="9"/><circle cx="240" cy="585" r="9"/><circle cx="400" cy="615" r="9"/><circle cx="620" cy="400" r="8"/><circle cx="650" cy="470" r="8"/><circle cx="560" cy="485" r="8"/><circle cx="470" cy="640" r="8"/><circle cx="700" cy="560" r="8"/><circle cx="600" cy="560" r="8"/>
+</g>
+<g stroke="#9ff3ff" stroke-width="4" opacity="0.7" fill="none" filter="url(#soft)">
+<path d="M 455 505 L 560 485 L 650 470 M 420 560 L 600 560 L 700 560 L 795 520 M 560 485 L 600 560 M 400 615 L 470 640 L 600 560"/>
+</g>
 </svg>
