@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { RefreshCw, Check, Download, Loader2 } from 'lucide-react';
+import { RefreshCw, Check, Download, Loader2, Smartphone } from 'lucide-react';
 
 /* global __APP_VERSION__, __BUILD_TIME__ */
 const VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
@@ -31,6 +31,38 @@ export async function installUpdate() {
     await Promise.all((keys || []).map((k) => caches.delete(k)));
   } catch { /* nothing cached */ }
   window.location.reload();
+}
+
+// The installable Android app (adds now-playing and music controls).
+function nativeInfo() {
+  try { return window.DrivezNative ? JSON.parse(window.DrivezNative.info()) : null; } catch { return null; }
+}
+
+function AndroidAppCard() {
+  const info = nativeInfo();
+  const [latest, setLatest] = useState(null);
+  useEffect(() => {
+    fetch(`/android-version.json?t=${Date.now()}`, { cache: 'no-store' }).then((r) => r.json()).then(setLatest).catch(() => {});
+  }, []);
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  if (!info && !isAndroid) return null;
+  const outdated = info && latest && latest.versionCode > info.versionCode;
+  return (
+    <div className="bg-card rounded-2xl p-4 border border-border mt-2 flex items-center gap-3">
+      <Smartphone className="w-5 h-5 text-primary shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold text-foreground">{info ? `Android app ${info.version}` : 'Get the Android app'}</div>
+        <div className="text-[11px] text-muted-foreground">
+          {info ? (outdated ? `Version ${latest.versionName} is available` : 'Up to date') : 'Shows what’s playing and adds play/pause/skip. No setup.'}
+        </div>
+      </div>
+      {(!info || outdated) && (
+        <a href="/drivez.apk" download="drivez.apk" className="bg-primary text-primary-foreground rounded-xl px-3 py-2 text-xs font-bold flex items-center gap-1.5 shrink-0">
+          <Download className="w-3.5 h-3.5" /> {info ? 'Update' : 'Download'}
+        </a>
+      )}
+    </div>
+  );
 }
 
 export default function AppUpdate() {
@@ -66,6 +98,7 @@ export default function AppUpdate() {
           )}
         </div>
       </div>
+      <AndroidAppCard />
     </div>
   );
 }

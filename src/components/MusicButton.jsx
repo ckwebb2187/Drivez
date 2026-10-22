@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Settings2, ExternalLink, Loader2 } from 'lucide-react';
+import { X, Settings2, ExternalLink, Loader2, Play, Pause, SkipBack, SkipForward, ShieldCheck } from 'lucide-react';
 
 // Waze-style music shortcut for YumaPlayer (github.com/MuwMx/YumaPlayer).
 // Tapping it shows a small pop-up with the song that's playing. Song info comes
@@ -84,7 +84,126 @@ function Bars() {
   );
 }
 
+// Inside the Drivez Android app, the phone itself tells us what's playing and
+// lets us control it, so no ListenBrainz setup is needed.
+const nativeApi = () => (typeof window !== 'undefined' ? window.DrivezNative : null);
+
+function useNativeMedia() {
+  const read = () => { try { return JSON.parse(nativeApi().nowPlaying()); } catch { return null; } };
+  const [media, setMedia] = useState(read);
+  const [art, setArt] = useState(null);
+  useEffect(() => {
+    const on = (e) => setMedia(e.detail);
+    window.addEventListener('drivez-media', on);
+    const again = () => { if (document.visibilityState === 'visible') setMedia(read()); };
+    document.addEventListener('visibilitychange', again);
+    return () => { window.removeEventListener('drivez-media', on); document.removeEventListener('visibilitychange', again); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Some apps don't share album art; look it up instead.
+  useEffect(() => {
+    setArt(null);
+    if (media?.title && !media.art) findArt({ title: media.title, artist: media.artist }).then(setArt);
+  }, [media?.title, media?.artist, media?.art]);
+  const track = media?.title ? { title: media.title, artist: media.artist, art: media.art || art, playing: media.playing, app: media.app } : null;
+  return { access: !!media?.access, track };
+}
+
+function NativeMusicButton({ size }) {
+  const [open, setOpen] = useState(false);
+  const { access, track } = useNativeMedia();
+  const ctl = (a) => { try { nativeApi().control(a); } catch { /* ignore */ } };
+  const openApp = () => { try { if (!nativeApi().openApp(PACKAGE)) window.location.href = INTENT; } catch { window.location.href = INTENT; } };
+  const fromYuma = !track || (track.app || '').startsWith(PACKAGE);
+
+  return (
+    <>
+      <button onClick={() => setOpen(!open)} aria-label="Music"
+        className="relative rounded-full p-[2.5px] shadow-xl active:scale-95 transition-transform"
+        style={{ width: size, height: size, background: 'conic-gradient(from 200deg, #7cc8ff, #c39bff, #ff8fd0, #7cc8ff)' }}>
+        <span className="flex items-center justify-center w-full h-full rounded-full overflow-hidden" style={{ background: 'radial-gradient(circle at 35% 30%, #2a2a3d, #0e0e16 70%)' }}>
+          {track?.art ? <img src={track.art} alt="" className="w-full h-full object-cover" /> : <img src="/yuma.png" alt="" className="w-[62%] h-[62%] object-contain" />}
+        </span>
+        {track?.playing && <Bars />}
+      </button>
+
+      {open && createPortal(
+        <div className="fixed inset-0 z-[1500]" onClick={() => setOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="absolute left-3 right-3 bottom-[96px] mx-auto max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden dz-pop-in"
+            style={{ background: 'linear-gradient(135deg, rgba(36,30,58,0.97), rgba(20,20,32,0.97))', backdropFilter: 'blur(16px)' }}>
+            <div className="flex items-center gap-3 p-3">
+              <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#7cc8ff,#c39bff,#ff8fd0)' }}>
+                {track?.art ? <img src={track.art} alt="" className="w-full h-full object-cover" /> : <img src="/yuma.png" alt="" className="w-8 h-8 object-contain brightness-200" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                {!access ? (
+                  <>
+                    <div className="text-sm font-bold text-white">Show what’s playing</div>
+                    <div className="text-xs text-white/60">One-time permission needed</div>
+                  </>
+                ) : track ? (
+                  <>
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-[#ff8fd0]">{track.playing ? 'Now playing' : 'Paused'}{fromYuma ? ' · YumaPlayer' : ''}</div>
+                    <div className="text-sm font-bold text-white truncate">{track.title}</div>
+                    <div className="text-xs text-white/60 truncate">{track.artist}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-sm font-bold text-white">YumaPlayer</div>
+                    <div className="text-xs text-white/60">Nothing playing. Open YumaPlayer and play a song.</div>
+                  </>
+                )}
+              </div>
+              <button onClick={() => setOpen(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center shrink-0" aria-label="Close">
+                <X className="w-4 h-4 text-white/80" />
+              </button>
+            </div>
+
+            {!access ? (
+              <div className="px-3 pb-3">
+                <p className="text-[11px] text-white/70 leading-snug mb-2">
+                  Tap below, find <b>Drivez</b> in the list and turn it on. Android calls this “notification access”. Drivez only uses it to read the song and the play/pause/skip controls.
+                </p>
+                <p className="text-[11px] text-white/50 leading-snug mb-2">
+                  If Android says it’s a <b>restricted setting</b>: tap <b>App info</b> below, then the <b>⋮</b> menu (top right) → <b>Allow restricted settings</b>, then try again.
+                </p>
+                <div className="flex gap-2">
+                  <button onClick={() => nativeApi().openMediaAccessSettings()} className="flex-1 h-10 rounded-xl text-sm font-bold text-[#140f24] flex items-center justify-center gap-2" style={{ background: 'linear-gradient(135deg,#7cc8ff,#c39bff,#ff8fd0)' }}>
+                    <ShieldCheck className="w-4 h-4" /> Allow access
+                  </button>
+                  <button onClick={() => nativeApi().openAppSettings()} className="px-4 h-10 rounded-xl text-xs font-semibold text-white bg-white/10">App info</button>
+                </div>
+              </div>
+            ) : (
+              <div className="px-3 pb-3">
+                {track && (
+                  <div className="flex items-center justify-center gap-6 mb-3">
+                    <button onClick={() => ctl('previous')} className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center active:scale-95" aria-label="Previous song"><SkipBack className="w-5 h-5 text-white fill-white" /></button>
+                    <button onClick={() => ctl('toggle')} className="w-14 h-14 rounded-full flex items-center justify-center active:scale-95" style={{ background: 'linear-gradient(135deg,#7cc8ff,#c39bff,#ff8fd0)' }} aria-label={track.playing ? 'Pause' : 'Play'}>
+                      {track.playing ? <Pause className="w-6 h-6 text-[#140f24] fill-[#140f24]" /> : <Play className="w-6 h-6 text-[#140f24] fill-[#140f24] ml-0.5" />}
+                    </button>
+                    <button onClick={() => ctl('next')} className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center active:scale-95" aria-label="Next song"><SkipForward className="w-5 h-5 text-white fill-white" /></button>
+                  </div>
+                )}
+                <button onClick={openApp} className="w-full h-10 rounded-xl text-sm font-bold text-white bg-white/10 flex items-center justify-center gap-2">
+                  <ExternalLink className="w-4 h-4" /> Open YumaPlayer
+                </button>
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
 export default function MusicButton({ size = 52 }) {
+  if (nativeApi()) return <NativeMusicButton size={size} />;
+  return <WebMusicButton size={size} />;
+}
+
+function WebMusicButton({ size }) {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState(readUser);
   const [setup, setSetup] = useState(false);

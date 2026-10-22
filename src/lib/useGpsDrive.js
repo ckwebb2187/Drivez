@@ -35,6 +35,7 @@ export function useGpsDrive(car) {
   }, []);
 
   const releaseWakeLock = useCallback(async () => {
+    try { window.DrivezNative?.keepScreenOn(false); } catch (e) { /* not in the Android app */ }
     try {
       if (wakeLockRef.current) {
         await wakeLockRef.current.release();
@@ -44,6 +45,7 @@ export function useGpsDrive(car) {
   }, []);
 
   const acquireWakeLock = useCallback(async () => {
+    try { window.DrivezNative?.keepScreenOn(true); } catch (e) { /* not in the Android app */ }
     try {
       if ('wakeLock' in navigator) {
         wakeLockRef.current = await navigator.wakeLock.request('screen');
