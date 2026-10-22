@@ -91,6 +91,15 @@ function sessionCookie(value, maxAge) {
 const CREATOR_IDS = new Set(["975d2a20cdce4a42a12ed9a5"]);
 let extraCreators = null;
 const isCreator = (u) => CREATOR_IDS.has(u.id) || !!extraCreators?.has(u.id);
+// Founders: the first 10 people to sign up. Looked up once per worker and refreshed
+// every 10 minutes until all 10 spots are taken (then it never changes).
+let founders = { ids: [], at: 0 };
+async function loadFounders(db) {
+  if (founders.ids.length >= 10 || Date.now() - founders.at < 10 * 60000) return;
+  const { results } = await db.prepare("SELECT id FROM users ORDER BY created_date ASC, rowid ASC LIMIT 10").all();
+  founders = { ids: results.map((r) => r.id), at: Date.now() };
+}
+const founderNo = (u) => { const i = founders.ids.indexOf(u?.id); return i >= 0 ? i + 1 : null; };
 // The single check every premium feature should use.
 const hasPremium = (u) => isCreator(u);
 
@@ -99,7 +108,7 @@ function publicUser(u) {
     id: u.id, email: u.email, full_name: u.display_name, display_name: u.display_name, username: u.username,
     bio: u.bio || "", location: u.location || "", ghost_mode: !!u.ghost_mode, avatar_url: u.avatar_url,
     color: u.color, created_date: u.created_date, role: isCreator(u) ? "creator" : "user",
-    creator: isCreator(u), premium: hasPremium(u),
+    creator: isCreator(u), premium: hasPremium(u), founder: founderNo(u),
     discord_connected: !!u.discord_id, discord_webhook_set: !!u.discord_webhook, discord_auto: !!u.discord_auto,
     has_password: !!u.password_hash, trip_retention_days: u.trip_retention_days || null,
     app_mode: u.app_mode || null, profile: readProfile(u.profile),
@@ -129,7 +138,7 @@ function cleanProfile(p) {
   out.clubs = (Array.isArray(p?.clubs) ? p.clubs : []).map((c) => String(c).trim().slice(0, 60)).filter(Boolean).slice(0, 10);
   return out;
 }
-const card = (u) => ({ userId: u.id, id: u.id, name: u.display_name, username: u.username, avatarUrl: u.avatar_url, color: u.color });
+const card = (u) => ({ userId: u.id, id: u.id, name: u.display_name, username: u.username, avatarUrl: u.avatar_url, color: u.color, creator: isCreator(u), founder: founderNo(u) });
 
 function cleanUsername(s) {
   return String(s || "").toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 24) || "driver";
@@ -575,7 +584,7 @@ async function handleApi(req, env, ctx, url) {
     const isFriend = !!viewer && !isMe && (await friendIds(db, viewer.id)).includes(u.id);
     const prof = readProfile(u.profile);
     const can = (k) => isMe || prof.show[k] === "everyone" || (prof.show[k] === "friends" && isFriend);
-    const out = { username: u.username, name: u.display_name, avatarUrl: u.avatar_url, color: u.color, joined: u.created_date, isMe, isFriend, signedIn: !!viewer };
+    const out = { username: u.username, name: u.display_name, avatarUrl: u.avatar_url, color: u.color, joined: u.created_date, isMe, isFriend, signedIn: !!viewer, creator: isCreator(u), founder: founderNo(u) };
     if (can("bio")) { out.bio = u.bio || ""; out.location = u.location || ""; }
     if (can("car") || can("mods")) {
       const { results } = await db.prepare("SELECT data, created_date FROM records WHERE entity = 'Vehicle' AND owner_id = ? ORDER BY created_date DESC").bind(u.id).all();
@@ -1407,6 +1416,7 @@ export default {
     if (url.pathname.startsWith("/api/")) {
       try {
         await ensureSchema(env.DB);
+        await loadFounders(env.DB);
         if (extraCreators === null) extraCreators = new Set(String(env.CREATOR_IDS || "").split(",").map((x) => x.trim()).filter(Boolean));
         return await handleApi(req, env, ctx, url);
       } catch (e) {

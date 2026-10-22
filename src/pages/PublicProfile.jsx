@@ -6,6 +6,7 @@ import { CarPic } from '@/components/GarageManager';
 import { SOCIAL_LINKS } from '@/components/ProfileSharing';
 import CarPhotos from '@/components/CarPhotos';
 import { getInitials } from '@/lib/helpers';
+import UserTags from '@/components/UserTags';
 
 // What someone sees when they scan your QR sticker or open your link.
 export default function PublicProfile() {
@@ -40,6 +41,7 @@ export default function PublicProfile() {
           ? <img src={p.avatarUrl} alt="" className="w-20 h-20 rounded-full object-cover border-4 border-background" />
           : <div className="w-20 h-20 rounded-full border-4 border-background flex items-center justify-center text-xl font-bold text-white" style={{ backgroundColor: p.color || '#00BFFF' }}>{getInitials(p.name || p.username)}</div>}
         <h1 className="text-xl font-bold text-foreground mt-2">{p.name}</h1>
+        <UserTags creator={p.creator} founder={p.founder} className="mt-1" />
         <p className="text-sm text-primary">@{p.username}{p.isFriend ? <span className="text-muted-foreground"> · friend</span> : null}</p>
         {p.location && <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-1"><MapPin className="w-3 h-3" />{p.location}</p>}
         {p.bio && <p className="text-sm text-muted-foreground mt-2">{p.bio}</p>}

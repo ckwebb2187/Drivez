@@ -55,6 +55,7 @@ export function AppProvider({ children }) {
       discordWebhookSet: !!authUser.discord_webhook_set,
       discordAuto: !!authUser.discord_auto,
       creator: !!authUser.creator,
+      founder: authUser.founder || null,       // 1-10 for the first ten drivers
       premium: !!authUser.premium,               // creators always have it
       appMode: authUser.app_mode || null,          // null until they pick on first launch
       profile: authUser.profile || { socials: {}, clubs: [], show: {} }

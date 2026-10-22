@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Loader2, Flame, MapPin, Clock, Gauge, Navigation } from 'lucide-react';
 import { api } from '@/api/base44Client';
 import { getInitials, formatDuration } from '@/lib/helpers';
+import UserTags from '@/components/UserTags';
 
 const ago = (iso) => {
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -57,7 +58,7 @@ export default function FeedPage() {
               {it.user.avatarUrl ? <img src={it.user.avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover" /> : <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ background: it.user.color || '#00BFFF' }}>{getInitials(it.user.name || it.user.username)}</div>}
             </Link>
             <div className="flex-1 min-w-0">
-              <div className="text-sm text-foreground truncate"><span className="font-bold">{it.user.name}</span> <span className="text-muted-foreground">{it.kind === 'drive' ? (it.convoy ? 'went on a group drive' : 'went for a drive') : it.kind === 'photo' ? `added a photo of the ${it.car}` : 'is hosting a meet'}</span></div>
+              <div className="text-sm text-foreground truncate"><span className="font-bold">{it.user.name}</span><UserTags creator={it.user.creator} founder={it.user.founder} className="ml-1" /> <span className="text-muted-foreground">{it.kind === 'drive' ? (it.convoy ? 'went on a group drive' : 'went for a drive') : it.kind === 'photo' ? `added a photo of the ${it.car}` : 'is hosting a meet'}</span></div>
               <div className="text-[11px] text-muted-foreground">{ago(it.at)} ago{it.kind === 'drive' && it.car ? ` · ${it.car}` : ''}</div>
             </div>
           </header>

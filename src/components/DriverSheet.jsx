@@ -7,6 +7,7 @@ import { SOCIAL_LINKS } from '@/components/ProfileSharing';
 import CarPreview3D from '@/components/CarPreview3D';
 import { carLook, displayMode } from '@/lib/carCatalog';
 import { getInitials } from '@/lib/helpers';
+import UserTags from '@/components/UserTags';
 
 // Quick look at another driver (tap their car on the map): car, specs, mods, socials, clubs.
 // Only shows what they've allowed. While you're moving, it waits until you've stopped.
@@ -32,7 +33,7 @@ export default function DriverSheet({ driver, moving = false, onClose }) {
             ? <img src={driver.avatarUrl} alt="" className="w-11 h-11 rounded-full object-cover" />
             : <div className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold text-white" style={{ background: driver.color || '#00BFFF' }}>{getInitials(driver.name || driver.username)}</div>}
           <div className="flex-1 min-w-0">
-            <div className="text-base font-bold text-foreground truncate">{driver.name}</div>
+            <div className="text-base font-bold text-foreground truncate">{driver.name}<UserTags creator={driver.creator} founder={driver.founder} className="ml-1.5" /></div>
             <div className="text-xs text-muted-foreground">@{driver.username}{driver.speed != null ? ` · ${driver.speed} mph` : ''}</div>
           </div>
           <button onClick={onClose} className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center" aria-label="Close"><X className="w-4 h-4" /></button>

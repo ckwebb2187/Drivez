@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Users, UserPlus, Check, X, Loader2 } from 'lucide-react';
 import { api } from '@/api/base44Client';
 import { getInitials } from '@/lib/helpers';
+import UserTags from '@/components/UserTags';
 
 function Avatar({ f }) {
   if (f.avatarUrl) return <img src={f.avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover" />;
@@ -56,7 +57,7 @@ export default function FriendsView() {
           {data.incoming.map((f) => (
             <div key={f.id} className="bg-card rounded-2xl p-3 border border-primary/40 flex items-center gap-3">
               <Avatar f={f} />
-              <div className="flex-1 min-w-0"><div className="text-sm font-semibold text-foreground truncate">{f.name}</div><div className="text-[10px] text-muted-foreground">@{f.username}</div></div>
+              <div className="flex-1 min-w-0"><div className="text-sm font-semibold text-foreground truncate">{f.name}<UserTags creator={f.creator} founder={f.founder} className="ml-1" /></div><div className="text-[10px] text-muted-foreground">@{f.username}</div></div>
               <button onClick={() => respond(f.id, true)} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><Check className="w-4 h-4 text-primary-foreground" /></button>
               <button onClick={() => respond(f.id, false)} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center"><X className="w-4 h-4 text-muted-foreground" /></button>
             </div>
@@ -77,14 +78,14 @@ export default function FriendsView() {
           {data.friends.map((f) => (
             <div key={f.id} className="bg-card rounded-2xl p-3 border border-border flex items-center gap-3">
               <Avatar f={f} />
-              <div className="flex-1 min-w-0"><div className="text-sm font-semibold text-foreground truncate">{f.name}</div><div className="text-[10px] text-muted-foreground">@{f.username}{f.topSpeed ? ` · best ${f.topSpeed} mph` : ''}</div></div>
+              <div className="flex-1 min-w-0"><div className="text-sm font-semibold text-foreground truncate">{f.name}<UserTags creator={f.creator} founder={f.founder} className="ml-1" /></div><div className="text-[10px] text-muted-foreground">@{f.username}{f.topSpeed ? ` · best ${f.topSpeed} mph` : ''}</div></div>
               <button onClick={() => remove(f.id)} className="text-muted-foreground p-1" aria-label="Remove friend"><X className="w-4 h-4" /></button>
             </div>
           ))}
           {data.outgoing.map((f) => (
             <div key={f.id} className="bg-card rounded-2xl p-3 border border-border flex items-center gap-3 opacity-70">
               <Avatar f={f} />
-              <div className="flex-1 min-w-0"><div className="text-sm font-semibold text-foreground truncate">{f.name}</div><div className="text-[10px] text-muted-foreground">Request sent</div></div>
+              <div className="flex-1 min-w-0"><div className="text-sm font-semibold text-foreground truncate">{f.name}<UserTags creator={f.creator} founder={f.founder} className="ml-1" /></div><div className="text-[10px] text-muted-foreground">Request sent</div></div>
               <button onClick={() => remove(f.id)} className="text-muted-foreground p-1" aria-label="Cancel request"><X className="w-4 h-4" /></button>
             </div>
           ))}

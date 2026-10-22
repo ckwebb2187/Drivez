@@ -154,3 +154,12 @@ html:not([data-skin="standard"]) .dz-go svg { fill: currentColor; }
 }
 @keyframes dz-creator-flow { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
 @media (prefers-reduced-motion: reduce) { .dz-creator { animation: none; } }
+
+/* Founder tag (first 10 drivers): flowing gold */
+.dz-founder {
+  background: linear-gradient(90deg, #b8860b, #ffd700, #fff3b0, #ffb300, #b8860b);
+  background-size: 300% 100%;
+  animation: dz-creator-flow 3s ease-in-out infinite alternate;
+  box-shadow: 0 0 10px rgba(255, 200, 0, 0.35);
+}
+@media (prefers-reduced-motion: reduce) { .dz-founder { animation: none; } }
