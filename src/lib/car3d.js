@@ -97,6 +97,27 @@ const SHAPE_DIMS = {
 };
 
 // A stylized 3D car: body shape, paint, wheels, optional hood scoop / wing, and underglow.
+
+// Headlight beams: two soft cones of light on the road ahead (front is -Z).
+function headBeams(front) {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 256;
+  const g = c.getContext('2d');
+  const grd = g.createLinearGradient(0, 256, 0, 0);
+  grd.addColorStop(0, 'rgba(255,246,214,0.85)'); grd.addColorStop(0.5, 'rgba(255,246,214,0.25)'); grd.addColorStop(1, 'rgba(255,246,214,0)');
+  g.fillStyle = grd;
+  g.beginPath(); g.moveTo(56, 256); g.lineTo(72, 256); g.lineTo(128, 0); g.lineTo(0, 0); g.closePath(); g.fill();
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.55 });
+  const grp = new THREE.Group();
+  for (const x of [-0.55, 0.55]) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 6), mat);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, 0.05, front - 3);
+    grp.add(m);
+  }
+  return grp;
+}
+
 export function buildCar({ body = '#1f5ad6', glow = null, shape = 'sedan', wheels = 'stock', wheelColor = '#c9ced6', scoop = false, wing = false } = {}) {
   const d = SHAPE_DIMS[shape] || SHAPE_DIMS.sedan;
   const car = new THREE.Group();
@@ -184,6 +205,7 @@ export function buildCar({ body = '#1f5ad6', glow = null, shape = 'sedan', wheel
     lamp.position.set(0, 0.15, 0);
     car.add(lamp);
   }
+  car.add(headBeams(-d.len / 2));
   return car;
 }
 
@@ -414,5 +436,6 @@ export async function buildModelCar({ url, paint = null, glow = null, picture = 
     lamp.position.set(0, 0.15, 0);
     car.add(lamp);
   }
+  car.add(headBeams(-LEN / 2));
   return car;
 }

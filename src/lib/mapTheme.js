@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 // Roads, the route, hazards and street names stay readable in every theme.
 
 export const THEMES = [
+  { key: 'kaido', label: 'Kaido Night', jp: 'Kaidō no Yoru 街道の夜', text: 'Navy city, neon-trimmed buildings, glossy water. The Kaido look.', swatch: ['#1a2130', '#e45cff', '#2fb7c9'] },
   { key: 'standard', label: 'Standard', jp: 'Hyōjun 標準', text: 'Clean map. Switches to night colors after dark.', swatch: ['#e8eaed', '#4c8bf5', '#1d2433'] },
   { key: 'tokyo', label: 'Tokyo Neon', jp: 'Yomichi 夜道', text: 'Glowing signs, wet streets, lit windows.', swatch: ['#0b0d1a', '#ff2d95', '#00e5ff'] },
   { key: 'cyberpunk', label: 'Cyberpunk', jp: 'Saibā サイバー', text: 'Neon purple and teal, holo scanlines.', swatch: ['#0a0614', '#b026ff', '#00ffd5'] },
@@ -36,6 +37,7 @@ const P = {
   y2k: { base: 'day', bg: '#ffe3f6', water: ['#b8f0ff', '#c9f4ff'], park: '#e9ffd6', wood: '#dcf7c4', land: '#ffd9f1', road: '#ffffff', roadMajor: '#ffeefa', casing: '#ff8fd1', bldg: '#ffc6ea', bldgTop: '#ffe6f6', windows: ['#ffffff', '#c0c0c0', '#ff5fc8'], text: '#b0007a', halo: '#ffffff', glow: null },
   lavender: { base: 'day', bg: '#f1ecfb', water: ['#d6e2f7', '#e0e9fa'], park: '#dcd0f2', wood: '#cdbdeb', land: '#ece5f8', road: '#ffffff', roadMajor: '#f6f1ff', casing: '#b9a6e0', bldg: '#e2d8f5', bldgTop: '#f3eefc', windows: ['#ffffff', '#cdb8f5', '#a58bd9'], text: '#5a3f8f', halo: '#ffffff', glow: null },
   harajuku: { base: 'day', bg: '#fff6d6', water: ['#9fe7ff', '#b5edff'], park: '#b8f5a0', wood: '#a6ee8c', land: '#ffe9c9', road: '#ffffff', roadMajor: '#fff2fb', casing: '#ff5c8a', bldg: '#ffd0e6', bldgTop: '#fff0f7', windows: ['#ff5c8a', '#4dd4ff', '#ffe14d'], text: '#2a1a5e', halo: '#ffffff', glow: null },
+  kaido: { base: 'dark', bg: '#1a2130', water: ['#1b2d6e', '#22378a'], park: '#1d4f37', wood: '#1a4532', land: '#1c2433', road: '#2c3649', roadMajor: '#3a4560', casing: '#121822', bldg: '#222a3b', bldgTop: '#2e364b', windows: ['#5ff3ff', '#2fb7c9', '#ffd27a'], neon: ['#ff4fd8', '#5ff3ff', '#ff8a3d'], waves: true, text: '#e8eefc', halo: '#141a26', glow: null },
   matrix: { base: 'dark', bg: '#020a04', water: ['#031a0c', '#052412'], park: '#04140a', wood: '#03110a', land: '#030d06', road: '#0b2a14', roadMajor: '#0f3d1c', casing: '#020a04', bldg: '#062010', bldgTop: '#0b3519', windows: ['#39ff6a', '#1fd655', '#0a8a35'], text: '#6bff95', halo: '#020a04', glow: ['#39ff6a', '#1fd655'] },
   zen: { base: 'day', bg: '#e9e4d4', water: ['#6f9aa0', '#7ea8ad'], park: '#6f8f5a', wood: '#4f6f45', land: '#dcd5bf', road: '#f4efe0', roadMajor: '#ecd9a8', casing: '#8a7550', bldg: '#b8a27c', bldgTop: '#d9c79f', windows: ['#ffd27a', '#f2c46b', '#8a6a3a'], text: '#3d3326', halo: '#f4efe0', glow: null },
   minimal: { base: 'day', bg: '#cfd0cf', water: ['#9aa3a6', '#a6aeb1'], park: '#b9bdb5', wood: '#adb2a9', land: '#c8c9c7', road: '#ececeb', roadMajor: '#f6f6f5', casing: '#8c8c8a', bldg: '#a9aaa8', bldgTop: '#bdbebc', windows: ['#ffb347', '#e8e8e8', '#6b6b6b'], text: '#2f2f2f', halo: '#ececeb', glow: null },
@@ -62,6 +64,30 @@ function windowTile(p, lit) {
     }
   }
   g.globalAlpha = 1;
+  // Kaido Night: a neon trim strip down some walls.
+  if (p.neon) {
+    const col = p.neon[Math.floor(Math.random() * p.neon.length)];
+    g.fillStyle = col; g.globalAlpha = 0.9; g.fillRect(0, 0, 2, s);
+    g.globalAlpha = 0.35; g.fillRect(2, 0, 2, s);
+    g.globalAlpha = 1;
+  }
+  return g.getImageData(0, 0, s, s);
+}
+
+// Glossy water: deep blue with light ripples. Several frames make it shimmer.
+function waveTile(p, phase) {
+  const s = 64;
+  const c = document.createElement('canvas'); c.width = c.height = s;
+  const g = c.getContext('2d');
+  g.fillStyle = p.water[0]; g.fillRect(0, 0, s, s);
+  for (let y = 4; y < s; y += 9) {
+    for (let x = -10; x < s; x += 18) {
+      const off = ((y * 7 + phase * 6) % 18);
+      g.strokeStyle = (x + y + phase) % 3 === 0 ? 'rgba(255,255,255,0.55)' : 'rgba(120,170,255,0.45)';
+      g.lineWidth = 1.4;
+      g.beginPath(); g.moveTo(x + off, y); g.quadraticCurveTo(x + off + 4, y - 2.5, x + off + 9, y); g.stroke();
+    }
+  }
   return g.getImageData(0, 0, s, s);
 }
 
@@ -100,6 +126,9 @@ export function applyTheme(map, theme, { lite = false, beforeId } = {}) {
       const color = k === 'water' ? p.water[0] : k === 'bldg3d' ? p.bldg : p[k];
       if (!color) continue;
       if (l.type === 'fill') setP(map, l.id, 'fill-color', color);
+      if (l.type === 'fill' && k === 'water' && p.waves && !lite) {
+        try { for (let f = 0; f < 3; f++) if (!map.hasImage(`dz-wave${f}`)) map.addImage(`dz-wave${f}`, waveTile(p, f), { pixelRatio: 2 }); setP(map, l.id, 'fill-pattern', 'dz-wave0'); } catch { /* plain water */ }
+      }
       if (l.type === 'line') setP(map, l.id, 'line-color', color);
       if (l.type === 'background') setP(map, l.id, 'background-color', color);
       if (l.type === 'fill-extrusion') setP(map, l.id, 'fill-extrusion-color', color);
@@ -150,6 +179,11 @@ export function animateWater(map, theme) {
   const ids = map.getStyle().layers.filter((l) => l.type === 'fill' && kind(l) === 'water').map((l) => l.id);
   const [a, b] = p ? p.water : ['#a9cbe8', '#b8d6ef'];
   if (!ids.length || !p) return () => {};
+  if (p.waves && map.hasImage('dz-wave0')) {
+    let f = 0;
+    const tw = setInterval(() => { f = (f + 1) % 3; ids.forEach((id) => setP(map, id, 'fill-pattern', `dz-wave${f}`)); }, 450);
+    return () => clearInterval(tw);
+  }
   let on = false;
   const t = setInterval(() => {
     on = !on;
@@ -165,7 +199,7 @@ const lowEndPhone = () => (navigator.deviceMemory && navigator.deviceMemory <= 2
 const read = () => {
   let s = {};
   try { s = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { s = {}; }
-  return { theme: s.theme || 'standard', saver: s.saver || 'auto', jpNames: !!s.jpNames, weatherFx: s.weatherFx !== false };
+  return { theme: s.theme || 'kaido', saver: s.saver || 'auto', jpNames: !!s.jpNames, weatherFx: s.weatherFx !== false };
 };
 export const isLite = (prefs) => prefs.saver === 'on' || (prefs.saver === 'auto' && lowEndPhone());
 
@@ -204,6 +238,7 @@ const SPEED = {
   lavender: { bg: '#f6f2fd', text: '#5a3f8f', ring: '#b9a6e0', sub: '#8a72c2' },
   harajuku: { bg: '#fff6d6', text: '#2a1a5e', ring: '#ff5c8a', sub: '#4dd4ff', glow: '#ffe14d' },
   matrix: { bg: '#010603', text: '#6bff95', ring: '#39ff6a', sub: '#1fd655', glow: '#39ff6a' },
+  kaido: { bg: '#151b28', text: '#ffffff', ring: '#4a5670', sub: '#a9b6d6' },
   zen: { bg: '#f8f3e6', text: '#2f2a1f', ring: '#b08a3e', sub: '#4f6f45' },
   minimal: { bg: '#eeeeed', text: '#2b2b2b', ring: '#f29b30', sub: '#7a7a78' },
   sakuranight: { bg: '#0d0f19', text: '#ffe9f1', ring: '#ff4f7e', sub: '#ffb3cf', glow: '#ff4f7e' },
@@ -225,6 +260,7 @@ const ROUTE = {
   y2k: { casing: '#ff5fc8', core: ['#ff5fc8', '#c0c0c0'], glow: null, chev: '#ffffff', flow: 'rgba(255,255,255,0.85)' },
   lavender: { casing: '#8a72c2', core: ['#a58bd9', '#cdb8f5'], glow: null, chev: '#ffffff', flow: 'rgba(255,255,255,0.8)' },
   harajuku: { casing: '#2a1a5e', core: ['#ff5c8a', '#4dd4ff'], glow: null, chev: '#ffe14d', flow: 'rgba(255,255,255,0.8)' },
+  kaido: { casing: '#ff8a3d', gap: '#1a2130', core: ['#e45cff', '#ff5ad1'], glow: '#d24cff', chev: '#5ff3ff', flow: 'rgba(255,255,255,0.6)' },
   matrix: { casing: '#03140a', core: ['#39ff6a', '#b7ffcb'], glow: '#39ff6a', chev: '#010603', flow: 'rgba(1,6,3,0.6)' },
   zen: { casing: '#8a6a2a', core: ['#e7b75a', '#f6d68e'], glow: null, chev: '#ffffff', flow: 'rgba(255,255,255,0.75)' },
   minimal: { casing: '#b86a10', core: ['#f29b30', '#ffb85c'], glow: null, chev: '#ffffff', flow: 'rgba(255,255,255,0.75)' },
@@ -245,6 +281,7 @@ const SKIN = {
   y2k: { bg: '#fff0fa', card: '#ffffff', sec: '#ffe0f4', border: '#ffb8e4', fg: '#5c0040', muted: '#c0609e', primary: '#ff2fb3', pfg: '#ffffff', accent: '#7a7a7a', light: true },
   lavender: { bg: '#f6f2fd', card: '#ffffff', sec: '#ece4fa', border: '#d6c8f0', fg: '#3d2a66', muted: '#8a78b0', primary: '#8a62d6', pfg: '#ffffff', accent: '#5c9ad6', light: true },
   harajuku: { bg: '#fffaf0', card: '#ffffff', sec: '#fff0d6', border: '#ffd28a', fg: '#2a1a5e', muted: '#8a76b0', primary: '#ff3d7f', pfg: '#ffffff', accent: '#2ec4ff', light: true },
+  kaido: { bg: '#121826', card: '#1b2333', sec: '#252f44', border: '#33405a', fg: '#eef3ff', muted: '#8f9bb8', primary: '#2fb7c9', pfg: '#081018', accent: '#e45cff' },
   matrix: { bg: '#010603', card: '#041009', sec: '#071a0e', border: '#0d3a1c', fg: '#b7ffcb', muted: '#3fae62', primary: '#39ff6a', pfg: '#010603', accent: '#1fd655', font: "'SF Mono','Fira Code','JetBrains Mono',ui-monospace,monospace" },
   zen: { bg: '#efe8d6', card: '#f8f3e6', sec: '#e6dcc4', border: '#cdbf9c', fg: '#2f2a1f', muted: '#7d7259', primary: '#9c7630', pfg: '#ffffff', accent: '#4f6f45', light: true, font: "'Iowan Old Style','Palatino Linotype',Georgia,serif" },
   minimal: { bg: '#d9dad8', card: '#eeeeed', sec: '#e2e2e1', border: '#c3c4c2', fg: '#2b2b2b', muted: '#6f6f6d', primary: '#e8891a', pfg: '#ffffff', accent: '#555555', light: true },

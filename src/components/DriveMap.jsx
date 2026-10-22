@@ -154,6 +154,7 @@ function DriveMapInner({
       const rc = routeColors(theme, base !== 'day');
       if (rc.glow && !lite) map.addLayer({ id: 'dz-ahead-glow', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-color': rc.glow, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 16, 18, 40], 'line-blur': ['interpolate', ['linear'], ['zoom'], 12, 8, 18, 18], 'line-opacity': 0.55 } }, firstSymbol);
       map.addLayer({ id: 'dz-ahead-casing', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-color': rc.casing, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 8, 18, 22] } }, firstSymbol);
+      if (rc.gap) map.addLayer({ id: 'dz-ahead-gap', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-color': rc.gap, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 6.5, 18, 18] } }, firstSymbol);
       map.addLayer({ id: 'dz-ahead', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-gradient': ['interpolate', ['linear'], ['line-progress'], 0, rc.core[0], 1, rc.core[1]], 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 5, 18, 15] } }, firstSymbol);
       if (!lite) {
         map.addLayer({ id: 'dz-ahead-flow', type: 'line', source: 'dz-ahead', layout: { 'line-join': 'round' }, paint: { 'line-color': rc.flow, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 2, 18, 5], 'line-dasharray': [0, 4, 3] } }, firstSymbol);
