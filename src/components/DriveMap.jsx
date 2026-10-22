@@ -170,6 +170,7 @@ export default function DriveMap({
           });
         }
       }
+      if (live.current.car3d && !live.current.follow) map.triggerRepaint();
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -213,7 +214,38 @@ export default function DriveMap({
       .setLngLat(anim.current.shown ? toLngLat(anim.current.shown) : pos ? toLngLat(pos) : [0, 0])
       .addTo(map);
     if (!pos && !anim.current.shown) carRef.current.getElement().style.display = 'none';
-    return () => carRef.current?.remove();
+
+    // With a car in the garage, draw it in 3D (your picture on top, underglow on the road).
+    let cancelled = false;
+    live.current.car3d = false;
+    if (car) {
+      const add = async () => {
+        const { car3dLayer, prepareCarPicture } = await import('@/lib/car3d'); // 3D engine loads only for driving
+        let colors = { body: car.color || '#1f5ad6', glow: null };
+        if (car.image) { try { colors = await prepareCarPicture(car.image); } catch { /* keep plain colors */ } }
+        if (cancelled || !readyRef.current) return;
+        if (map.getLayer('dz-car3d')) map.removeLayer('dz-car3d');
+        try {
+          map.addLayer(car3dLayer({
+            colors,
+            getPose: () => {
+              const a = anim.current;
+              const p = a.shown || pos;
+              return p ? { lngLat: toLngLat(p), bearing: a.brg } : null;
+            },
+          }));
+          live.current.car3d = true;
+          carRef.current.getElement().style.visibility = 'hidden'; // the 3D car replaces the flat one
+        } catch { /* WebGL trouble: keep the flat car */ }
+      };
+      if (readyRef.current) add(); else map.once('load', add);
+    }
+    return () => {
+      cancelled = true;
+      carRef.current?.remove();
+      if (map.getLayer?.('dz-car3d')) map.removeLayer('dz-car3d');
+      live.current.car3d = false;
+    };
   }, [car?.body, car?.color, car?.image]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // New GPS fix: start gliding from where the car is drawn now to the new spot.
@@ -230,6 +262,7 @@ export default function DriveMap({
     a.lastFix = now;
     if (heading != null && !Number.isNaN(heading) && speed > 3) a.brgTarget = heading;
     else if (a.lastPos && distM(a.lastPos, pos) > 4) a.brgTarget = bearingBetween(a.lastPos, pos);
+    if (a.lastPos && distM(a.lastPos, pos) > 4) a.movedOnce = true;
     if (!a.lastPos || distM(a.lastPos, pos) > 4) a.lastPos = pos;
   }, [pos?.[0], pos?.[1], heading]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -246,6 +279,9 @@ export default function DriveMap({
         for (let i = from; i < to; i++) { const d = distM(pos, coords[i]); if (d < bestD) { bestD = d; best = i; } }
         if (bestD > 150) { for (let i = 0; i < coords.length; i++) { const d = distM(pos, coords[i]); if (d < bestD) { bestD = d; best = i; } } }
         routeIdx.current = best;
+        // Not moving yet? Point the car along the route.
+        const a = anim.current;
+        if (!a.movedOnce && coords[best + 1]) a.brgTarget = bearingBetween(pos, coords[Math.min(best + 2, coords.length - 1)]);
         map.getSource('dz-behind').setData(line([...coords.slice(0, best + 1), pos].map(toLngLat)));
         map.getSource('dz-ahead').setData(line([pos, ...coords.slice(best + 1)].map(toLngLat)));
       } else {
