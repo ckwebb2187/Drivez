@@ -194,7 +194,7 @@ export default function TripDetailPage() {
             <div className="grid grid-cols-3 gap-2">
               <div className="bg-secondary/50 rounded-xl p-2.5 text-center">
                 <div className="text-lg font-bold speed-font text-[#34A853]">{trip.smoothness ?? '—'}</div>
-                <div className="text-[10px] text-muted-foreground">Smoothness</div>
+                <div className="text-[10px] text-muted-foreground">Flow Score</div>
               </div>
               <div className="bg-secondary/50 rounded-xl p-2.5 text-center">
                 <div className="text-lg font-bold speed-font text-foreground">{trip.max_g ? `${trip.max_g.toFixed(2)}g` : '—'}</div>

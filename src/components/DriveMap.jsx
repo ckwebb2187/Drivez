@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { applyTheme, animateWater, themeBase, useMapLook, isLite } from '@/lib/mapTheme';
+import { applyTheme, animateWater, themeBase, useMapLook, isLite, routeColors } from '@/lib/mapTheme';
 import MapAtmosphere from '@/components/MapAtmosphere';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -93,7 +93,7 @@ function DriveMapInner({
   friendTap.current = onFriendTap;
   const anim = useRef({ from: null, to: null, t0: 0, dur: 1000, shown: null, brg: 0, brgTarget: 0, zoom: 16, lastFix: 0, lastPos: null });
   const live = useRef({});
-  live.current = { ...live.current, follow, driving, speed, onUserMove, active, previewing: !!fitCoords };
+  live.current = { ...live.current, follow, driving, speed, onUserMove, active, previewing: !!fitCoords, hasRoute: !!(routeCoords && routeCoords.length > 1) };
   const routeIdx = useRef(0);
   const wx = useWeatherTiles();
   const liveTraffic = useLiveTraffic();
@@ -145,13 +145,37 @@ function DriveMapInner({
       map.addSource('dz-guide', { type: 'geojson', data: EMPTY });
       map.addSource('dz-trail', { type: 'geojson', data: EMPTY });
       map.addSource('dz-behind', { type: 'geojson', data: EMPTY });
-      map.addSource('dz-ahead', { type: 'geojson', data: EMPTY });
+      map.addSource('dz-ahead', { type: 'geojson', data: EMPTY, lineMetrics: true });
       const round = { 'line-join': 'round', 'line-cap': 'round' };
       map.addLayer({ id: 'dz-guide', type: 'line', source: 'dz-guide', layout: round, paint: { 'line-color': '#8a8ac0', 'line-width': 4, 'line-dasharray': [1.5, 2], 'line-opacity': 0.8 } }, firstSymbol);
       map.addLayer({ id: 'dz-trail', type: 'line', source: 'dz-trail', layout: round, paint: { 'line-color': '#00BFFF', 'line-width': 5, 'line-opacity': 0.85 } }, firstSymbol);
       map.addLayer({ id: 'dz-behind', type: 'line', source: 'dz-behind', layout: round, paint: { 'line-color': '#9aa0a6', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 5, 18, 14], 'line-opacity': 0.75 } }, firstSymbol);
-      map.addLayer({ id: 'dz-ahead-casing', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-color': '#1a4fb3', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 8, 18, 22] } }, firstSymbol);
-      map.addLayer({ id: 'dz-ahead', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-color': '#4c8bf5', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 5, 18, 15] } }, firstSymbol);
+      // Route ribbon in the theme's colors: glow, casing, gradient core, chevrons and a moving light flow.
+      const rc = routeColors(theme, base !== 'day');
+      if (rc.glow && !lite) map.addLayer({ id: 'dz-ahead-glow', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-color': rc.glow, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 16, 18, 40], 'line-blur': ['interpolate', ['linear'], ['zoom'], 12, 8, 18, 18], 'line-opacity': 0.55 } }, firstSymbol);
+      map.addLayer({ id: 'dz-ahead-casing', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-color': rc.casing, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 8, 18, 22] } }, firstSymbol);
+      map.addLayer({ id: 'dz-ahead', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-gradient': ['interpolate', ['linear'], ['line-progress'], 0, rc.core[0], 1, rc.core[1]], 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 5, 18, 15] } }, firstSymbol);
+      if (!lite) {
+        map.addLayer({ id: 'dz-ahead-flow', type: 'line', source: 'dz-ahead', layout: { 'line-join': 'round' }, paint: { 'line-color': rc.flow, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 2, 18, 5], 'line-dasharray': [0, 4, 3] } }, firstSymbol);
+        try {
+          const c = document.createElement('canvas'); c.width = c.height = 48;
+          const g = c.getContext('2d'); g.strokeStyle = rc.chev; g.lineWidth = 7; g.lineCap = 'round'; g.lineJoin = 'round';
+          g.beginPath(); g.moveTo(16, 10); g.lineTo(32, 24); g.lineTo(16, 38); g.stroke();
+          map.addImage('dz-chevron', g.getImageData(0, 0, 48, 48), { pixelRatio: 2 });
+          map.addLayer({ id: 'dz-ahead-chev', type: 'symbol', source: 'dz-ahead', layout: { 'symbol-placement': 'line', 'symbol-spacing': 70, 'icon-image': 'dz-chevron', 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-size': ['interpolate', ['linear'], ['zoom'], 12, 0.5, 18, 1] } }, firstSymbol);
+        } catch { /* chevrons are optional */ }
+        // Light flowing along the route (dash pattern stepped like an ant trail).
+        const steps = [[0, 4, 3], [0.5, 4, 2.5], [1, 4, 2], [1.5, 4, 1.5], [2, 4, 1], [2.5, 4, 0.5], [3, 4, 0], [0, 0.5, 3, 3.5], [0, 1, 3, 3], [0, 1.5, 3, 2.5], [0, 2, 3, 2], [0, 2.5, 3, 1.5], [0, 3, 3, 1], [0, 3.5, 3, 0.5]];
+        let k = 0;
+        const flowTimer = setInterval(() => {
+          if (!live.current.active || !readyRef.current) return;
+          const src = map.getSource('dz-ahead');
+          if (!src || !live.current.hasRoute) return;
+          k = (k + 1) % steps.length;
+          try { map.setPaintProperty('dz-ahead-flow', 'line-dasharray', steps[k]); } catch { /* gone */ }
+        }, 90);
+        live.current.stopFlow = () => clearInterval(flowTimer);
+      }
       readyRef.current = true;
       live.current.refresh?.();
     });
@@ -203,6 +227,7 @@ function DriveMapInner({
       window.removeEventListener('pointerup', up);
       window.removeEventListener('touchend', up);
       live.current.stopWater?.();
+      live.current.stopFlow?.();
       readyRef.current = false; // tell the other cleanups the map is gone
       try { map.remove(); } catch { /* already gone */ }
     };

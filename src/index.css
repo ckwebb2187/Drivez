@@ -50,7 +50,7 @@
     letter-spacing: -0.02em;
   }
   .glass {
-    background: rgba(20, 20, 32, 0.7);
+    background: hsl(var(--glass, 240 23% 10%) / 0.75);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
   }
@@ -129,3 +129,10 @@ input[type=range]::-webkit-slider-thumb {
 }
 @keyframes dz-sweep { from { transform: translateX(-50%) rotate(155deg); } to { transform: translateX(-50%) rotate(205deg); } }
 @media (prefers-reduced-motion: reduce) { .dz-scanlines, .dz-searchlight { animation: none; } }
+
+/* Theme fonts for headings (Matrix uses code type, Zen Town a book serif). */
+h1, h2, h3 { font-family: var(--font-heading); }
+/* Main action buttons (Go, Walk): Google blue on Standard, the theme's accent otherwise. */
+.dz-go { background: #4285F4; color: #fff; }
+html:not([data-skin="standard"]) .dz-go { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+html:not([data-skin="standard"]) .dz-go svg { fill: currentColor; }

@@ -16,6 +16,10 @@ export const THEMES = [
   { key: 'galaxy', label: 'Galaxy', jp: 'Ginga 銀河', text: 'Deep space, nebula glow, twinkling stars.', swatch: ['#05040f', '#7c4dff', '#3ad1ff'] },
   { key: 'y2k', label: 'Y2K Gyaru', jp: 'Gyaru ギャル', text: 'Hot pink, chrome and sparkle.', swatch: ['#ffe3f6', '#ff5fc8', '#c0c0c0'] },
   { key: 'lavender', label: 'Lavender Fields', jp: 'Rabendā ラベンダー', text: 'Calm lilac fields and drifting petals.', swatch: ['#f1ecfb', '#b9a6e0', '#5a3f8f'] },
+  { key: 'matrix', label: 'Matrix', jp: 'Matorikkusu マトリックス', text: 'Green code rain, hacker city grid.', swatch: ['#010603', '#39ff6a', '#0d3a1c'] },
+  { key: 'zen', label: 'Zen Town', jp: 'Zen no Machi 禅の町', text: 'Forest, wood and gold lanterns, misty river.', swatch: ['#efe8d6', '#4f6f45', '#b08a3e'] },
+  { key: 'minimal', label: 'Minimalism', jp: 'Minimarizumu ミニマリズム', text: 'Concrete grays with orange accents.', swatch: ['#d9dad8', '#555555', '#f29b30'] },
+  { key: 'sakuranight', label: 'Sakura Night', jp: 'Sakura-michi no Machi 桜道の町', text: 'Navy night, pink neon and blossoms.', swatch: ['#0d0f19', '#ff4f7e', '#ffb3cf'] },
   { key: 'harajuku', label: 'Harajuku', jp: 'Harajuku 原宿', text: 'Loud candy colors and street pop.', swatch: ['#fff6d6', '#ff5c8a', '#4dd4ff'] },
 ];
 
@@ -32,6 +36,10 @@ const P = {
   y2k: { base: 'day', bg: '#ffe3f6', water: ['#b8f0ff', '#c9f4ff'], park: '#e9ffd6', wood: '#dcf7c4', land: '#ffd9f1', road: '#ffffff', roadMajor: '#ffeefa', casing: '#ff8fd1', bldg: '#ffc6ea', bldgTop: '#ffe6f6', windows: ['#ffffff', '#c0c0c0', '#ff5fc8'], text: '#b0007a', halo: '#ffffff', glow: null },
   lavender: { base: 'day', bg: '#f1ecfb', water: ['#d6e2f7', '#e0e9fa'], park: '#dcd0f2', wood: '#cdbdeb', land: '#ece5f8', road: '#ffffff', roadMajor: '#f6f1ff', casing: '#b9a6e0', bldg: '#e2d8f5', bldgTop: '#f3eefc', windows: ['#ffffff', '#cdb8f5', '#a58bd9'], text: '#5a3f8f', halo: '#ffffff', glow: null },
   harajuku: { base: 'day', bg: '#fff6d6', water: ['#9fe7ff', '#b5edff'], park: '#b8f5a0', wood: '#a6ee8c', land: '#ffe9c9', road: '#ffffff', roadMajor: '#fff2fb', casing: '#ff5c8a', bldg: '#ffd0e6', bldgTop: '#fff0f7', windows: ['#ff5c8a', '#4dd4ff', '#ffe14d'], text: '#2a1a5e', halo: '#ffffff', glow: null },
+  matrix: { base: 'dark', bg: '#020a04', water: ['#031a0c', '#052412'], park: '#04140a', wood: '#03110a', land: '#030d06', road: '#0b2a14', roadMajor: '#0f3d1c', casing: '#020a04', bldg: '#062010', bldgTop: '#0b3519', windows: ['#39ff6a', '#1fd655', '#0a8a35'], text: '#6bff95', halo: '#020a04', glow: ['#39ff6a', '#1fd655'] },
+  zen: { base: 'day', bg: '#e9e4d4', water: ['#6f9aa0', '#7ea8ad'], park: '#6f8f5a', wood: '#4f6f45', land: '#dcd5bf', road: '#f4efe0', roadMajor: '#ecd9a8', casing: '#8a7550', bldg: '#b8a27c', bldgTop: '#d9c79f', windows: ['#ffd27a', '#f2c46b', '#8a6a3a'], text: '#3d3326', halo: '#f4efe0', glow: null },
+  minimal: { base: 'day', bg: '#cfd0cf', water: ['#9aa3a6', '#a6aeb1'], park: '#b9bdb5', wood: '#adb2a9', land: '#c8c9c7', road: '#ececeb', roadMajor: '#f6f6f5', casing: '#8c8c8a', bldg: '#a9aaa8', bldgTop: '#bdbebc', windows: ['#ffb347', '#e8e8e8', '#6b6b6b'], text: '#2f2f2f', halo: '#ececeb', glow: null },
+  sakuranight: { base: 'dark', bg: '#12141f', water: ['#1a2236', '#202a42'], park: '#2a1e2e', wood: '#251a2a', land: '#161827', road: '#262a3d', roadMajor: '#3a2b45', casing: '#12141f', bldg: '#1d2032', bldgTop: '#2a2d45', windows: ['#ff6fa3', '#ffb3cf', '#ffd27a'], text: '#ffd0e2', halo: '#12141f', glow: ['#ff3b6b', '#ff8fb3'] },
   kawaii: { base: 'day', bg: '#fdeef6', water: ['#c9e4ff', '#d8ecff'], park: '#d8f5d0', wood: '#c9eec0', land: '#fbe6f1', road: '#ffffff', roadMajor: '#fff3fa', casing: '#f3b6d6', bldg: '#f6d0ea', bldgTop: '#ffe3f3', windows: ['#ffffff', '#ffd1ea', '#d9ccff'], text: '#7a4a8c', halo: '#ffffff', glow: null },
 };
 
@@ -195,5 +203,84 @@ const SPEED = {
   y2k: { bg: '#ffe3f6', text: '#b0007a', ring: '#c0c0c0', sub: '#ff5fc8', glow: '#ff5fc8' },
   lavender: { bg: '#f6f2fd', text: '#5a3f8f', ring: '#b9a6e0', sub: '#8a72c2' },
   harajuku: { bg: '#fff6d6', text: '#2a1a5e', ring: '#ff5c8a', sub: '#4dd4ff', glow: '#ffe14d' },
+  matrix: { bg: '#010603', text: '#6bff95', ring: '#39ff6a', sub: '#1fd655', glow: '#39ff6a' },
+  zen: { bg: '#f8f3e6', text: '#2f2a1f', ring: '#b08a3e', sub: '#4f6f45' },
+  minimal: { bg: '#eeeeed', text: '#2b2b2b', ring: '#f29b30', sub: '#7a7a78' },
+  sakuranight: { bg: '#0d0f19', text: '#ffe9f1', ring: '#ff4f7e', sub: '#ffb3cf', glow: '#ff4f7e' },
 };
 export const speedStyle = (theme) => SPEED[theme] || SPEED.standard;
+
+// Route ribbon colors per theme: casing, core gradient (start -> end), outer glow, chevrons, moving flow.
+const ROUTE = {
+  standard: { casing: '#1a4fb3', core: ['#4c8bf5', '#4c8bf5'], glow: null, chev: '#ffffff', flow: 'rgba(255,255,255,0.55)' },
+  tokyo: { casing: '#3b0a2a', core: ['#ff2d95', '#ff8a3d'], glow: '#ff2d95', chev: '#7af2ff', flow: 'rgba(255,255,255,0.75)' },
+  cyberpunk: { casing: '#1b0636', core: ['#b026ff', '#00ffd5'], glow: '#b026ff', chev: '#00ffd5', flow: 'rgba(255,255,255,0.7)' },
+  dystopian: { casing: '#1e1e1d', core: ['#e9e6d6', '#c9c2a0'], glow: null, chev: '#2b2b2a', flow: 'rgba(43,43,42,0.5)' },
+  wasteland: { casing: '#2a2219', core: ['#ff9a3d', '#ffcf6b'], glow: '#ff9a3d', chev: '#2a2219', flow: 'rgba(42,34,25,0.5)' },
+  kawaii: { casing: '#ff8cc6', core: ['#ff8cc6', '#b9a3ff'], glow: null, chev: '#ffffff', flow: 'rgba(255,255,255,0.8)' },
+  rose: { casing: '#2a0f1c', core: ['#ff4fa3', '#e8a598'], glow: '#ff4fa3', chev: '#ffffff', flow: 'rgba(255,255,255,0.7)' },
+  sakura: { casing: '#e9a8bd', core: ['#f3a6c0', '#ff6fa0'], glow: null, chev: '#ffffff', flow: 'rgba(255,255,255,0.8)' },
+  vapor: { casing: '#2b1b5c', core: ['#ff71ce', '#01cdfe'], glow: '#ff71ce', chev: '#fffb96', flow: 'rgba(255,255,255,0.7)' },
+  galaxy: { casing: '#120f30', core: ['#7c4dff', '#3ad1ff'], glow: '#7c4dff', chev: '#ffffff', flow: 'rgba(255,255,255,0.75)' },
+  y2k: { casing: '#ff5fc8', core: ['#ff5fc8', '#c0c0c0'], glow: null, chev: '#ffffff', flow: 'rgba(255,255,255,0.85)' },
+  lavender: { casing: '#8a72c2', core: ['#a58bd9', '#cdb8f5'], glow: null, chev: '#ffffff', flow: 'rgba(255,255,255,0.8)' },
+  harajuku: { casing: '#2a1a5e', core: ['#ff5c8a', '#4dd4ff'], glow: null, chev: '#ffe14d', flow: 'rgba(255,255,255,0.8)' },
+  matrix: { casing: '#03140a', core: ['#39ff6a', '#b7ffcb'], glow: '#39ff6a', chev: '#010603', flow: 'rgba(1,6,3,0.6)' },
+  zen: { casing: '#8a6a2a', core: ['#e7b75a', '#f6d68e'], glow: null, chev: '#ffffff', flow: 'rgba(255,255,255,0.75)' },
+  minimal: { casing: '#b86a10', core: ['#f29b30', '#ffb85c'], glow: null, chev: '#ffffff', flow: 'rgba(255,255,255,0.75)' },
+  sakuranight: { casing: '#3a0a1c', core: ['#ff3b6b', '#ff8fb3'], glow: '#ff3b6b', chev: '#ffffff', flow: 'rgba(255,255,255,0.75)' },
+};
+
+// Whole-app look per theme: panels, buttons, text and accents follow the world theme.
+const SKIN = {
+  tokyo: { bg: '#07080f', card: '#10121f', sec: '#191c2e', border: '#262a44', fg: '#f4f4ff', muted: '#8a8fb5', primary: '#ff2d95', pfg: '#ffffff', accent: '#00e5ff' },
+  cyberpunk: { bg: '#07040f', card: '#120a22', sec: '#1c1033', border: '#2e1a4f', fg: '#eafcff', muted: '#8d7bb5', primary: '#00ffd5', pfg: '#07040f', accent: '#b026ff' },
+  dystopian: { bg: '#161615', card: '#222221', sec: '#2c2c2a', border: '#3a3a37', fg: '#e9e6d6', muted: '#9a978a', primary: '#c9c2a0', pfg: '#161615', accent: '#8a8a84' },
+  wasteland: { bg: '#1c160f', card: '#2a2117', sec: '#3a2e20', border: '#4a3a28', fg: '#f1e3c3', muted: '#b39a74', primary: '#ff9a3d', pfg: '#1c160f', accent: '#9fb04f' },
+  kawaii: { bg: '#fff4fa', card: '#ffffff', sec: '#fde6f2', border: '#f6c9e1', fg: '#4a2a5c', muted: '#a07fb0', primary: '#ff5fae', pfg: '#ffffff', accent: '#8f6cff', light: true },
+  rose: { bg: '#0b080a', card: '#160f13', sec: '#21161c', border: '#33212a', fg: '#f7e1dc', muted: '#b58f8a', primary: '#ff4fa3', pfg: '#ffffff', accent: '#e8a598' },
+  sakura: { bg: '#fff6f8', card: '#ffffff', sec: '#fde8ee', border: '#f3c6d4', fg: '#5a2a3e', muted: '#b07890', primary: '#e75a8a', pfg: '#ffffff', accent: '#4fa3d1', light: true },
+  vapor: { bg: '#120a26', card: '#1c1238', sec: '#281a4d', border: '#3a2770', fg: '#fdf2ff', muted: '#a58bd0', primary: '#ff71ce', pfg: '#1a0f33', accent: '#01cdfe' },
+  galaxy: { bg: '#04030c', card: '#0d0b22', sec: '#161333', border: '#241f4d', fg: '#eceaff', muted: '#8c87c0', primary: '#7c4dff', pfg: '#ffffff', accent: '#3ad1ff' },
+  y2k: { bg: '#fff0fa', card: '#ffffff', sec: '#ffe0f4', border: '#ffb8e4', fg: '#5c0040', muted: '#c0609e', primary: '#ff2fb3', pfg: '#ffffff', accent: '#7a7a7a', light: true },
+  lavender: { bg: '#f6f2fd', card: '#ffffff', sec: '#ece4fa', border: '#d6c8f0', fg: '#3d2a66', muted: '#8a78b0', primary: '#8a62d6', pfg: '#ffffff', accent: '#5c9ad6', light: true },
+  harajuku: { bg: '#fffaf0', card: '#ffffff', sec: '#fff0d6', border: '#ffd28a', fg: '#2a1a5e', muted: '#8a76b0', primary: '#ff3d7f', pfg: '#ffffff', accent: '#2ec4ff', light: true },
+  matrix: { bg: '#010603', card: '#041009', sec: '#071a0e', border: '#0d3a1c', fg: '#b7ffcb', muted: '#3fae62', primary: '#39ff6a', pfg: '#010603', accent: '#1fd655', font: "'SF Mono','Fira Code','JetBrains Mono',ui-monospace,monospace" },
+  zen: { bg: '#efe8d6', card: '#f8f3e6', sec: '#e6dcc4', border: '#cdbf9c', fg: '#2f2a1f', muted: '#7d7259', primary: '#9c7630', pfg: '#ffffff', accent: '#4f6f45', light: true, font: "'Iowan Old Style','Palatino Linotype',Georgia,serif" },
+  minimal: { bg: '#d9dad8', card: '#eeeeed', sec: '#e2e2e1', border: '#c3c4c2', fg: '#2b2b2b', muted: '#6f6f6d', primary: '#e8891a', pfg: '#ffffff', accent: '#555555', light: true },
+  sakuranight: { bg: '#0d0f19', card: '#161927', sec: '#1f2335', border: '#2f3550', fg: '#ffe9f1', muted: '#a68aa0', primary: '#ff4f7e', pfg: '#ffffff', accent: '#ffb3cf' },
+};
+const hsl = (hex) => {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+  let h = 0, sat = 0;
+  if (max !== min) {
+    const d = max - min;
+    sat = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    h *= 60;
+  }
+  return `${Math.round(h)} ${Math.round(sat * 100)}% ${Math.round(l * 100)}%`;
+};
+const SKIN_VARS = ['--background', '--foreground', '--card', '--card-foreground', '--popover', '--popover-foreground', '--primary', '--primary-foreground', '--secondary', '--secondary-foreground', '--muted', '--muted-foreground', '--accent', '--accent-foreground', '--border', '--input', '--ring', '--font-heading', '--font-body', '--glass'];
+export function applySkin(theme) {
+  const el = document.documentElement;
+  const k = SKIN[theme];
+  SKIN_VARS.forEach((v) => el.style.removeProperty(v));
+  el.dataset.skin = k ? theme : 'standard';
+  el.dataset.light = k?.light ? '1' : '0';
+  if (!k) return;
+  const set = (v, hex) => el.style.setProperty(v, hsl(hex));
+  set('--background', k.bg); set('--foreground', k.fg);
+  set('--card', k.card); set('--card-foreground', k.fg);
+  set('--popover', k.card); set('--popover-foreground', k.fg);
+  set('--primary', k.primary); set('--primary-foreground', k.pfg);
+  set('--secondary', k.sec); set('--secondary-foreground', k.fg);
+  set('--muted', k.sec); set('--muted-foreground', k.muted);
+  set('--accent', k.accent); set('--accent-foreground', k.pfg);
+  set('--border', k.border); set('--input', k.border); set('--ring', k.primary);
+  el.style.setProperty('--glass', hsl(k.card));
+  if (k.font) { el.style.setProperty('--font-heading', k.font); }
+}
+export const routeColors = (theme, night = false) => (theme === 'standard' && night ? { ...ROUTE.standard, glow: '#4c8bf5' } : ROUTE[theme] || ROUTE.standard);

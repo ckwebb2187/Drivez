@@ -56,10 +56,11 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
     if (wk === 'rain' || wk === 'heavyrain' || wk === 'storm') add(wk === 'rain' ? 70 : 140, rain(wk !== 'rain'));
     if (wk === 'snow') add(70, (init) => ({ t: 'snow', x: rnd(0, w), y: init ? rnd(0, h) : -5, v: rnd(0.6, 1.6), r: rnd(1.2, 2.8), ph: rnd(0, 6) }));
     if (wk === 'clouds' || wk === 'fog' || wk === 'storm') add(4, () => ({ t: 'cloud', x: rnd(-0.3, 1) * w, y: rnd(0.05, 0.9) * h, r: rnd(0.35, 0.6) * Math.max(w, h), v: rnd(0.08, 0.2) }));
-    const PETALS = { kawaii: '255,170,205', sakura: '255,182,206', lavender: '190,160,235', rose: '232,165,152' };
+    const PETALS = { kawaii: '255,170,205', sakura: '255,182,206', lavender: '190,160,235', rose: '232,165,152', sakuranight: '255,150,190', zen: '120,150,80' };
     if (PETALS[theme]) add(theme === 'rose' ? 10 : 22, (init) => ({ t: 'petal', c: PETALS[theme], x: rnd(0, w), y: init ? rnd(0, h) : -10, v: rnd(0.5, 1.2), r: rnd(3, 6), ph: rnd(0, 6), rot: rnd(0, 6) }));
     const SPARKS = { kawaii: 10, y2k: 18, harajuku: 14, galaxy: 45 };
     if (SPARKS[theme]) add(SPARKS[theme], () => ({ t: 'spark', x: rnd(0, w), y: rnd(0, h), ph: rnd(0, 6), s: theme === 'galaxy' ? 0.5 : 1 }));
+    if (theme === 'matrix') add(26, (init) => ({ t: 'code', x: Math.floor(rnd(0, w / 14)) * 14, y: init ? rnd(-h, h) : rnd(-300, 0), v: rnd(2, 5), len: Math.floor(rnd(6, 18)) }));
     if (theme === 'vapor' || theme === 'galaxy') add(5, () => ({ t: 'trail', x: rnd(0, w), y: rnd(0.55, 1) * h, v: rnd(2, 5), len: rnd(40, 90), hue: theme === 'vapor' ? (Math.random() < 0.5 ? '255,113,206' : '1,205,254') : (Math.random() < 0.5 ? '124,77,255' : '58,209,255') }));
     if (theme === 'wasteland') add(55, (init) => ({ t: 'dust', x: init ? rnd(0, w) : -5, y: rnd(0, h), v: rnd(0.4, 1.4), r: rnd(0.8, 2) }));
     if (theme === 'tokyo' || theme === 'cyberpunk') add(6, () => ({ t: 'trail', x: rnd(0, w), y: rnd(0.55, 1) * h, v: rnd(2, 5), len: rnd(40, 90), hue: theme === 'tokyo' ? (Math.random() < 0.5 ? '255,45,149' : '0,229,255') : (Math.random() < 0.5 ? '176,38,255' : '0,255,213') }));
@@ -84,7 +85,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
           p.x += p.v; if (p.x - p.r > w) p.x = -p.r;
           const rg = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
           const a = wk === 'fog' ? 0.22 : 0.14;
-          rg.addColorStop(0, `rgba(${['kawaii', 'sakura', 'y2k', 'lavender', 'harajuku'].includes(theme) ? '255,255,255' : '20,24,32'},${a})`); rg.addColorStop(1, 'rgba(0,0,0,0)');
+          rg.addColorStop(0, `rgba(${['kawaii', 'sakura', 'y2k', 'lavender', 'harajuku', 'zen', 'minimal'].includes(theme) ? '255,255,255' : '20,24,32'},${a})`); rg.addColorStop(1, 'rgba(0,0,0,0)');
           g.fillStyle = rg; g.fillRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
         } else if (p.t === 'petal') {
           p.y += p.v; p.x += Math.sin(frame / 25 + p.ph) * 0.8; p.rot += 0.03;
@@ -101,6 +102,14 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
           p.x += p.v; p.y += Math.sin(frame / 40 + p.x / 50) * 0.3;
           if (p.x > w + 5) { p.x = -5; p.y = rnd(0, h); }
           g.fillStyle = 'rgba(214,180,130,0.45)'; g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.fill();
+        } else if (p.t === 'code') {
+          p.y += p.v; if (p.y - p.len * 14 > h) { p.y = rnd(-200, 0); p.x = Math.floor(rnd(0, w / 14)) * 14; }
+          g.font = '12px monospace';
+          for (let i = 0; i < p.len; i++) {
+            const a = i === 0 ? 0.9 : 0.5 * (1 - i / p.len);
+            g.fillStyle = i === 0 ? `rgba(200,255,215,${a})` : `rgba(57,255,106,${a})`;
+            g.fillText(String.fromCharCode(0x30a0 + ((p.x + i * 7 + Math.floor(p.y / 14)) % 96)), p.x, p.y - i * 14);
+          }
         } else if (p.t === 'trail') {
           p.y -= p.v; if (p.y < h * 0.45) { p.y = h + rnd(0, 200); p.x = rnd(0, w); }
           const lg = g.createLinearGradient(p.x, p.y, p.x, p.y + p.len);
@@ -135,6 +144,10 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
       {theme === 'vapor' && <div className="absolute inset-0" style={{ background: 'linear-gradient(0deg, rgba(255,113,206,0.28), rgba(185,103,255,0.08) 35%, transparent 60%), radial-gradient(60% 40% at 50% -5%, rgba(1,205,254,0.18), transparent 70%)' }} />}
       {theme === 'galaxy' && <div className="absolute inset-0" style={{ background: 'radial-gradient(70% 45% at 20% 10%, rgba(124,77,255,0.25), transparent 70%), radial-gradient(60% 40% at 85% 25%, rgba(58,209,255,0.15), transparent 70%)' }} />}
       {['sakura', 'lavender', 'y2k', 'harajuku'].includes(theme) && <div className="absolute inset-0" style={{ background: `radial-gradient(80% 50% at 50% -10%, ${{ sakura: 'rgba(255,182,206,0.35)', lavender: 'rgba(190,160,235,0.3)', y2k: 'rgba(255,95,200,0.3)', harajuku: 'rgba(255,225,77,0.3)' }[theme]}, transparent 70%)` }} />}
+      {theme === 'matrix' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 70% at 50% 110%, rgba(57,255,106,0.12), transparent 60%)' }} />}
+      {theme === 'zen' && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(235,240,225,0.45), rgba(235,240,225,0.05) 45%, transparent)' }} />}
+      {theme === 'minimal' && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(215,216,214,0.5), rgba(215,216,214,0.05) 50%)' }} />}
+      {theme === 'sakuranight' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 70% at 50% 110%, rgba(255,79,126,0.2), transparent 60%)' }} />}
       {theme === 'kawaii' && <div className="absolute inset-0" style={{ background: 'radial-gradient(80% 50% at 50% -10%, rgba(255,182,220,0.35), transparent 70%)' }} />}
       {wk === 'fog' && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(200,205,215,0.55), rgba(200,205,215,0.15) 55%, rgba(200,205,215,0.3))' }} />}
       {run && <canvas ref={canvas} className="absolute inset-0 w-full h-full" />}

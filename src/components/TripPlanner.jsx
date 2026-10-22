@@ -252,7 +252,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
               </div>
               <div className="text-[11px] text-muted-foreground truncate">{suggestion.reason}{suggEta != null ? ` · arrive ${arrivalTime(suggEta)}` : ''}</div>
             </button>
-            <button onClick={() => choose(suggestion)} className="h-9 px-4 rounded-full bg-[#4285F4] text-white text-xs font-bold flex items-center gap-1"><Navigation className="w-3.5 h-3.5 fill-white" /> Go</button>
+            <button onClick={() => choose(suggestion)} className="h-9 px-4 rounded-full dz-go text-xs font-bold flex items-center gap-1"><Navigation className="w-3.5 h-3.5 fill-white" /> Go</button>
             <button onClick={dismissSuggestion} className="w-8 h-8 flex items-center justify-center" aria-label="Hide suggestion"><X className="w-4 h-4 text-muted-foreground" /></button>
           </div>
         )}
@@ -348,7 +348,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
                   <div className="mt-3 max-h-[30vh] overflow-y-auto no-scrollbar rounded-2xl bg-secondary/50 divide-y divide-border">
                     {allStops.map((st, i) => (
                       <div key={`${st.lat},${st.lng},${i}`} className="flex items-center gap-2 pl-3 pr-1 py-2">
-                        <span className={`w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center shrink-0 ${i === allStops.length - 1 ? 'bg-[#EA4335] text-white' : 'bg-[#4285F4] text-white'}`}>{i === allStops.length - 1 ? <MapPin className="w-3.5 h-3.5" /> : i + 1}</span>
+                        <span className={`w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center shrink-0 ${i === allStops.length - 1 ? 'bg-[#EA4335] text-white' : 'dz-go'}`}>{i === allStops.length - 1 ? <MapPin className="w-3.5 h-3.5" /> : i + 1}</span>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-semibold text-foreground truncate">{st.name}</div>
                           {route.legs?.[i] && <div className="text-[10px] text-muted-foreground">{formatEta(route.legs[i].duration)} · {(route.legs[i].distance / 1609.34).toFixed(1)} mi</div>}
@@ -378,7 +378,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
                 </div>
 
                 <div className="flex gap-2 mt-3">
-                  <button onClick={go} className="flex-1 h-12 rounded-full bg-[#4285F4] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#4285F4]/30">
+                  <button onClick={go} className="flex-1 h-12 rounded-full dz-go font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#4285F4]/30">
                     <Navigation className="w-4 h-4 fill-white" /> Go
                   </button>
                   <button onClick={clearSearch} className="h-12 px-5 rounded-full bg-secondary text-foreground font-semibold text-sm">Cancel</button>

@@ -5,7 +5,7 @@ import LiveDrive from '@/pages/LiveDrive';
 import SetupModeModal from '@/components/SetupModeModal';
 import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
-import { useMapLook, featureName } from '@/lib/mapTheme';
+import { useMapLook, featureName, applySkin } from '@/lib/mapTheme';
 
 const tabs = [
   { to: '/history', icon: Clock, label: 'History' },
@@ -17,6 +17,8 @@ export default function Layout() {
   const { pathname } = useLocation();
   const { user } = useApp();
   const [look] = useMapLook();
+  // The whole app takes on the world theme's colors.
+  useEffect(() => { applySkin(look.theme); }, [look.theme]);
   const shownTabs = tabs.map((t) => (t.to === '/' && look.jpNames ? { ...t, label: 'Chizu' } : t));
   const onDrive = pathname === '/' || pathname === '/drive'; // the drive map is the home screen
   // Detail pages (a saved drive, saved places, routes…) fill the screen without the tab bar.

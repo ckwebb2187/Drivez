@@ -328,8 +328,8 @@ export default function LiveDrive({ active = true }) {
           >
             {nav.active && (
               <div className="absolute top-0 left-0 right-0 p-3 pt-[max(12px,env(safe-area-inset-top))] pointer-events-auto">
-                <div className="rounded-2xl shadow-2xl overflow-hidden" style={{ background: nav.arrived ? '#188038' : '#0F7B3F' }}>
-                  <div className="flex items-center gap-3 px-4 py-3.5 text-white">
+                <div className="rounded-2xl shadow-2xl overflow-hidden" style={{ background: nav.arrived ? '#188038' : look.theme === 'standard' ? '#0F7B3F' : 'hsl(var(--primary))' }}>
+                  <div className="flex items-center gap-3 px-4 py-3.5" style={{ color: nav.arrived || look.theme === 'standard' ? '#fff' : 'hsl(var(--primary-foreground))' }}>
                     {nav.arrived ? <Check className="w-9 h-9" strokeWidth={2.6} /> : <TurnIcon step={nav.step} className="w-9 h-9 shrink-0" />}
                     <div className="flex-1 min-w-0">
                       <div className="text-2xl font-bold leading-none">{nav.arrived ? 'Arrived' : nav.rerouting ? 'Rerouting…' : formatNavDistance(nav.distToStep)}</div>
@@ -340,7 +340,7 @@ export default function LiveDrive({ active = true }) {
                     </button>
                   </div>
                   {!nav.arrived && nav.nextStep && nav.step.type !== 'arrive' && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-black/20 text-white/90 text-xs font-medium">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-black/20 text-xs font-medium opacity-90">
                       Then <TurnIcon step={nav.nextStep} className="w-4 h-4" />
                     </div>
                   )}

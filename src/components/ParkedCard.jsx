@@ -31,7 +31,7 @@ export default function ParkedCard({ pos }) {
         <div className="text-[11px] text-muted-foreground truncate">{spot.label || 'Finding the address…'} · {ago(spot.at)}</div>
       </div>
       <a href={`https://www.google.com/maps/dir/?api=1&destination=${spot.lat},${spot.lng}&travelmode=walking`} target="_blank" rel="noopener noreferrer"
-        className="h-9 px-3 rounded-full bg-[#4285F4] text-white text-xs font-bold flex items-center gap-1"><Footprints className="w-3.5 h-3.5" />Walk</a>
+        className="h-9 px-3 rounded-full dz-go text-xs font-bold flex items-center gap-1"><Footprints className="w-3.5 h-3.5" />Walk</a>
       <button onClick={clear} className="w-8 h-8 flex items-center justify-center" aria-label="Forget parking spot"><X className="w-4 h-4 text-muted-foreground" /></button>
     </div>
   );
