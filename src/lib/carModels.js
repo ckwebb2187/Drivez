@@ -4,7 +4,7 @@ export const CAR_MODELS = {
   'wrx-sti': {
     label: 'Subaru WRX STI',
     url: '/models/wrx-sti.glb',
-    frontAxis: '-z',
+    frontAxis: '+z',
     paintMaterials: null,
     credit: '"2019 Rowen Subaru WRX STI RR" model from Sketchfab (CC BY-NC-SA 4.0)',
   },

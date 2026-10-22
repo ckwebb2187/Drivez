@@ -6,7 +6,7 @@ import path from "path";
 const out = "worker/static";
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
-const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".webmanifest": "application/manifest+json", ".json": "application/json", ".ico": "image/x-icon", ".apk": "application/vnd.android.package-archive" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".webmanifest": "application/manifest+json", ".json": "application/json", ".ico": "image/x-icon", ".apk": "application/vnd.android.package-archive", ".glb": "model/gltf-binary" };
 const TEXT = new Set([".html", ".js", ".css", ".svg", ".webmanifest", ".json"]);
 const imports = [], entries = [];
 let n = 0;

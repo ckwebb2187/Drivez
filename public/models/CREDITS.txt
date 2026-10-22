@@ -1,0 +1,5 @@
+wrx-sti.glb — "2019 Rowen Subaru WRX STI RR" from Sketchfab
+https://sketchfab.com/3d-models/2019-rowen-subaru-wrx-sti-rr-6ae6a4dda8b0426b87dbdf3e7a5fa485
+License: CC BY-NC-SA 4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/)
+Changes: engine and interior removed, mesh simplified, textures resized to WebP,
+windows tinted, meshopt-compressed for Drivez. Used non-commercially.

@@ -233,7 +233,7 @@ export default function DriveMap({
         let colors = { body: car.color || '#1f5ad6', glow: null };
         if (car.image) { try { colors = await prepareCarPicture(car.image); } catch { /* keep plain colors */ } }
         const model = car.model3d && CAR_MODELS[car.model3d];
-        if (model) colors = { ...colors, modelUrl: model.url, frontAxis: model.frontAxis, paintMaterials: model.paintMaterials, paint: car.paint || colors.body || car.color };
+        if (model) colors = { ...colors, modelUrl: model.url, frontAxis: model.frontAxis, paintMaterials: model.paintMaterials, paint: car.paint || null };
         if (cancelled || !readyRef.current) return;
         if (map.getLayer('dz-car3d')) map.removeLayer('dz-car3d');
         try {
