@@ -186,6 +186,55 @@ async function friendIds(db, userId) {
   return results.map((r) => r.fid);
 }
 
+// ---------- Gemini (Ask Gemini, drive narration, natural voice) ----------
+// Light per-user limit so one account can't run up the Gemini bill (per worker instance).
+const aiUse = new Map();
+function aiLimit(userId, max = 40) {
+  const now_ = Date.now(), list = (aiUse.get(userId) || []).filter((t) => now_ - t < 10 * 60000);
+  if (list.length >= max) throw new HttpError(429, "That's a lot of questions. Give it a few minutes.");
+  list.push(now_); aiUse.set(userId, list);
+}
+const GEMINI_MODELS = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-flash-latest"];
+const GEMINI_TTS_MODELS = ["gemini-3.8-flash-tts", "gemini-2.5-flash-preview-tts"];
+async function gemini(env, body, models = GEMINI_MODELS) {
+  if (!env.GEMINI_API_KEY) throw new HttpError(404, "Ask Gemini isn't set up yet.");
+  let last = "";
+  for (const m of models) {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
+      method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY }, body: JSON.stringify(body),
+      signal: AbortSignal.timeout(25000),
+    }).catch((e) => ({ ok: false, status: 0, text: async () => String(e) }));
+    if (res.ok) return res.json();
+    last = `${m}: ${res.status} ${(await res.text()).slice(0, 160)}`;
+    console.log("gemini", last);
+    if (res.status === 400 || res.status === 401 || res.status === 403) break;
+  }
+  throw new HttpError(502, "Gemini didn't answer. Try again in a moment.");
+}
+const ASK_SYSTEM = `You are Kaido, the co-driver voice inside Kaido Maps, a navigation app for car enthusiasts.
+The driver may be driving right now, so answer in 1 to 3 short spoken sentences: plain words, no lists, no markdown, no emojis.
+Be friendly and a little playful, like a friend in the passenger seat who knows cars.
+Never encourage speeding, street racing or using the phone while driving; if asked, steer to safe, legal options (track days, autocross).
+Use the tools when the driver wants to go somewhere, find a place nearby, report something on the road, or switch drive modes.
+For "nearest gas / food / coffee / car wash / parts store" use navigate_to with a short search like "gas station".
+If the question needs live facts you don't have (prices, opening hours, scores), say so briefly.`;
+const ASK_TOOLS = [{ functionDeclarations: [
+  { name: "navigate_to", description: "Start directions to a place or the closest place of a kind.", parameters: { type: "OBJECT", properties: { query: { type: "STRING", description: "Place name, address, or kind of place like 'gas station'" } }, required: ["query"] } },
+  { name: "report_road", description: "Report something on the road at the driver's location.", parameters: { type: "OBJECT", properties: { type: { type: "STRING", enum: ["police", "crash", "hazard", "traffic", "closure", "flood", "pothole", "bump"] } }, required: ["type"] } },
+  { name: "set_drive_mode", description: "Switch the drive mode.", parameters: { type: "OBJECT", properties: { mode: { type: "STRING", enum: ["cruise", "toge", "wangan"] } }, required: ["mode"] } },
+  { name: "end_route", description: "Stop the current directions.", parameters: { type: "OBJECT", properties: {} } },
+] }];
+// PCM from Gemini TTS -> a playable WAV.
+function wavFromPcm(pcm, rate = 24000) {
+  const h = new DataView(new ArrayBuffer(44));
+  const w = (o, str) => { for (let i = 0; i < str.length; i++) h.setUint8(o + i, str.charCodeAt(i)); };
+  w(0, "RIFF"); h.setUint32(4, 36 + pcm.length, true); w(8, "WAVE"); w(12, "fmt ");
+  h.setUint32(16, 16, true); h.setUint16(20, 1, true); h.setUint16(22, 1, true); h.setUint32(24, rate, true); h.setUint32(28, rate * 2, true); h.setUint16(32, 2, true); h.setUint16(34, 16, true);
+  w(36, "data"); h.setUint32(40, pcm.length, true);
+  const out = new Uint8Array(44 + pcm.length); out.set(new Uint8Array(h.buffer), 0); out.set(pcm, 44);
+  return out;
+}
+
 // ---------- road reports ----------
 const MIN = 60 * 1000;
 const DAY = 24 * 60 * MIN;
@@ -658,6 +707,95 @@ async function handleApi(req, env, ctx, url) {
   }
 
   // --- live traffic (TomTom, free tier) — only when TOMTOM_API_KEY is set ---
+  // --- Gemini: is it set up? ---
+  if (path === "/ai/config" && method === "GET") return json({ enabled: !!env.GEMINI_API_KEY });
+
+  // --- Ask Gemini: a question (typed or spoken) with where you are and what you're doing ---
+  if (path === "/ask" && method === "POST") {
+    aiLimit(me.id);
+    const c = body.context || {};
+    const ctxLines = [
+      `Local time: ${String(c.time || "").slice(0, 40)}`,
+      c.place ? `Near: ${String(c.place).slice(0, 80)}` : "",
+      isFinite(+c.lat) && isFinite(+c.lng) ? `Position: ${(+c.lat).toFixed(3)}, ${(+c.lng).toFixed(3)}` : "",
+      c.driving ? `Driving now at ${Math.round(+c.speed || 0)} mph${c.road ? ` on ${String(c.road).slice(0, 60)}` : ""}${c.limit ? ` (limit ${+c.limit})` : ""}.` : "Parked / not driving.",
+      c.dest ? `Heading to ${String(c.dest).slice(0, 80)}${c.etaMin ? `, about ${Math.round(+c.etaMin)} min away` : ""}.` : "",
+      c.car ? `Car: ${String(c.car).slice(0, 60)}.` : "",
+      c.mode && c.mode !== "cruise" ? `Drive mode: ${c.mode}.` : "",
+      c.trip ? `This drive so far: ${String(c.trip).slice(0, 120)}.` : "",
+    ].filter(Boolean).join("\n");
+    const history = (Array.isArray(body.history) ? body.history : []).slice(-6).map((h) => ({ role: h.role === "model" ? "model" : "user", parts: [{ text: String(h.text || "").slice(0, 600) }] }));
+    const parts = [{ text: `[Situation]\n${ctxLines}\n\n[Driver]` }];
+    if (body.audio?.data) {
+      if (!/^audio\/(wav|webm|ogg|mp4|mpeg|aac)/.test(String(body.audio.mime || ""))) throw new HttpError(400, "Unsupported audio.");
+      if (String(body.audio.data).length > 1400000) throw new HttpError(413, "That recording is too long.");
+      parts.push({ inline_data: { mime_type: String(body.audio.mime).split(";")[0], data: String(body.audio.data) } });
+      parts.push({ text: "(The driver's question is in the audio above. Answer it.)" });
+    } else {
+      const q = String(body.question || "").trim().slice(0, 500);
+      if (!q) throw new HttpError(400, "Ask something.");
+      parts.push({ text: q });
+    }
+    const out = await gemini(env, {
+      systemInstruction: { parts: [{ text: ASK_SYSTEM }] },
+      contents: [...history, { role: "user", parts }],
+      tools: ASK_TOOLS,
+      generationConfig: { temperature: 0.7, maxOutputTokens: 400 },
+    });
+    const got = out.candidates?.[0]?.content?.parts || [];
+    const text = got.map((x) => x.text || "").join(" ").replace(/[*_#`]/g, "").trim();
+    const call = got.find((x) => x.functionCall)?.functionCall || null;
+    const action = call ? { name: call.name, args: call.args || {} } : null;
+    const fallback = action?.name === "navigate_to" ? `Okay, finding ${action.args.query}.` : action?.name === "report_road" ? `Got it, reporting ${action.args.type}.` : action?.name === "set_drive_mode" ? `Switching to ${action.args.mode} mode.` : action?.name === "end_route" ? "Okay, ending the route." : "Sorry, I didn't catch that.";
+    return json({ text: text || fallback, action });
+  }
+
+  // --- a few spoken sentences about a drive (trip page "Narrate" and the end-of-drive summary) ---
+  if (path === "/narrate" && method === "POST") {
+    aiLimit(me.id);
+    const t = body.trip || {};
+    const facts = {
+      title: String(t.title || "").slice(0, 80), when: String(t.when || "").slice(0, 60), from: String(t.from || "").slice(0, 80), to: String(t.to || "").slice(0, 80),
+      miles: +t.miles || 0, minutes: Math.round(+t.minutes || 0), topMph: Math.round(+t.topMph || 0), avgMph: Math.round(+t.avgMph || 0),
+      smoothness: t.smoothness ?? null, hardBrakes: t.hardBrakes ?? null, maxG: t.maxG ?? null, zeroToSixty: t.zeroToSixty ?? null,
+      mode: t.mode || null, corners: t.corners ?? null, convoy: !!t.convoy, car: String(t.car || "").slice(0, 60),
+    };
+    const out = await gemini(env, {
+      systemInstruction: { parts: [{ text: "You are Kaido, a co-driver narrator for a car-enthusiast driving app. Write a short spoken recap of the drive: 3 to 4 sentences, vivid but grounded only in the facts given, no invented places or events, no markdown or emojis, about 20 seconds to read aloud. Celebrate smooth driving; never praise speeding." }] },
+      contents: [{ role: "user", parts: [{ text: JSON.stringify(facts) }] }],
+      generationConfig: { temperature: 0.9, maxOutputTokens: 300 },
+    });
+    const text = (out.candidates?.[0]?.content?.parts || []).map((x) => x.text || "").join(" ").replace(/[*_#`]/g, "").trim();
+    if (!text) throw new HttpError(502, "Gemini didn't answer. Try again in a moment.");
+    return json({ text });
+  }
+
+  // --- natural voice: Gemini text-to-speech, returned as a WAV ---
+  if (path === "/tts" && method === "POST") {
+    const text = String(body.text || "").trim().slice(0, 700);
+    if (!text) throw new HttpError(400, "Nothing to say.");
+    const voice = ["Puck", "Kore", "Charon", "Fenrir", "Aoede", "Zephyr"].includes(body.voice) ? body.voice : "Puck";
+    const key = new Request(`https://drivez.cache/tts/${voice}/${encodeURIComponent(text).slice(0, 1500)}`);
+    const hit = await caches.default.match(key);
+    if (hit) return hit;
+    aiLimit(me.id, 80);
+    const out = await gemini(env, {
+      contents: [{ parts: [{ text }] }],
+      generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } },
+    }, GEMINI_TTS_MODELS);
+    const part = (out.candidates?.[0]?.content?.parts || []).find((x) => x.inlineData || x.inline_data);
+    const inline = part?.inlineData || part?.inline_data;
+    if (!inline?.data) throw new HttpError(502, "No audio came back.");
+    const mime = String(inline.mimeType || inline.mime_type || "");
+    const bytes = Uint8Array.from(atob(inline.data), (ch) => ch.charCodeAt(0));
+    // Newer models send a ready WAV/MP3; older ones send raw 16-bit PCM ("audio/L16;rate=24000").
+    const raw = /l16|pcm/i.test(mime);
+    const rate = +(mime.match(/rate=(\d+)/)?.[1] || 24000);
+    const res = new Response(raw ? wavFromPcm(bytes, rate) : bytes, { headers: { "content-type": raw ? "audio/wav" : mime.split(";")[0] || "audio/wav", "cache-control": "public, max-age=604800" } });
+    ctx.waitUntil(caches.default.put(key, res.clone()));
+    return res;
+  }
+
   if (path === "/traffic/config" && method === "GET") {
     return json({ live: !!env.TOMTOM_API_KEY });
   }

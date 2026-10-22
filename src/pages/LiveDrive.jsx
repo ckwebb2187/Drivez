@@ -20,6 +20,9 @@ import DriverSheet from '@/components/DriverSheet';
 import { api } from '@/api/base44Client';
 import { mileageMode } from '@/lib/carBluetooth';
 import { useConvoy } from '@/lib/convoy';
+import AskGemini from '@/components/AskGemini';
+import { say, getVoiceSettings, recapText, tripFacts } from '@/lib/voice';
+import { searchPlaces, getRoute } from '@/lib/nav';
 
 const MAX_POINTS = 400;
 
@@ -106,6 +109,50 @@ export default function LiveDrive({ active = true }) {
   }, [active, scene, herePos, drive.currentPosition]); // eslint-disable-line react-hooks/exhaustive-deps
   const meetPins = useMemo(() => meets.filter((m) => new Date(m.starts).getTime() - Date.now() < 7 * 86400000)
     .map((m) => ({ id: m.id, lat: m.lat, lng: m.lng, emoji: '🏁', label: `${m.title} · ${new Date(m.starts).toLocaleDateString([], { weekday: 'short' })}` })), [meets]);
+  // Co-driver narration during a drive: every 5 miles, and every 10 corners in Tōge mode.
+  const spoken = useRef({ miles: 0, corners: 0 });
+  useEffect(() => { if (drive.status !== 'driving') spoken.current = { miles: 0, corners: 0 }; }, [drive.status]);
+  useEffect(() => {
+    if (drive.status !== 'driving' || !voiceOn || !getVoiceSettings().narrate) return;
+    const m = Math.floor((drive.distance || 0) / 5) * 5;
+    if (m > spoken.current.miles) {
+      spoken.current.miles = m;
+      const left = nav.active && !nav.arrived && nav.remainingM ? ` ${formatNavDistance(nav.remainingM).replace('mi', 'miles')} to go.` : '';
+      say(`${m} miles in.${left}`);
+    }
+  }, [drive.distance]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Ask Gemini: what it knows about right now, and what it can do.
+  const askContext = () => ({
+    time: new Date().toLocaleString([], { weekday: 'long', hour: 'numeric', minute: '2-digit' }),
+    lat: (drive.currentPosition || herePos)?.[0], lng: (drive.currentPosition || herePos)?.[1],
+    driving: drive.status === 'driving', speed: drive.currentSpeed, road: speedLimit?.name || '', limit: speedLimit?.mph || null,
+    dest: navPlan?.dest?.name || '', etaMin: nav.active && remainingS ? remainingS / 60 : null,
+    car: activeVehicle ? `${activeVehicle.year || ''} ${activeVehicle.make} ${activeVehicle.model}`.trim() : '',
+    mode: driveMode,
+    trip: drive.status === 'driving' ? `${drive.distance} mi, ${Math.round(drive.elapsedTime / 60)} min` : '',
+  });
+  const onAskAction = async ({ name, args }) => {
+    const here = drive.currentPosition || herePos;
+    if (name === 'navigate_to') {
+      if (!here) throw new Error('I need your location first.');
+      const hits = await searchPlaces(String(args.query || ''), here);
+      if (!hits.length) throw new Error(`I couldn't find ${args.query} nearby.`);
+      const dest = { name: hits[0].name, lat: hits[0].lat, lng: hits[0].lng };
+      const route = await getRoute(here, [dest.lat, dest.lng], [], dest.name);
+      const { alternatives, ...main } = route;
+      setRouteId(null);
+      setNavPlan({ dest, stops: [], route: main });
+    } else if (name === 'report_road') {
+      if (!here) throw new Error('I need your location to report that.');
+      await roadReports.report(args.type, here);
+    } else if (name === 'set_drive_mode' && ['cruise', 'toge', 'wangan'].includes(args.mode)) {
+      setDriveMode(args.mode); try { localStorage.setItem('dz-drive-mode', args.mode); } catch { /* ignore */ }
+    } else if (name === 'end_route') {
+      setNavPlan(null);
+    }
+  };
+
   // Route being previewed on the map before you tap Go.
   const [preview, setPreview] = useState(null);
   // Lowered car: also warn about speed bumps and dips mapped in OpenStreetMap.
@@ -145,7 +192,7 @@ export default function LiveDrive({ active = true }) {
     if (c.last != null) {
       let d = h - c.last; if (d > 180) d -= 360; if (d < -180) d += 360;
       c.acc = Math.sign(d) === Math.sign(c.acc) || !c.acc ? c.acc + d : d;
-      if (Math.abs(c.acc) >= 45 && Date.now() - c.at > 3000) { c.n += 1; c.at = Date.now(); c.acc = 0; setCornerCount(c.n); }
+      if (Math.abs(c.acc) >= 45 && Date.now() - c.at > 3000) { c.n += 1; c.at = Date.now(); c.acc = 0; setCornerCount(c.n); if (driveMode === 'toge' && c.n % 10 === 0 && voiceOn && getVoiceSettings().narrate) say(`${c.n} corners.`); }
     }
     c.last = h;
   }, [drive.heading]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -262,6 +309,12 @@ export default function LiveDrive({ active = true }) {
       try {
         const rec = await addTrip(trip);
         setToast({ text: `Drive saved · ${trip.distance} mi${odoNote}`, id: rec.id });
+        // Co-driver recap, spoken.
+        const vs = getVoiceSettings();
+        if (vs.narrate && voiceOn) {
+          const carName = tripCar ? (tripCar.nickname || `${tripCar.make} ${tripCar.model}`) : '';
+          recapText({ ...tripFacts(trip, carName), justSaved: true }, { ai: vs.style === 'gemini' }).then((txt) => say(txt)).catch(() => {});
+        }
       } catch {
         try {
           const q = JSON.parse(localStorage.getItem('dz-pending-trips') || '[]');
@@ -337,6 +390,13 @@ export default function LiveDrive({ active = true }) {
               guideRoute={guideRoute}
               onClearGuide={() => { setRouteId(null); navigate('/', { replace: true }); }}
             />
+          </motion.div>
+        )}
+
+        {/* Ask Gemini on the home map (top right, under the search bar) */}
+        {drive.status === 'idle' && !preview && (
+          <motion.div key="ask-idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute right-3 top-[calc(max(12px,env(safe-area-inset-top))+108px)] z-[520]">
+            <AskGemini size={46} context={askContext} onAction={onAskAction} />
           </motion.div>
         )}
 
@@ -536,6 +596,7 @@ export default function LiveDrive({ active = true }) {
 
             {/* Music + report shortcuts */}
             <div className={`absolute right-3 ${!nav.active ? 'bottom-[96px]' : barOpen ? 'bottom-[214px]' : 'bottom-[156px]'} transition-all pointer-events-auto flex flex-col gap-3`}>
+              <AskGemini size={50} context={askContext} onAction={onAskAction} />
               <button onClick={cycleMode} aria-label="Drive mode"
                 className={`w-[50px] h-[50px] rounded-full shadow-xl border flex flex-col items-center justify-center leading-none ${driveMode === 'cruise' ? 'bg-card border-border text-muted-foreground' : 'bg-primary border-primary text-primary-foreground'}`}>
                 <span className="text-base font-black">{driveMode === 'toge' ? '峠' : driveMode === 'wangan' ? '湾' : '巡'}</span>

@@ -12,6 +12,7 @@ import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -24,7 +25,7 @@ import org.json.JSONObject;
 // Shows the Kaido Maps web app full screen and adds what a web page can't do on its own:
 // reading what's playing on the phone and controlling it.
 public class MainActivity extends Activity {
-    private static final int REQ_LOCATION = 1, REQ_FILE = 2, REQ_BLUETOOTH = 3;
+    private static final int REQ_LOCATION = 1, REQ_FILE = 2, REQ_BLUETOOTH = 3, REQ_MIC = 4;
     private static final String SITE = BuildConfig.SITE;
     private static final String HOST = Uri.parse(SITE).getHost();
 
@@ -34,6 +35,7 @@ public class MainActivity extends Activity {
     private String pendingGeoOrigin;
     private GeolocationPermissions.Callback pendingGeo;
     private ValueCallback<Uri[]> pendingFiles;
+    private PermissionRequest pendingMic;
 
     @Override
     protected void onCreate(Bundle saved) {
@@ -71,6 +73,22 @@ public class MainActivity extends Activity {
                 pendingGeoOrigin = origin;
                 pendingGeo = cb;
                 requestPermissions(new String[]{ Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION }, REQ_LOCATION);
+            }
+
+            // Microphone for "Ask Gemini" (voice questions): ask Android once, then let the page record.
+            @Override
+            public void onPermissionRequest(final PermissionRequest req) {
+                runOnUiThread(() -> {
+                    boolean wantsMic = false;
+                    for (String r : req.getResources()) if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) wantsMic = true;
+                    if (!wantsMic || !HOST.equals(req.getOrigin().getHost())) { req.deny(); return; }
+                    if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                        req.grant(new String[]{ PermissionRequest.RESOURCE_AUDIO_CAPTURE });
+                    } else {
+                        pendingMic = req;
+                        requestPermissions(new String[]{ Manifest.permission.RECORD_AUDIO }, REQ_MIC);
+                    }
+                });
             }
 
             @Override
@@ -134,6 +152,11 @@ public class MainActivity extends Activity {
             pendingGeo = null;
         }
         if (code == REQ_LOCATION && hasLocation()) web.reload();
+        if (code == REQ_MIC && pendingMic != null) {
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) pendingMic.grant(new String[]{ PermissionRequest.RESOURCE_AUDIO_CAPTURE });
+            else pendingMic.deny();
+            pendingMic = null;
+        }
         if (code == REQ_BLUETOOTH) {
             bt.start();
             final String json = bt.status();

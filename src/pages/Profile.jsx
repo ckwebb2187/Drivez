@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Ghost, MapPin, Calendar, Eye, EyeOff, Pencil, LogOut, Loader2, Camera, Trash2, ImagePlus, Upload, Star, ChevronRight, Navigation, Flame, BarChart3, QrCode, Users, Palette, Award, MessageCircle, ShieldCheck, Smartphone } from 'lucide-react';
+import { Ghost, MapPin, Calendar, Eye, EyeOff, Pencil, LogOut, Loader2, Camera, Trash2, ImagePlus, Upload, Star, ChevronRight, Navigation, Flame, BarChart3, QrCode, Users, Palette, Award, AudioLines, MessageCircle, ShieldCheck, Smartphone } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import { base44, api } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
@@ -18,6 +18,7 @@ import { getInitials } from '@/lib/helpers';
 import ProfileSharing from '@/components/ProfileSharing';
 import MapLookSettings from '@/components/MapLookSettings';
 import Badges from '@/components/Badges';
+import VoiceSettings from '@/components/VoiceSettings';
 import { badgeProgress } from '@/lib/badges';
 
 export default function Profile() {
@@ -219,6 +220,9 @@ export default function Profile() {
         </button>
         <Collapsible id="look" icon={Palette} title="Map look" subtitle="World theme, battery saver, Japanese names">
           <MapLookSettings />
+        </Collapsible>
+        <Collapsible id="voice" icon={AudioLines} title="Voice & narration" subtitle="Co-driver callouts, drive recaps, Gemini voice">
+          <VoiceSettings />
         </Collapsible>
         <Collapsible id="mode" icon={Flame} title="App mode" subtitle={(user.appMode || 'scene') === 'nav' ? 'Just navigation' : 'Car scene'} right={modeBusy ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /> : null}>
           <div className="grid grid-cols-2 gap-2">

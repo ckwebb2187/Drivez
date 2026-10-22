@@ -5,6 +5,7 @@ import { ChevronLeft, TrendingUp, Gauge, Clock, Route, MapPin, Play, Pause, Book
 import { LineChart, Line, ResponsiveContainer, YAxis, XAxis, Tooltip } from 'recharts';
 import DarkMap from '@/components/DarkMap';
 import DiscordShareButton from '@/components/DiscordShareButton';
+import NarrateButton from '@/components/NarrateButton';
 import { useApp } from '@/lib/AppContext';
 import { formatDuration, formatTimeAgo } from '@/lib/helpers';
 
@@ -184,6 +185,7 @@ export default function TripDetailPage() {
               ? <><Check className="w-3.5 h-3.5 text-accent" /> Route Saved</>
               : <><Bookmark className="w-3.5 h-3.5" /> Save Route</>}
           </button>
+          <NarrateButton trip={trip} car={vehicle ? (vehicle.nickname || `${vehicle.make} ${vehicle.model}`) : ''} />
           <DiscordShareButton tripId={trip.id} />
         </div>
 
