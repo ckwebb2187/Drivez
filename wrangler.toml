@@ -2,11 +2,10 @@ name = "drivez"
 main = "worker/index.js"
 compatibility_date = "2025-09-01"
 
-[assets]
-directory = "./dist"
-binding = "ASSETS"
-not_found_handling = "single-page-application"
-run_worker_first = ["/api/*"]
+[[rules]]
+type = "Data"
+globs = ["**/*.bin"]
+fallthrough = false
 
 [[d1_databases]]
 binding = "DB"

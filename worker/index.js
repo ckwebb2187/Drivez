@@ -1,6 +1,7 @@
 // Drivez API: accounts, sign-in (email, Google, Discord, Facebook), data, friends,
 // live locations, leaderboard and Discord sharing. Runs on Cloudflare Workers + D1.
 import { SCHEMA } from "./schema.js";
+import { FILES } from "./static/index.js";
 
 const ENTITIES = new Set(["Vehicle", "Trip", "Route"]);
 const SESSION_COOKIE = "dz_session";
@@ -502,7 +503,7 @@ export default {
         return json({ error: status === 500 ? "Something went wrong on our side. Try again." : e.message }, status);
       }
     }
-    return env.ASSETS.fetch(req);
+    return serveStatic(url);
   },
   // Hourly clean-up of expired sessions, reset links and stale live positions.
   async scheduled(event, env) {
@@ -516,6 +517,13 @@ export default {
     ]);
   },
 };
+
+// The app's own files (built by Vite) are bundled into the worker.
+function serveStatic(url) {
+  const f = FILES[url.pathname] || (url.pathname.includes(".") ? null : FILES["/index.html"]);
+  if (!f) return new Response("Not found", { status: 404 });
+  return new Response(f.body, { headers: { "content-type": f.type, "cache-control": f.immutable ? "public, max-age=31536000, immutable" : "no-cache" } });
+}
 
 let schemaReady = false;
 async function ensureSchema(db) {
