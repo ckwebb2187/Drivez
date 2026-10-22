@@ -46,12 +46,13 @@ export default function App() {
                   <Route path="/history" element={<History />} />
                   <Route path="/leaderboard" element={<Leaderboard />} />
                   <Route path="/profile" element={<Profile />} />
+                  {/* Full-screen pages: also inside Layout so a drive in progress keeps running. */}
+                  <Route path="/trip/:id" element={<TripDetailPage />} />
+                  <Route path="/live-map" element={<LiveMap />} />
+                  <Route path="/routes" element={<RoutesPage />} />
+                  <Route path="/places" element={<PlacesPage />} />
+                  <Route path="/import" element={<ImportPage />} />
                 </Route>
-                <Route path="/trip/:id" element={<TripDetailPage />} />
-                <Route path="/live-map" element={<LiveMap />} />
-                <Route path="/routes" element={<RoutesPage />} />
-                <Route path="/places" element={<PlacesPage />} />
-                <Route path="/import" element={<ImportPage />} />
               </Route>
               <Route path="*" element={<PageNotFound />} />
             </Routes>

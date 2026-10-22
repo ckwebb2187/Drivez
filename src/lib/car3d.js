@@ -49,7 +49,56 @@ function glowTexture(color) {
   return t;
 }
 
-export function buildCar({ body = '#1f5ad6', glow = null } = {}) {
+// Wheel face picture: rim style drawn on a canvas (tire, rim, spokes, center cap).
+function wheelTexture(style = 'stock', color = '#c9ced6') {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const R = 64;
+  g.fillStyle = '#141414'; g.beginPath(); g.arc(R, R, 63, 0, 7); g.fill(); // tire
+  const rim = style === 'dish' ? 44 : 50;
+  g.fillStyle = style === 'dish' ? '#d9dde3' : color; g.beginPath(); g.arc(R, R, rim + 2, 0, 7); g.fill(); // lip
+  g.fillStyle = '#0c0c0e'; g.beginPath(); g.arc(R, R, rim - 2, 0, 7); g.fill(); // gaps between spokes
+  g.strokeStyle = color; g.fillStyle = color; g.lineCap = 'round';
+  const spokes = (n, w, inner = 10, outer = rim - 2) => {
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      g.lineWidth = w;
+      g.beginPath(); g.moveTo(R + Math.cos(a) * inner, R + Math.sin(a) * inner); g.lineTo(R + Math.cos(a) * outer, R + Math.sin(a) * outer); g.stroke();
+    }
+  };
+  if (style === 'te37') spokes(6, 13);
+  else if (style === 'six') spokes(6, 7);
+  else if (style === 'multi') spokes(10, 4);
+  else if (style === 'dish') spokes(5, 7, 8, rim - 4);
+  else if (style === 'mesh') {
+    spokes(10, 3);
+    g.lineWidth = 2;
+    for (let i = 0; i < 10; i++) { // cross-lacing
+      const a = (i / 10) * Math.PI * 2, b = a + Math.PI / 5;
+      g.beginPath(); g.moveTo(R + Math.cos(a) * 18, R + Math.sin(a) * 18); g.lineTo(R + Math.cos(b) * (rim - 4), R + Math.sin(b) * (rim - 4)); g.stroke();
+      g.beginPath(); g.moveTo(R + Math.cos(b) * 18, R + Math.sin(b) * 18); g.lineTo(R + Math.cos(a) * (rim - 4), R + Math.sin(a) * (rim - 4)); g.stroke();
+    }
+  } else { spokes(5, 9); } // stock: simple 5-spoke
+  g.fillStyle = '#222'; g.beginPath(); g.arc(R, R, 9, 0, 7); g.fill(); // center cap
+  g.fillStyle = color; g.beginPath(); g.arc(R, R, 5, 0, 7); g.fill();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// Proportions per body shape (meters). z is along the car: negative = front.
+const SHAPE_DIMS = {
+  sedan: { len: 4.6, wid: 1.86, bodyH: 0.62, y0: 0.28, cabin: { len: 2.35, wid: 1.56, z: 0.25, h: 0.42, nose: 0.25, tail: 0.15 }, roofZ: 0.3, wheelZ: [-1.38, 1.4], wheelR: 0.34 },
+  hatch: { len: 4.25, wid: 1.8, bodyH: 0.62, y0: 0.28, cabin: { len: 2.55, wid: 1.54, z: 0.5, h: 0.46, nose: 0.28, tail: 0.04 }, roofZ: 0.6, wheelZ: [-1.3, 1.3], wheelR: 0.33 },
+  coupe: { len: 4.5, wid: 1.86, bodyH: 0.55, y0: 0.26, cabin: { len: 1.95, wid: 1.48, z: 0.4, h: 0.36, nose: 0.35, tail: 0.3 }, roofZ: 0.45, wheelZ: [-1.38, 1.38], wheelR: 0.34 },
+  suv: { len: 4.75, wid: 1.92, bodyH: 0.85, y0: 0.4, cabin: { len: 3.0, wid: 1.66, z: 0.45, h: 0.55, nose: 0.25, tail: 0.04 }, roofZ: 0.5, wheelZ: [-1.48, 1.5], wheelR: 0.4 },
+  truck: { len: 5.4, wid: 1.98, bodyH: 0.85, y0: 0.42, cabin: { len: 1.85, wid: 1.72, z: -0.45, h: 0.58, nose: 0.2, tail: 0.04 }, roofZ: -0.42, wheelZ: [-1.75, 1.75], wheelR: 0.42 },
+};
+
+// A stylized 3D car: body shape, paint, wheels, optional hood scoop / wing, and underglow.
+export function buildCar({ body = '#1f5ad6', glow = null, shape = 'sedan', wheels = 'stock', wheelColor = '#c9ced6', scoop = false, wing = false } = {}) {
+  const d = SHAPE_DIMS[shape] || SHAPE_DIMS.sedan;
   const car = new THREE.Group();
   const paint = new THREE.MeshStandardMaterial({ color: body, metalness: 0.55, roughness: 0.32 });
   const glass = new THREE.MeshStandardMaterial({ color: '#0d1118', metalness: 0.2, roughness: 0.08 });
@@ -57,50 +106,75 @@ export function buildCar({ body = '#1f5ad6', glow = null } = {}) {
   const carbon = new THREE.MeshStandardMaterial({ color: '#1b1b1f', metalness: 0.4, roughness: 0.45 });
 
   // Lower body, cabin (glass), roof.
-  car.add(slab(carShape(LEN, WID), 0.62, 0.28, paint));
-  const cabin = slab(carShape(2.35, 1.56, 0.25, 0.15), 0.42, 0.95, glass, 0.04);
-  cabin.position.z = 0.25;
+  car.add(slab(carShape(d.len, d.wid), d.bodyH, d.y0, paint));
+  const top = d.y0 + d.bodyH + 0.05;
+  const cabin = slab(carShape(d.cabin.len, d.cabin.wid, d.cabin.nose, d.cabin.tail), d.cabin.h, top, glass, 0.04);
+  cabin.position.z = d.cabin.z;
   car.add(cabin);
-  const roof = slab(carShape(1.55, 1.36, 0.12, 0.12), 0.05, 1.4, paint, 0.03);
-  roof.position.z = 0.3;
+  const roof = slab(carShape(d.cabin.len * 0.7, d.cabin.wid * 0.88, 0.12, 0.12), 0.05, top + d.cabin.h - 0.02, paint, 0.03);
+  roof.position.z = d.roofZ;
   car.add(roof);
-  // Hood scoop.
-  const scoop = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.42), paint);
-  scoop.position.set(0, 0.98, -1.35);
-  car.add(scoop);
-  // Rear wing.
-  const wing = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.05, 0.3), carbon);
-  wing.position.set(0, 1.28, 2.05);
-  car.add(wing);
-  for (const x of [-0.6, 0.6]) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.32, 0.1), carbon);
-    post.position.set(x, 1.1, 2.05);
-    car.add(post);
+  // Pickup bed: open box behind the cab.
+  if (shape === 'truck') {
+    const bedLen = 1.95, z = d.len / 2 - bedLen / 2 - 0.12;
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(d.wid - 0.2, 0.04, bedLen), black);
+    floor.position.set(0, top - 0.02, z); car.add(floor);
+    for (const x of [-(d.wid / 2 - 0.12), d.wid / 2 - 0.12]) {
+      const side = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.32, bedLen), paint);
+      side.position.set(x, top + 0.14, z); car.add(side);
+    }
+    const gate = new THREE.Mesh(new THREE.BoxGeometry(d.wid - 0.2, 0.32, 0.08), paint);
+    gate.position.set(0, top + 0.14, d.len / 2 - 0.16); car.add(gate);
   }
-  // Wheels.
-  const wheelGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.26, 18);
-  wheelGeo.rotateZ(Math.PI / 2);
-  for (const [x, z] of [[-0.86, -1.38], [0.86, -1.38], [-0.86, 1.4], [0.86, 1.4]]) {
-    const w = new THREE.Mesh(wheelGeo, black);
-    w.position.set(x, 0.34, z);
+  if (scoop) {
+    const sc = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.42), paint);
+    sc.position.set(0, top + 0.02, -d.len / 2 + 0.95);
+    car.add(sc);
+  }
+  if (wing) {
+    const wz = d.len / 2 - 0.3;
+    const w = new THREE.Mesh(new THREE.BoxGeometry(d.wid * 0.94, 0.05, 0.3), carbon);
+    w.position.set(0, top + 0.3, wz);
     car.add(w);
+    for (const x of [-0.6, 0.6]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.3, 0.1), carbon);
+      post.position.set(x, top + 0.14, wz);
+      car.add(post);
+    }
+  }
+  // Wheels: black tire with the rim drawn on the outer face.
+  const r = d.wheelR;
+  const tireGeo = new THREE.CylinderGeometry(r, r, 0.26, 24);
+  tireGeo.rotateZ(Math.PI / 2);
+  const rimMat = new THREE.MeshStandardMaterial({ map: wheelTexture(wheels, wheelColor), metalness: 0.6, roughness: 0.35 });
+  const faceGeo = new THREE.CircleGeometry(r * 0.98, 24);
+  const wx = d.wid / 2 - 0.07;
+  for (const z of d.wheelZ) for (const side of [-1, 1]) {
+    const tire = new THREE.Mesh(tireGeo, black);
+    tire.position.set(side * wx, r, z);
+    car.add(tire);
+    const face = new THREE.Mesh(faceGeo, rimMat);
+    face.rotation.y = side * Math.PI / 2;
+    face.position.set(side * (wx + 0.135), r, z);
+    car.add(face);
   }
   // Lights.
   const head = new THREE.MeshBasicMaterial({ color: '#fff6d8' });
   const tail = new THREE.MeshBasicMaterial({ color: '#ff2a2a' });
-  for (const x of [-0.62, 0.62]) {
+  const ly = d.y0 + d.bodyH * 0.72;
+  for (const x of [-d.wid * 0.33, d.wid * 0.33]) {
     const h = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.08, 0.06), head);
-    h.position.set(x, 0.72, -LEN / 2 + 0.02);
+    h.position.set(x, ly, -d.len / 2 + 0.02);
     car.add(h);
     const t = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.09, 0.06), tail);
-    t.position.set(x, 0.75, LEN / 2 - 0.02);
+    t.position.set(x, ly + 0.03, d.len / 2 - 0.02);
     car.add(t);
   }
 
   // Underglow: a soft pool of light on the road, plus a light that tints the car's sides.
   if (glow) {
     const pool = new THREE.Mesh(
-      new THREE.PlaneGeometry(WID * 2.1, LEN * 1.55),
+      new THREE.PlaneGeometry(d.wid * 2.1, d.len * 1.5),
       new THREE.MeshBasicMaterial({ map: glowTexture(glow), transparent: true, depthWrite: false, opacity: 0.9 })
     );
     pool.rotation.x = -Math.PI / 2;
@@ -205,7 +279,7 @@ export function car3dLayer({ id = 'dz-car3d', colors, getPose, screenLength = 11
           .then((m) => { if (car) scene.remove(car); car = m; scene.add(m); map.triggerRepaint(); })
           .catch((e) => console.warn('Car model failed to load', e));
       } else {
-        car = colors?.picture ? buildPictureCar(colors) : buildCar(colors);
+        car = colors?.picture && !colors?.shape ? buildPictureCar(colors) : buildCar(colors);
         scene.add(car);
       }
       renderer = new THREE.WebGLRenderer({ canvas: map.getCanvas(), context: gl, antialias: true });

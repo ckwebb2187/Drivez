@@ -21,6 +21,17 @@ export function useNavigation(plan, pos, voice) {
   const said = useRef(new Set());
   const startedVoice = useRef(false);
 
+  // A new plan (tap Go, open a saved plan) or none (End route): start guidance fresh.
+  // The drive screen stays open all the time, so this can't rely on the screen reopening.
+  const planRef = useRef(plan);
+  useEffect(() => {
+    if (planRef.current === plan) return;
+    planRef.current = plan;
+    setRoute(plan?.route || null);
+    setIdx(1); setRerouting(false); setArrived(false); setStopIdx(0); setJustReached(null);
+    legBase.current = 0; offCount.current = 0; said.current = new Set(); startedVoice.current = false;
+  }, [plan]);
+
   // First instruction when guidance starts.
   useEffect(() => {
     if (voice && plan && route && !startedVoice.current) {

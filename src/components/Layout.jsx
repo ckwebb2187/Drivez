@@ -18,6 +18,8 @@ export default function Layout() {
   const [look] = useMapLook();
   const shownTabs = tabs.map((t) => (t.to === '/' && look.jpNames ? { ...t, label: 'Chizu' } : t));
   const onDrive = pathname === '/' || pathname === '/drive'; // the drive map is the home screen
+  // Detail pages (a saved drive, saved places, routes…) fill the screen without the tab bar.
+  const fullPage = !onDrive && !['/history', '/profile', '/leaderboard'].includes(pathname);
   // The drive screen is kept running once opened, so switching tabs never loses a drive.
   const [driveOpened, setDriveOpened] = useState(onDrive);
   useEffect(() => { if (onDrive) setDriveOpened(true); }, [onDrive]);
@@ -32,7 +34,7 @@ export default function Layout() {
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
       {!onDrive && (
-        <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
+        <main className={`flex-1 overflow-y-auto no-scrollbar ${fullPage ? '' : 'pb-24'}`}>
           <Outlet />
         </main>
       )}
@@ -43,12 +45,12 @@ export default function Layout() {
       )}
       {user && !user.appMode && <SetupModeModal />}
       {!onDrive && driving && (
-        <NavLink to="/" className="fixed left-3 right-3 bottom-[92px] z-50 rounded-2xl bg-[#188038] text-white shadow-2xl px-4 h-12 flex items-center gap-2 text-sm font-semibold">
+        <NavLink to="/" className={`fixed left-3 right-3 ${fullPage ? 'bottom-[max(16px,env(safe-area-inset-bottom))]' : 'bottom-[92px]'} z-[1400] rounded-2xl bg-[#188038] text-white shadow-2xl px-4 h-12 flex items-center gap-2 text-sm font-semibold`}>
           <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> Drive in progress
           <span className="ml-auto flex items-center gap-1 text-xs opacity-90">Return to drive <ChevronRight className="w-4 h-4" /></span>
         </NavLink>
       )}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border">
+      {!fullPage && <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border">
         <div className="flex items-center justify-around max-w-md mx-auto px-2 h-20">
           {shownTabs.map((tab) => {
             const Icon = tab.icon;
@@ -86,7 +88,7 @@ export default function Layout() {
             );
           })}
         </div>
-      </nav>
+      </nav>}
     </div>
   );
 }

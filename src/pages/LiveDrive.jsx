@@ -89,6 +89,7 @@ export default function LiveDrive({ active = true }) {
     window.__dzDriveStatus = drive.status;
     window.dispatchEvent(new Event('dz-drive-status'));
   }, [drive.status]);
+  useEffect(() => () => { window.__dzDriveStatus = 'idle'; window.dispatchEvent(new Event('dz-drive-status')); }, []);
   const [barOpen, setBarOpen] = useState(false);
 
   const guideRoute = routeId ? savedRoutes.find(r => r.id === routeId) : null;
