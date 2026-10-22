@@ -3,7 +3,7 @@ import { Marker, Popup, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { createPortal } from 'react-dom';
 import { ArrowUp, CornerUpLeft, CornerUpRight, ArrowUpLeft, ArrowUpRight, RotateCcw, Flag, RefreshCw, GitFork, TriangleAlert, X, Loader2 } from 'lucide-react';
-import { carSvg } from '@/lib/cars';
+import { carMarkup } from '@/lib/cars';
 import { REPORT_TYPES } from '@/lib/reports';
 import { formatTimeAgo } from '@/lib/helpers';
 
@@ -13,13 +13,13 @@ function carIcon(car, heading, size = 1) {
     className: '',
     iconSize: [h, h],
     iconAnchor: [h / 2, h / 2],
-    html: `<div style="width:${h}px;height:${h}px;display:flex;align-items:center;justify-content:center;transform:rotate(${heading || 0}deg);transition:transform .4s ease;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))"><div style="width:${w}px;height:${h}px">${carSvg(car.body, car.color).replace('width="40" height="80"', `width="${w}" height="${h}"`)}</div></div>`,
+    html: `<div style="width:${h}px;height:${h}px;display:flex;align-items:center;justify-content:center;transform:rotate(${heading || 0}deg);transition:transform .4s ease;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))"><div style="display:flex;align-items:center;justify-content:center">${carMarkup(car, w, h)}</div></div>`,
   });
 }
 
 // A friend (or anyone) on the map as their car, with their name.
 export function CarMarker({ pos, car, heading, label }) {
-  const icon = useMemo(() => carIcon(car, heading, 0.85), [car?.body, car?.color, heading]); // eslint-disable-line react-hooks/exhaustive-deps
+  const icon = useMemo(() => carIcon(car, heading, 0.85), [car?.body, car?.color, car?.image, heading]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Marker position={pos} icon={icon}>
       {label && <Tooltip permanent direction="top" offset={[0, -24]} className="dz-car-label">{label}</Tooltip>}
@@ -37,7 +37,7 @@ export function LocationMarker({ pos, heading, car }) {
       ${heading != null ? `<div style="position:absolute;inset:0;transform:rotate(${heading}deg)"><div style="position:absolute;left:50%;top:0;transform:translateX(-50%);width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:16px solid rgba(66,133,244,.85)"></div></div>` : ''}
       <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:20px;height:20px;border-radius:50%;background:#4285F4;border:3px solid #fff;box-shadow:0 0 0 6px rgba(66,133,244,.25),0 1px 4px rgba(0,0,0,.5)"></div>
     </div>`,
-  }), [heading, car?.body, car?.color]); // eslint-disable-line react-hooks/exhaustive-deps
+  }), [heading, car?.body, car?.color, car?.image]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!pos) return null;
   return <Marker position={pos} icon={icon} interactive={false} zIndexOffset={1000} />;
 }

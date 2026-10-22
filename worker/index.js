@@ -1,6 +1,6 @@
 // Drivez API: accounts, sign-in (email, Google, Discord, Facebook), data, friends,
 // live locations, leaderboard and Discord sharing. Runs on Cloudflare Workers + D1.
-import { SCHEMA } from "./schema.js";
+import { SCHEMA, MIGRATIONS } from "./schema.js";
 import { FILES } from "./static/index.js";
 
 const ENTITIES = new Set(["Vehicle", "Trip", "Route", "Place"]);
@@ -405,6 +405,14 @@ async function handleApi(req, env, ctx, url) {
     return new Response(new Uint8Array(row.data), { headers: { "content-type": row.mime, "cache-control": "public, max-age=31536000, immutable" } });
   }
 
+  // Custom car pictures are public too (friends see your car on the map).
+  const ci = path.match(/^\/car-image\/([A-Za-z0-9_-]+)$/);
+  if (ci && method === "GET") {
+    const row = await db.prepare("SELECT mime, data FROM car_images WHERE vehicle_id = ?").bind(ci[1]).first();
+    if (!row) throw new HttpError(404, "No picture");
+    return new Response(new Uint8Array(row.data), { headers: { "content-type": row.mime, "cache-control": "public, max-age=31536000, immutable" } });
+  }
+
   // --- everything below needs a signed-in user ---
   const me = await currentUser(req, db);
   if (!me) throw new HttpError(401, "Please log in.");
@@ -472,6 +480,47 @@ async function handleApi(req, env, ctx, url) {
     return json({ results: await geocode(q, Number.isFinite(lat) && Number.isFinite(lng) && (lat || lng) ? [lat, lng] : null, ctx) });
   }
 
+  // --- live traffic (TomTom, free tier) — only when TOMTOM_API_KEY is set ---
+  if (path === "/traffic/config" && method === "GET") {
+    return json({ live: !!env.TOMTOM_API_KEY });
+  }
+  const tt = path.match(/^\/traffic\/tile\/(day|night)\/(\d{1,2})\/(\d+)\/(\d+)\.png$/);
+  if (tt && method === "GET") {
+    if (!env.TOMTOM_API_KEY) throw new HttpError(404, "Live traffic isn't set up.");
+    const [, theme, z, x, y] = tt;
+    const bucket = Math.floor(Date.now() / 120000);
+    const cacheKey = new Request(`${url.origin}/__traffic/${theme}/${z}/${x}/${y}.png?b=${bucket}`);
+    let res = await caches.default.match(cacheKey);
+    if (!res) {
+      const style = theme === "night" ? "relative0-dark" : "relative0";
+      const up = await fetch(`https://api.tomtom.com/traffic/map/4/tile/flow/${style}/${z}/${x}/${y}.png?key=${encodeURIComponent(env.TOMTOM_API_KEY)}&thickness=8`);
+      if (!up.ok) throw new HttpError(502, `TomTom said ${up.status}`);
+      res = new Response(up.body, { headers: { "content-type": "image/png", "cache-control": "public, max-age=120" } });
+      ctx.waitUntil(caches.default.put(cacheKey, res.clone()));
+    }
+    return res;
+  }
+  if (path === "/traffic/eta" && method === "POST") {
+    if (!env.TOMTOM_API_KEY) return json({ live: false });
+    const pts = (Array.isArray(body.points) ? body.points : []).slice(0, 12)
+      .map((p) => [+p[0], +p[1]]).filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
+    if (pts.length < 2) throw new HttpError(400, "Need a start and a destination.");
+    const loc = pts.map(([a, b]) => `${a.toFixed(5)},${b.toFixed(5)}`).join(":");
+    const u = `https://api.tomtom.com/routing/1/calculateRoute/${loc}/json?key=${encodeURIComponent(env.TOMTOM_API_KEY)}&traffic=true&travelMode=car&routeType=fastest&computeTravelTimeFor=all&routeRepresentation=summaryOnly`;
+    const r = await fetch(u);
+    const d = await r.json().catch(() => ({}));
+    const sm = d.routes?.[0]?.summary;
+    if (!r.ok || !sm) throw new HttpError(502, "Live traffic is unavailable right now.");
+    return json({
+      live: true,
+      travelTime: sm.travelTimeInSeconds,
+      noTrafficTime: sm.noTrafficTravelTimeInSeconds ?? null,
+      delay: sm.trafficDelayInSeconds ?? 0,
+      length: sm.lengthInMeters,
+      legs: (d.routes[0].legs || []).map((l) => ({ travelTime: l.summary?.travelTimeInSeconds, delay: l.summary?.trafficDelayInSeconds ?? 0 })),
+    });
+  }
+
   // --- weather map overlays ---
   if (path === "/wx/config" && method === "GET") {
     return json({ accuweather: !!env.ACCUWEATHER_API_KEY });
@@ -493,6 +542,33 @@ async function handleApi(req, env, ctx, url) {
       ctx.waitUntil(cache.put(cacheKey, res.clone()));
     }
     return res;
+  }
+
+  // --- your own car picture for a vehicle in your garage ---
+  const vi = path.match(/^\/vehicles\/([A-Za-z0-9_-]+)\/image$/);
+  if (vi && (method === "POST" || method === "DELETE")) {
+    const rec = await db.prepare("SELECT * FROM records WHERE id = ? AND entity = 'Vehicle' AND owner_id = ?").bind(vi[1], me.id).first();
+    if (!rec) throw new HttpError(404, "Vehicle not found");
+    const data = JSON.parse(rec.data);
+    if (method === "POST") {
+      if (!/^image\/(png|webp)$/.test(String(body.mime || ""))) throw new HttpError(400, "Use a PNG or WebP picture.");
+      let bytes;
+      try { bytes = Uint8Array.from(atob(String(body.data || "")), (c) => c.charCodeAt(0)); } catch { throw new HttpError(400, "That picture couldn't be read."); }
+      if (!bytes.length || bytes.length > 900 * 1024) throw new HttpError(413, "That picture is too big. Try a smaller one.");
+      const t = Date.now();
+      data.image_url = `/api/car-image/${rec.id}?v=${t}`;
+      await db.batch([
+        db.prepare("INSERT INTO car_images (vehicle_id, owner_id, mime, data, updated) VALUES (?, ?, ?, ?, ?) ON CONFLICT(vehicle_id) DO UPDATE SET mime = excluded.mime, data = excluded.data, updated = excluded.updated").bind(rec.id, me.id, body.mime, bytes, t),
+        db.prepare("UPDATE records SET data = ?, updated_date = ? WHERE id = ?").bind(JSON.stringify(data), now(), rec.id),
+      ]);
+    } else {
+      delete data.image_url;
+      await db.batch([
+        db.prepare("DELETE FROM car_images WHERE vehicle_id = ?").bind(rec.id),
+        db.prepare("UPDATE records SET data = ?, updated_date = ? WHERE id = ?").bind(JSON.stringify(data), now(), rec.id),
+      ]);
+    }
+    return json(parseRecord({ ...rec, data: JSON.stringify(data), owner_email: me.email }));
   }
 
   // --- bulk import of saved places and drives (Google Maps, Waze, GPX/KML files) ---
@@ -650,9 +726,10 @@ async function handleApi(req, env, ctx, url) {
     const heading = isFinite(+body.heading) && body.heading !== null ? +body.heading : null;
     const body_ = BODY_TYPES.has(body.carBody) ? body.carBody : null;
     const color = /^#[0-9a-f]{6}$/i.test(body.carColor || "") ? body.carColor : null;
-    await db.prepare(`INSERT INTO live_pos (user_id, lat, lng, speed, heading, car_body, car_color, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(user_id) DO UPDATE SET lat = excluded.lat, lng = excluded.lng, speed = excluded.speed, heading = excluded.heading, car_body = excluded.car_body, car_color = excluded.car_color, updated = excluded.updated`)
-      .bind(me.id, lat, lng, Math.round(+body.speed || 0), heading, body_, color, Date.now()).run();
+    const image = /^\/api\/car-image\/[A-Za-z0-9_-]+\?v=\d+$/.test(body.carImage || "") ? body.carImage : null;
+    await db.prepare(`INSERT INTO live_pos (user_id, lat, lng, speed, heading, car_body, car_color, car_image, updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id) DO UPDATE SET lat = excluded.lat, lng = excluded.lng, speed = excluded.speed, heading = excluded.heading, car_body = excluded.car_body, car_color = excluded.car_color, car_image = excluded.car_image, updated = excluded.updated`)
+      .bind(me.id, lat, lng, Math.round(+body.speed || 0), heading, body_, color, image, Date.now()).run();
     return json({ ok: true });
   }
   if (path === "/live/stop" && method === "POST") {
@@ -666,7 +743,7 @@ async function handleApi(req, env, ctx, url) {
       `SELECT l.*, u.display_name, u.username, u.avatar_url, u.color FROM live_pos l JOIN users u ON u.id = l.user_id
        WHERE l.updated > ? AND u.ghost_mode = 0 AND l.user_id IN (${ids.map(() => "?").join(",")})`
     ).bind(Date.now() - LIVE_FRESH_MS, ...ids).all();
-    return json({ drivers: results.map((r) => ({ ...card({ ...r, id: r.user_id }), lat: r.lat, lng: r.lng, speed: r.speed, heading: r.heading, car: r.car_body ? { body: r.car_body, color: r.car_color || r.color } : null, updated: new Date(r.updated).toISOString() })) });
+    return json({ drivers: results.map((r) => ({ ...card({ ...r, id: r.user_id }), lat: r.lat, lng: r.lng, speed: r.speed, heading: r.heading, car: r.car_body || r.car_image ? { body: r.car_body || 'sedan', color: r.car_color || r.color, image: r.car_image || null } : null, updated: new Date(r.updated).toISOString() })) });
   }
 
   // --- road reports (police, crashes, hazards, traffic, closures) ---
@@ -790,5 +867,6 @@ let schemaReady = false;
 async function ensureSchema(db) {
   if (schemaReady) return;
   await db.batch(SCHEMA.map((s) => db.prepare(s)));
+  for (const m of MIGRATIONS) { try { await db.prepare(m).run(); } catch { /* already applied */ } }
   schemaReady = true;
 }

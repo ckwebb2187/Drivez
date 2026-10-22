@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useTrafficEta } from '@/lib/traffic';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X, ChevronUp, Navigation2 } from 'lucide-react';
+import { Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X, ChevronUp, Navigation2, SkipForward, MapPin } from 'lucide-react';
 import DriveMap from '@/components/DriveMap';
 import { useGpsDrive } from '@/lib/useGpsDrive';
 import { useApp } from '@/lib/AppContext';
@@ -56,6 +57,22 @@ export default function LiveDrive() {
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition((p) => setHerePos([p.coords.latitude, p.coords.longitude]), () => {}, { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 });
   }, []);
+
+  // Live traffic: re-check the arrival time every 3 minutes while navigating.
+  const [trafficTick, setTrafficTick] = useState(0);
+  useEffect(() => { const t = setInterval(() => setTrafficTick((n) => n + 1), 180000); return () => clearInterval(t); }, []);
+  const trafficPoints = useMemo(() => {
+    const here = drive.currentPosition;
+    if (!nav.active || nav.arrived || !here) return null;
+    return [here, ...nav.stops.slice(nav.stopIdx).map((x) => [x.lat, x.lng]), [navPlan.dest.lat, navPlan.dest.lng]];
+  }, [trafficTick, nav.active, nav.stopIdx, !!drive.currentPosition]); // eslint-disable-line react-hooks/exhaustive-deps
+  const traffic = useTrafficEta(trafficPoints, !!trafficPoints, 600000);
+  // TomTom's time is measured from the moment it was fetched; take off the time spent driving since.
+  const [trafficAt, setTrafficAt] = useState(0);
+  useEffect(() => { if (traffic) setTrafficAt(Date.now()); }, [traffic]);
+  const remainingS = traffic && nav.remainingS != null
+    ? Math.max(nav.remainingS * 0.5, traffic.travelTime - (Date.now() - trafficAt) / 1000)
+    : nav.remainingS;
 
   // Camera follows you; if you pan the map it waits, then snaps back after a few seconds (like Waze).
   const [follow, setFollow] = useState(true);
@@ -135,6 +152,7 @@ export default function LiveDrive() {
           driving={drive.status === 'driving'}
           routeCoords={nav.active ? nav.route.coords : null}
           dest={navPlan ? navPlan.dest : null}
+          stops={nav.active ? nav.stops.slice(nav.stopIdx) : []}
           guide={guideRoute ? guideRoute.route : null}
           trail={drive.route}
           reports={roadReports.reports}
@@ -264,6 +282,15 @@ export default function LiveDrive() {
               </div>
             )}
 
+            {/* Reached a stop */}
+            {nav.active && nav.justReached && !nav.arrived && (
+              <div className="absolute left-3 right-3 top-[140px] pointer-events-none">
+                <div className="mx-auto max-w-sm rounded-2xl bg-[#188038] text-white px-4 py-2.5 shadow-2xl flex items-center gap-2 text-sm font-semibold">
+                  <MapPin className="w-4 h-4" /> Reached {nav.justReached.name}
+                </div>
+              </div>
+            )}
+
             {/* Report warning */}
             {reportAlert && (
               <div className={`absolute left-3 right-[76px] ${nav.active ? 'top-[150px]' : 'top-[max(12px,env(safe-area-inset-top))]'} pointer-events-auto`}>
@@ -308,8 +335,15 @@ export default function LiveDrive() {
                 <button onClick={() => setBarOpen((o) => !o)} className="w-full flex items-center gap-3 px-4 h-[60px] text-left">
                   {nav.active && !nav.arrived ? (
                     <div className="flex-1 min-w-0">
-                      <span className="text-lg font-bold text-[#34A853]">{formatEta(nav.remainingS)}</span>
-                      <span className="text-sm text-muted-foreground"> · {formatNavDistance(nav.remainingM)} · {arrivalTime(nav.remainingS)}</span>
+                      <span className={`text-lg font-bold ${traffic && traffic.delay > 300 ? 'text-[#F9AB00]' : 'text-[#34A853]'}`}>{formatEta(remainingS)}</span>
+                      <span className="text-sm text-muted-foreground"> · {formatNavDistance(nav.remainingM)} · {arrivalTime(remainingS)}</span>
+                      {(nav.nextStop || (traffic && traffic.delay > 60)) && (
+                        <div className="text-[11px] text-muted-foreground truncate -mt-0.5">
+                          {nav.nextStop ? `Next: stop ${nav.stopIdx + 1} · ${nav.nextStop.name}` : ''}
+                          {nav.nextStop && traffic && traffic.delay > 60 ? ' · ' : ''}
+                          {traffic && traffic.delay > 60 ? <span className="text-[#F9AB00] font-semibold">+{Math.round(traffic.delay / 60)} min traffic</span> : null}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="flex-1 min-w-0 flex items-center gap-2">
@@ -322,6 +356,11 @@ export default function LiveDrive() {
                 </button>
                 {barOpen && (
                   <div className="flex gap-2 px-3 pb-3">
+                    {nav.active && nav.nextStop && (
+                      <button onClick={() => { setBarOpen(false); nav.skipStop(); }} className="flex-1 h-11 rounded-xl bg-secondary text-sm font-semibold text-foreground flex items-center justify-center gap-1.5">
+                        <SkipForward className="w-4 h-4" /> Skip stop
+                      </button>
+                    )}
                     {nav.active && (
                       <button onClick={() => { setBarOpen(false); navigate('/drive', { replace: true, state: null }); }} className="flex-1 h-11 rounded-xl bg-secondary text-sm font-semibold text-foreground flex items-center justify-center gap-1.5">
                         <X className="w-4 h-4" /> End route

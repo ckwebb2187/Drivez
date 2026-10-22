@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { carSvg } from '@/lib/cars';
+import { carMarkup } from '@/lib/cars';
 import { REPORT_TYPES } from '@/lib/reports';
 import { distM } from '@/lib/nav';
-import { useWeatherTiles } from '@/components/Weather';
+import { useWeatherTiles, useWeatherPrefs } from '@/components/Weather';
+import { useLiveTraffic, trafficTileUrl } from '@/lib/traffic';
 
 // The 3D driving map, in the style of Waze / Google Maps navigation:
 // heading-up, tilted, car in the lower third, smooth gliding between GPS fixes,
@@ -36,7 +37,8 @@ function carElement(car) {
   const el = document.createElement('div');
   el.style.cssText = 'width:64px;height:64px;display:flex;align-items:center;justify-content:center;pointer-events:none;filter:drop-shadow(0 6px 6px rgba(0,0,0,.45))';
   if (car) {
-    el.innerHTML = `<div style="width:30px;height:60px">${carSvg(car.body, car.color).replace('width="40" height="80"', 'width="30" height="60"')}</div>`;
+    el.style.width = el.style.height = car.image ? '100px' : '64px';
+    el.innerHTML = carMarkup(car, 30, 60);
   } else {
     // Google-style navigation arrow
     el.innerHTML = `<svg width="46" height="46" viewBox="0 0 46 46"><circle cx="23" cy="23" r="21" fill="rgba(66,133,244,.18)"/><path d="M23 6 L36 37 L23 30 L10 37 Z" fill="#4285F4" stroke="#fff" stroke-width="3" stroke-linejoin="round"/></svg>`;
@@ -60,7 +62,7 @@ function reportElement(type) {
 }
 
 export default function DriveMap({
-  pos, heading, speed = 0, car, driving, routeCoords, dest, guide, trail, reports = [],
+  pos, heading, speed = 0, car, driving, routeCoords, dest, stops = [], guide, trail, reports = [],
   follow = true, onUserMove, className = '',
 }) {
   const box = useRef(null);
@@ -74,6 +76,9 @@ export default function DriveMap({
   live.current = { ...live.current, follow, driving, speed, onUserMove };
   const routeIdx = useRef(0);
   const wx = useWeatherTiles();
+  const liveTraffic = useLiveTraffic();
+  const [layerPrefs] = useWeatherPrefs();
+  const showTraffic = !!liveTraffic && layerPrefs.traffic !== false;
   const day = useRef(isDaytime());
 
   // Create the map once.
@@ -89,6 +94,8 @@ export default function DriveMap({
       fadeDuration: 0,
     });
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'top-right');
+    // Start with the credits folded into the small (i) button.
+    map.once('load', () => box.current?.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'));
     map.touchZoomRotate.disableRotation();
     mapRef.current = map;
 
@@ -207,7 +214,7 @@ export default function DriveMap({
       .addTo(map);
     if (!pos && !anim.current.shown) carRef.current.getElement().style.display = 'none';
     return () => carRef.current?.remove();
-  }, [car?.body, car?.color]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [car?.body, car?.color, car?.image]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // New GPS fix: start gliding from where the car is drawn now to the new spot.
   useEffect(() => {
@@ -215,7 +222,7 @@ export default function DriveMap({
     const a = anim.current;
     const now = performance.now();
     if (carRef.current) carRef.current.getElement().style.display = '';
-    if (!a.to) { a.shown = pos; a.zoom = mapRef.current.getZoom(); }
+    if (!a.to) { a.shown = pos; a.zoom = live.current.driving ? zoomForSpeed(speed) : 16.5; }
     a.from = a.shown || pos;
     a.to = pos;
     a.dur = a.lastFix ? Math.max(250, Math.min(1600, now - a.lastFix)) : 1;
@@ -260,6 +267,19 @@ export default function DriveMap({
     return () => pinRef.current?.remove();
   }, [dest?.lat, dest?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Numbered stops.
+  const stopMarkers = useRef([]);
+  useEffect(() => {
+    stopMarkers.current.forEach((m) => m.remove());
+    stopMarkers.current = stops.map((st, i) => {
+      const el = document.createElement('div');
+      el.style.cssText = 'width:26px;height:26px;border-radius:50%;background:#4285F4;border:2.5px solid #fff;color:#fff;font:800 12px system-ui;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.5)';
+      el.textContent = String(i + 1);
+      return new maplibregl.Marker({ element: el }).setLngLat([st.lng, st.lat]).addTo(mapRef.current);
+    });
+    return () => stopMarkers.current.forEach((m) => m.remove());
+  }, [stops.map((x) => `${x.lat},${x.lng}`).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Road reports.
   useEffect(() => {
     const map = mapRef.current;
@@ -286,6 +306,20 @@ export default function DriveMap({
     };
     if (readyRef.current) apply(); else map.once('load', apply);
   }, [wx?.key, wx?.opacity]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Live traffic colors on the roads (under the route line).
+  useEffect(() => {
+    const map = mapRef.current;
+    const apply = () => {
+      if (!readyRef.current) return;
+      if (map.getLayer('dz-traffic')) map.removeLayer('dz-traffic');
+      if (map.getSource('dz-traffic')) map.removeSource('dz-traffic');
+      if (!showTraffic) return;
+      map.addSource('dz-traffic', { type: 'raster', tiles: [trafficTileUrl(!day.current)], tileSize: 256, maxzoom: 18 });
+      map.addLayer({ id: 'dz-traffic', type: 'raster', source: 'dz-traffic', paint: { 'raster-opacity': 0.9 } }, 'dz-guide');
+    };
+    if (readyRef.current) apply(); else map.once('load', apply);
+  }, [showTraffic]);
 
   return <div ref={box} className={`dz-drive-map ${className}`} style={{ position: 'absolute', inset: 0 }} />;
 }

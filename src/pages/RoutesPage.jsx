@@ -153,7 +153,7 @@ export default function RoutesPage() {
                     <div className="text-[11px] text-muted-foreground">{route.distance} mi • shared by {route.created_by}</div>
                   </div>
                   <button
-                    onClick={() => navigate(`/drive?route=${route.id}`)}
+                    onClick={() => (route.dest ? navigate('/', { state: { plan: { dest: route.dest, stops: route.stops || [] } } }) : navigate(`/drive?route=${route.id}`))}
                     className="bg-primary text-primary-foreground rounded-xl py-2 px-4 text-xs font-bold flex items-center gap-1 flex-shrink-0"
                   >
                     <Play className="w-3 h-3 fill-primary-foreground" /> Drive

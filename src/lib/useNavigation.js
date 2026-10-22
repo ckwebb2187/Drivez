@@ -6,12 +6,17 @@ const OFF_ROUTE_M = 60;      // further than this from the route line = off rout
 const OFF_ROUTE_FIXES = 3;   // ...for this many GPS fixes in a row → reroute
 const ARRIVED_M = 40;
 
-// Turn-by-turn guidance for a planned route. `plan` = { dest, route } or null.
+// Turn-by-turn guidance for a planned route. `plan` = { dest, stops?, route } or null.
+// With stops, guidance announces each stop and carries on to the next one.
 export function useNavigation(plan, pos, voice) {
   const [route, setRoute] = useState(plan?.route || null);
   const [idx, setIdx] = useState(1);
   const [rerouting, setRerouting] = useState(false);
   const [arrived, setArrived] = useState(false);
+  const stops = plan?.stops || [];
+  const [stopIdx, setStopIdx] = useState(0); // next stop not yet reached
+  const [justReached, setJustReached] = useState(null);
+  const legBase = useRef(0); // which stop the current route's first leg goes to
   const offCount = useRef(0);
   const said = useRef(new Set());
   const startedVoice = useRef(false);
@@ -35,7 +40,23 @@ export function useNavigation(plan, pos, voice) {
     if (i !== idx) setIdx(i);
 
     const dest = [plan.dest.lat, plan.dest.lng];
-    if (distM(pos, dest) < ARRIVED_M) {
+    // Reached the next stop? Announce it and carry on.
+    const nextStop = stops[stopIdx];
+    // The stop itself may sit off the road, so also count the spot on the road where the route stops for it.
+    const stopArrive = nextStop ? steps.find((st) => st.type === 'arrive' && st.leg === stopIdx - legBase.current) : null;
+    const nearStop = nextStop && (distM(pos, [nextStop.lat, nextStop.lng]) < ARRIVED_M || (stopArrive && distM(pos, [stopArrive.lat, stopArrive.lng]) < ARRIVED_M));
+    if (nearStop) {
+      setStopIdx(stopIdx + 1);
+      setJustReached(nextStop);
+      setTimeout(() => setJustReached((s) => (s === nextStop ? null : s)), 15000);
+      if (voice) speak(`You've reached ${nextStop.name || `stop ${stopIdx + 1}`}. Continuing to ${stops[stopIdx + 1]?.name || plan.dest.name || 'your destination'}`);
+      // Skip guidance steps up to the arrival at this stop.
+      const arriveAt = route.steps.findIndex((st) => st.type === 'arrive' && st.leg === stopIdx - legBase.current);
+      if (arriveAt >= 0 && arriveAt + 1 > i) setIdx(Math.min(arriveAt + 1, route.steps.length - 1));
+      return;
+    }
+    const finalArrive = steps[steps.length - 1];
+    if (stopIdx >= stops.length && (distM(pos, dest) < ARRIVED_M || (finalArrive?.type === 'arrive' && distM(pos, [finalArrive.lat, finalArrive.lng]) < ARRIVED_M))) {
       setArrived(true);
       if (voice) speak('You have arrived at your destination');
       return;
@@ -53,8 +74,9 @@ export function useNavigation(plan, pos, voice) {
     if (offCount.current >= OFF_ROUTE_FIXES && !rerouting) {
       setRerouting(true);
       if (voice) speak('Rerouting');
-      getRoute(pos, dest)
-        .then((r) => { setRoute(r); setIdx(1); said.current = new Set(); })
+      const base = stopIdx;
+      getRoute(pos, dest, stops.slice(stopIdx), plan.dest.name)
+        .then((r) => { legBase.current = base; setRoute(r); setIdx(1); said.current = new Set(); })
         .catch(() => {})
         .finally(() => { setRerouting(false); offCount.current = 0; });
     }
@@ -69,8 +91,19 @@ export function useNavigation(plan, pos, voice) {
   let remainingM = distToStep, remainingS = 0;
   for (let j = idx; j < steps.length; j++) { remainingM += steps[j].distance; remainingS += steps[j].duration; }
   remainingS += distToStep / 13; // ~30 mph for the stretch to the next turn
+  const skipStop = () => {
+    if (stopIdx >= stops.length || !pos) return;
+    const next = stopIdx + 1;
+    setStopIdx(next);
+    setRerouting(true);
+    getRoute(pos, [plan.dest.lat, plan.dest.lng], stops.slice(next), plan.dest.name)
+      .then((r) => { legBase.current = next; setRoute(r); setIdx(1); said.current = new Set(); if (voice) speak('Stop skipped'); })
+      .catch(() => {})
+      .finally(() => setRerouting(false));
+  };
   return {
     active: true, route, step, nextStep: steps[idx + 1], distToStep,
     remainingM, remainingS, arrived, rerouting,
+    stops, stopIdx, nextStop: stops[stopIdx] || null, justReached, skipStop,
   };
 }

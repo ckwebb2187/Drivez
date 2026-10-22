@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+import { base44, api } from '@/api/base44Client';
 import { useAuth } from './AuthContext';
 import { startOfWeek, subWeeks, format as formatDate } from 'date-fns';
 
@@ -83,7 +83,7 @@ export function AppProvider({ children }) {
 
   // The car you're driving: the one marked "driving this", else your first car.
   const activeVehicle = useMemo(() => vehicles.find(v => v.is_primary) || vehicles[0] || null, [vehicles]);
-  const myCar = useMemo(() => activeVehicle ? { body: activeVehicle.body || 'sedan', color: activeVehicle.color || '#00BFFF' } : null, [activeVehicle]);
+  const myCar = useMemo(() => activeVehicle ? { body: activeVehicle.body || 'sedan', color: activeVehicle.color || '#00BFFF', image: activeVehicle.image_url || null } : null, [activeVehicle]);
 
   const setPrimaryVehicle = async (id) => {
     await Promise.all(vehicles.filter(v => !!v.is_primary !== (v.id === id)).map(v => base44.entities.Vehicle.update(v.id, { is_primary: v.id === id })));
@@ -149,6 +149,13 @@ export function AppProvider({ children }) {
     setVehicles(prev => [rec, ...prev]);
   };
 
+  // Your own picture of the car (already cut out and facing up), or null to remove it.
+  const setVehicleImage = async (id, pngBase64) => {
+    const rec = pngBase64 ? await api.post(`/vehicles/${id}/image`, { mime: 'image/png', data: pngBase64 }) : await api.del(`/vehicles/${id}/image`);
+    setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...rec } : v));
+    return rec;
+  };
+
   const removeVehicle = async (id) => {
     await base44.entities.Vehicle.delete(id);
     setVehicles(prev => prev.filter(v => v.id !== id));
@@ -166,7 +173,8 @@ export function AppProvider({ children }) {
       name: routeData.name,
       points: routeData.route,
       distance: routeData.distance,
-      shared_with: []
+      shared_with: [],
+      ...(routeData.stops ? { stops: routeData.stops, dest: routeData.dest } : {})
     });
     const mapped = mapRoute(rec);
     setSavedRoutes(prev => [mapped, ...prev]);
@@ -215,7 +223,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       user, stats, weeklyStats, vehicles, trips, savedRoutes, loading, activeVehicle, myCar, setPrimaryVehicle,
-      toggleGhostMode, updateUser, addVehicle, removeVehicle, addTrip,
+      toggleGhostMode, updateUser, addVehicle, removeVehicle, setVehicleImage, addTrip,
       addRoute, deleteRoute, shareRouteWithFriends, places, addPlace, deletePlace, renamePlace, home, work, setHomeWork, refreshData: loadData
     }}>
       {children}

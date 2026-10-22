@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { TileLayer, useMap } from 'react-leaflet';
 import { CloudRain, X, Play, Pause, Check } from 'lucide-react';
 import { api } from '@/api/base44Client';
+import { useLiveTraffic, trafficTileUrl } from '@/lib/traffic';
 
 // Weather overlays for the maps. AccuWeather tiles come through the Drivez server
 // (which holds the API key); the free options load straight from their providers.
@@ -70,6 +71,16 @@ function ensurePane(map) {
   }
 }
 
+// Live traffic colors on the roads (green / orange / red), when TomTom is set up.
+export function TrafficLayer({ night = true }) {
+  const map = useMap();
+  const [prefs] = useWeatherPrefs();
+  const live = useLiveTraffic();
+  ensurePane(map);
+  if (!live || prefs.traffic === false) return null;
+  return <TileLayer url={trafficTileUrl(night)} pane="weather" zIndex={2} maxZoom={20} maxNativeZoom={18} attribution="Traffic &copy; TomTom" />;
+}
+
 // Put inside a <MapContainer>.
 export function WeatherLayer() {
   const map = useMap();
@@ -125,6 +136,7 @@ export function WeatherButton({ className = '' }) {
   const [open, setOpen] = useState(false);
   const [prefs, update] = useWeatherPrefs();
   const accu = useAccuAvailable();
+  const traffic = useLiveTraffic();
   const on = prefs.layer !== 'off';
   const [, force] = useState(0);
   const timeRef = useRef(null);
@@ -145,7 +157,7 @@ export function WeatherButton({ className = '' }) {
         <div className="fixed inset-0 z-[1500] bg-black/50 flex items-end justify-center" onClick={() => setOpen(false)}>
           <div className="w-full max-w-md bg-card border-t border-border rounded-t-3xl p-5 pb-8 dz-pop-in" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-base font-bold text-foreground flex items-center gap-2"><CloudRain className="w-5 h-5 text-[#64b5f6]" /> Weather on the map</h3>
+              <h3 className="text-base font-bold text-foreground flex items-center gap-2"><CloudRain className="w-5 h-5 text-[#64b5f6]" /> Map layers</h3>
               <button onClick={() => setOpen(false)} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center" aria-label="Close"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-1.5 max-h-[50vh] overflow-y-auto no-scrollbar">
@@ -163,6 +175,17 @@ export function WeatherButton({ className = '' }) {
                 );
               })}
             </div>
+            {traffic && (
+              <button onClick={() => update({ traffic: prefs.traffic === false })} className="mt-3 w-full rounded-xl px-4 py-3 flex items-center gap-3 text-left bg-secondary/60">
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-foreground">Live traffic</div>
+                  <div className="text-[11px] text-muted-foreground">Green, orange and red roads · TomTom</div>
+                </div>
+                <span className={`w-11 h-6 rounded-full relative transition-colors ${prefs.traffic !== false ? 'bg-[#34A853]' : 'bg-muted'}`}>
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${prefs.traffic !== false ? 'left-[22px]' : 'left-0.5'}`} />
+                </span>
+              </button>
+            )}
             {on && (
               <div className="mt-4">
                 <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">

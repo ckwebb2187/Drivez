@@ -49,3 +49,13 @@ export function carSvg(body = 'sedan', color = '#00BFFF') {
   }
   return `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="80" viewBox="0 0 40 80"><ellipse cx="20" cy="42" rx="17" ry="37" fill="rgba(0,0,0,0.35)"/>${shape}</svg>`;
 }
+
+// Markup for a car on the map: your own picture if you uploaded one, otherwise the drawn shape.
+// `w`×`h` is the size of the car body; pictures include their glow, so they're drawn a bit bigger.
+export function carMarkup(car, w = 30, h = 60) {
+  if (car?.image) {
+    const src = String(car.image).replace(/"/g, '');
+    return `<img src="${src}" alt="" draggable="false" style="height:${Math.round(h * 1.5)}px;width:auto;max-width:${Math.round(h * 1.2)}px;object-fit:contain;display:block" />`;
+  }
+  return carSvg(car?.body, car?.color).replace('width="40" height="80"', `width="${w}" height="${h}"`);
+}

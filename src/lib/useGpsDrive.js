@@ -105,7 +105,7 @@ export function useGpsDrive(car) {
     // Share live position with friends (the server skips this in Ghost Mode)
     if (Date.now() - lastLiveRef.current > LIVE_EVERY_MS) {
       lastLiveRef.current = Date.now();
-      api.post('/live', { lat: latitude, lng: longitude, speed: mph, heading: hd != null && !Number.isNaN(hd) ? hd : null, carBody: carRef.current?.body, carColor: carRef.current?.color }).catch(() => {});
+      api.post('/live', { lat: latitude, lng: longitude, speed: mph, heading: hd != null && !Number.isNaN(hd) ? hd : null, carBody: carRef.current?.body, carColor: carRef.current?.color, carImage: carRef.current?.image || undefined }).catch(() => {});
     }
   }, []);
 

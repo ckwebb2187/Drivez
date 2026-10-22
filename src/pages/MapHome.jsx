@@ -1,19 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { MapContainer, Polyline, CircleMarker, Tooltip } from 'react-leaflet';
-import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles } from 'lucide-react';
+import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles, Plus, ArrowUp, ArrowDown, Shuffle, Save, TrafficCone } from 'lucide-react';
 import { BaseLayer } from '@/components/DarkMap';
 import { LocationMarker, PinMarker, FollowMe, FitBounds, CarMarker, ReportMarkers, ReportButton } from '@/components/MapBits';
 import { useReports } from '@/lib/reports';
 import MusicButton from '@/components/MusicButton';
-import { WeatherLayer, WeatherButton, WeatherTimeBadge } from '@/components/Weather';
+import { WeatherLayer, TrafficLayer, WeatherButton, WeatherTimeBadge } from '@/components/Weather';
 import SetPlaceModal from '@/components/SetPlaceModal';
 import NamePlaceSheet from '@/components/NamePlaceSheet';
 import { suggestDrives } from '@/lib/predict';
 import TripCard from '@/components/TripCard';
 import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
-import { searchPlaces, getRoute, formatEta, arrivalTime, formatNavDistance, distM } from '@/lib/nav';
+import { searchPlaces, getRoute, optimizeStops, MAX_STOPS, formatEta, arrivalTime, formatNavDistance, distM } from '@/lib/nav';
+import PlaceSearchSheet from '@/components/PlaceSearchSheet';
+import { useTrafficEta } from '@/lib/traffic';
 import { getInitials } from '@/lib/helpers';
 
 const FALLBACK_CENTER = [39.8283, -98.5795]; // middle of the US until we know where you are
@@ -21,7 +23,7 @@ const FALLBACK_CENTER = [39.8283, -98.5795]; // middle of the US until we know w
 export default function MapHome() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, stats, trips, vehicles, savedRoutes, myCar, places, addPlace, deletePlace, renamePlace, home, work } = useApp();
+  const { user, stats, trips, vehicles, savedRoutes, myCar, places, addPlace, deletePlace, renamePlace, home, work, addRoute } = useApp();
   const [naming, setNaming] = useState(false);
   const [setting, setSetting] = useState(null); // 'home' | 'work' while choosing the address
 
@@ -81,8 +83,14 @@ export default function MapHome() {
     return () => { alive = false; clearTimeout(t); };
   }, [query, dest]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const choose = useCallback(async (place) => {
+  // Route planning: `dest` is the final destination, `stops` the places before it (up to MAX_STOPS in total).
+  const [stops, setStops] = useState([]);
+  const [addingStop, setAddingStop] = useState(false);
+  const [savingPlan, setSavingPlan] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
+  const plan = useCallback(async (place, stopList = []) => {
     setDest(place);
+    setStops(stopList);
     setQuery(place.name);
     setResults([]);
     setFocused(false);
@@ -92,7 +100,7 @@ export default function MapHome() {
     if (!pos) { setRouteErr('Waiting for your location to plan the route…'); return; }
     setRouting(true);
     try {
-      setRoute(await getRoute(pos, [place.lat, place.lng]));
+      setRoute(await getRoute(pos, [place.lat, place.lng], stopList, place.name));
       setFollow(false);
     } catch (e) {
       setRouteErr(e.message);
@@ -100,17 +108,42 @@ export default function MapHome() {
       setRouting(false);
     }
   }, [pos]);
+  const choose = useCallback((place) => plan(place, []), [plan]);
+  const allStops = dest ? [...stops, dest] : [];
+  const addStop = (place) => { if (dest) plan(place, [...stops, dest]); else plan(place, []); };
+  const removeStop = (i) => {
+    const list = allStops.filter((_, j) => j !== i);
+    if (!list.length) { clearSearch(); return; }
+    plan(list[list.length - 1], list.slice(0, -1));
+  };
+  const moveStop = (i, dir) => {
+    const list = [...allStops];
+    const j = i + dir;
+    if (j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j], list[i]];
+    plan(list[list.length - 1], list.slice(0, -1));
+  };
+  const bestOrder = async () => {
+    if (!pos || stops.length < 2) return;
+    setOptimizing(true);
+    try { plan(dest, await optimizeStops(pos, stops, [dest.lat, dest.lng])); } catch (e) { setRouteErr(e.message); } finally { setOptimizing(false); }
+  };
 
   // If location arrives after a place was picked, plan the route then.
   useEffect(() => {
-    if (dest && !route && !routing && pos && routeErr.startsWith('Waiting')) choose(dest);
+    if (dest && !route && !routing && pos && routeErr.startsWith('Waiting')) plan(dest, stops);
   }, [pos]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clearSearch = () => {
-    setQuery(''); setDest(null); setRoute(null); setRouteErr(''); setResults([]); setFollow(true);
+    setQuery(''); setDest(null); setStops([]); setRoute(null); setRouteErr(''); setResults([]); setFollow(true);
   };
 
-  const go = () => navigate('/drive', { state: { nav: { dest, route } } });
+  const go = () => navigate('/drive', { state: { nav: { dest, stops, route } } });
+
+  // Live traffic ETA for the planned route (TomTom, when set up).
+  const trafficPoints = useMemo(() => (route && pos && dest ? [pos, ...stops.map((x) => [x.lat, x.lng]), [dest.lat, dest.lng]] : null), [route]); // eslint-disable-line react-hooks/exhaustive-deps
+  const traffic = useTrafficEta(trafficPoints, !!route);
+  const routeSeconds = traffic?.travelTime ?? route?.duration;
 
   const greeting = useMemo(() => {
     const h = new Date().getHours();
@@ -153,6 +186,8 @@ export default function MapHome() {
   useEffect(() => {
     const g = location.state?.go;
     if (g) { navigate('.', { replace: true, state: null }); choose(g); }
+    const pl = location.state?.plan; // a saved multi-stop drive plan
+    if (pl?.dest) { navigate('.', { replace: true, state: null }); plan(pl.dest, pl.stops || []); }
   }, [location.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showResults = focused && !dest && (query.trim().length >= 3 || query.trim().length === 0);
@@ -166,6 +201,7 @@ export default function MapHome() {
         <MapContainer center={pos || FALLBACK_CENTER} zoom={pos ? 15 : 4} zoomControl={false} attributionControl style={{ height: '100%', width: '100%' }}>
           <BaseLayer />
           <WeatherLayer />
+          <TrafficLayer />
           <FollowMe pos={pos} follow={follow && !route} onUserMove={() => setFollow(false)} />
           {route && <FitBounds points={route.coords} padding={[40, 150]} paddingBottom={280} />}
           {route && (
@@ -175,6 +211,11 @@ export default function MapHome() {
             </>
           )}
           {dest && <PinMarker pos={[dest.lat, dest.lng]} />}
+          {stops.map((st, i) => (
+            <CircleMarker key={`stop-${i}`} center={[st.lat, st.lng]} radius={11} pathOptions={{ color: '#fff', weight: 2, fillColor: '#4285F4', fillOpacity: 1 }}>
+              <Tooltip permanent direction="center" className="dz-stop-num">{i + 1}</Tooltip>
+            </CircleMarker>
+          ))}
           <ReportMarkers reports={roadReports.reports} onVote={roadReports.vote} onRemove={roadReports.remove} />
           {friends.map((f) => f.car ? (
             <CarMarker key={f.userId} pos={[f.lat, f.lng]} car={f.car} heading={f.heading} label={`${f.name} · ${f.speed} mph`} />
@@ -313,16 +354,60 @@ export default function MapHome() {
             ) : (
               <>
                 <div className="flex items-start gap-2">
-                  <div className="flex-1 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-[#34A853]">{formatEta(route.duration)}</span>
-                    <span className="text-sm text-muted-foreground">({route.distance} mi)</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <span className={`text-2xl font-bold ${traffic && traffic.delay > 300 ? 'text-[#F9AB00]' : 'text-[#34A853]'}`}>{formatEta(routeSeconds)}</span>
+                      <span className="text-sm text-muted-foreground">({route.distance} mi)</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      Arrive around {arrivalTime(routeSeconds)} · {stops.length ? `${stops.length + 1} stops` : dest.name}
+                    </p>
+                    {traffic && (
+                      <p className={`text-[11px] mt-0.5 font-semibold flex items-center gap-1 ${traffic.delay > 300 ? 'text-[#F9AB00]' : traffic.delay > 60 ? 'text-[#FBBC04]' : 'text-[#34A853]'}`}>
+                        <TrafficCone className="w-3 h-3" />
+                        {traffic.delay > 60 ? `+${Math.round(traffic.delay / 60)} min because of traffic` : 'Traffic is light'}
+                      </p>
+                    )}
                   </div>
                   <button onClick={toggleSave} className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0 -mt-1" aria-label={savedHere ? 'Remove from saved places' : 'Save this place'}>
                     <Star className={`w-4 h-4 ${savedHere ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground'}`} />
                   </button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">Arrive around {arrivalTime(route.duration)} · {dest.name}</p>
-                <div className="flex gap-2 mt-4">
+
+                {stops.length > 0 && (
+                  <div className="mt-3 max-h-[30vh] overflow-y-auto no-scrollbar rounded-2xl bg-secondary/50 divide-y divide-border">
+                    {allStops.map((st, i) => (
+                      <div key={`${st.lat},${st.lng},${i}`} className="flex items-center gap-2 pl-3 pr-1 py-2">
+                        <span className={`w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center shrink-0 ${i === allStops.length - 1 ? 'bg-[#EA4335] text-white' : 'bg-[#4285F4] text-white'}`}>{i === allStops.length - 1 ? <MapPin className="w-3.5 h-3.5" /> : i + 1}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold text-foreground truncate">{st.name}</div>
+                          {route.legs?.[i] && <div className="text-[10px] text-muted-foreground">{formatEta(route.legs[i].duration)} · {(route.legs[i].distance / 1609.34).toFixed(1)} mi</div>}
+                        </div>
+                        <button onClick={() => moveStop(i, -1)} disabled={i === 0} className="w-8 h-8 flex items-center justify-center disabled:opacity-25" aria-label="Move up"><ArrowUp className="w-4 h-4" /></button>
+                        <button onClick={() => moveStop(i, 1)} disabled={i === allStops.length - 1} className="w-8 h-8 flex items-center justify-center disabled:opacity-25" aria-label="Move down"><ArrowDown className="w-4 h-4" /></button>
+                        <button onClick={() => removeStop(i)} className="w-8 h-8 flex items-center justify-center" aria-label="Remove stop"><X className="w-4 h-4 text-muted-foreground" /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
+                  <button onClick={() => setAddingStop(true)} disabled={allStops.length >= MAX_STOPS + 1} className="shrink-0 h-9 px-3 rounded-full bg-secondary text-xs font-semibold text-foreground flex items-center gap-1.5 disabled:opacity-40">
+                    <Plus className="w-3.5 h-3.5" /> {allStops.length >= MAX_STOPS + 1 ? `${MAX_STOPS} stops max` : 'Add stop'}
+                  </button>
+                  {stops.length >= 2 && (
+                    <button onClick={bestOrder} disabled={optimizing} className="shrink-0 h-9 px-3 rounded-full bg-secondary text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      {optimizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Shuffle className="w-3.5 h-3.5" />} Best order
+                    </button>
+                  )}
+                  {stops.length > 0 && (
+                    <button onClick={() => setSavingPlan(true)} className="shrink-0 h-9 px-3 rounded-full bg-secondary text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Save className="w-3.5 h-3.5" /> Save plan
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex gap-2 mt-3">
                   <button onClick={go} className="flex-1 h-12 rounded-full bg-[#4285F4] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#4285F4]/30">
                     <Navigation className="w-4 h-4 fill-white" /> Go
                   </button>
@@ -366,7 +451,7 @@ export default function MapHome() {
                 <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Saved routes</h2>
                 <div className="space-y-2 mb-4">
                   {quickRoutes.map((r) => (
-                    <button key={r.id} onClick={() => navigate(`/drive?route=${r.id}`)} className="w-full bg-secondary/60 rounded-2xl px-4 py-3 flex items-center gap-3 text-left">
+                    <button key={r.id} onClick={() => (r.dest ? navigate('/', { state: { plan: { dest: r.dest, stops: r.stops || [] } } }) : navigate(`/drive?route=${r.id}`))} className="w-full bg-secondary/60 rounded-2xl px-4 py-3 flex items-center gap-3 text-left">
                       <RouteIcon className="w-4 h-4 text-primary shrink-0" />
                       <span className="flex-1 text-sm font-semibold text-foreground truncate">{r.name}</span>
                       <span className="text-xs text-muted-foreground">{r.distance} mi</span>
@@ -387,6 +472,17 @@ export default function MapHome() {
             </div>
           </div>
         </div>
+      )}
+      {addingStop && <PlaceSearchSheet title={`Add stop ${allStops.length + 1}`} pos={pos} onPick={addStop} onClose={() => setAddingStop(false)} />}
+      {savingPlan && route && (
+        <NamePlaceSheet
+          title="Save drive plan"
+          initialName={allStops.map((x) => x.name).slice(0, 3).join(' → ') + (allStops.length > 3 ? ' …' : '')}
+          address={`${allStops.length} stops · ${route.distance} mi`}
+          saveLabel="Save plan"
+          onSave={(n) => addRoute({ name: n, route: route.coords.filter((_, i) => i % Math.ceil(route.coords.length / 400) === 0), distance: route.distance, stops, dest })}
+          onClose={() => setSavingPlan(false)}
+        />
       )}
       {naming && dest && (
         <NamePlaceSheet

@@ -107,3 +107,7 @@ input[type=range]::-webkit-slider-thumb {
 .dz-eq { animation: dz-eq 0.9s ease-in-out infinite; }
 @keyframes dz-pop-in { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: none; } }
 .dz-pop-in { animation: dz-pop-in 0.22s ease-out; }
+
+/* Numbered stop markers on the planning map */
+.leaflet-tooltip.dz-stop-num { background: transparent; border: 0; box-shadow: none; color: #fff; font-weight: 800; font-size: 11px; padding: 0; }
+.leaflet-tooltip.dz-stop-num::before { display: none; }

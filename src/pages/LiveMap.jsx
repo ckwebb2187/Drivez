@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, CircleMarker, Tooltip } from 'react-leaflet';
 import { ChevronLeft, Radio, LocateFixed } from 'lucide-react';
-import { WeatherLayer, WeatherButton } from '@/components/Weather';
+import { WeatherLayer, TrafficLayer, WeatherButton } from '@/components/Weather';
 import { BaseLayer } from '@/components/DarkMap';
 import { CarMarker, LocationMarker, FollowMe, FitBounds } from '@/components/MapBits';
 import { useApp } from '@/lib/AppContext';
@@ -54,6 +54,7 @@ export default function LiveMap() {
         <MapContainer center={pos || FALLBACK_CENTER} zoom={pos ? 14 : 4} zoomControl={false} style={{ height: '100%', width: '100%' }}>
           <BaseLayer />
           <WeatherLayer />
+          <TrafficLayer />
           <FollowMe pos={pos} follow={follow} onUserMove={() => setFollow(false)} />
           {fitPoints && <FitBounds points={fitPoints} padding={[60, 120]} paddingBottom={260} />}
           {drivers.map((d) => d.car ? (

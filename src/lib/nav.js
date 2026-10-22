@@ -91,14 +91,23 @@ export async function searchPlaces(q, near) {
   return (await res.json()).results || [];
 }
 
-// Driving directions from `from` to `to` ([lat, lng]).
-export async function getRoute(from, to) {
-  const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson&steps=true`;
-  const res = await fetch(url);
-  const data = await res.json().catch(() => ({}));
+// Driving directions from `from` to `to` ([lat, lng]), optionally through `stops`
+// (up to 10, each { lat, lng, name }). Each leg ends with an "arrive" step.
+export const MAX_STOPS = 10;
+export async function getRoute(from, to, stops = [], destName = '') {
+  const points = [from, ...stops.map((s) => [s.lat, s.lng]), to];
+  const path = points.map(([lat, lng]) => `${lng},${lat}`).join(';');
+  const url = `https://router.project-osrm.org/route/v1/driving/${path}?overview=full&geometries=geojson&steps=true`;
+  let data = {};
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await fetch(url).catch(() => null);
+    data = res ? await res.json().catch(() => ({})) : {};
+    if (data.code === 'Ok') break;
+    await new Promise((r) => setTimeout(r, 800));
+  }
   if (data.code !== 'Ok' || !data.routes?.length) throw new Error("Couldn't find a driving route there");
   const r = data.routes[0];
-  const steps = r.legs.flatMap((leg) => leg.steps).map((s) => {
+  const steps = r.legs.flatMap((leg, legIdx) => leg.steps.map((s) => {
     const step = {
       lat: s.maneuver.location[1],
       lng: s.maneuver.location[0],
@@ -109,17 +118,38 @@ export async function getRoute(from, to) {
       name: s.name || s.ref || '',
       distance: s.distance,
       duration: s.duration,
+      leg: legIdx,
     };
     step.text = stepText(step);
+    if (step.type === 'arrive') {
+      const isLast = legIdx === r.legs.length - 1;
+      const label = isLast ? destName : stops[legIdx]?.name;
+      step.text = isLast ? `Arrive at ${label || 'your destination'}` : `Arrive at stop ${legIdx + 1}${label ? `: ${label}` : ''}`;
+    }
     return step;
-  });
+  }));
   return {
     coords: r.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
     distanceM: r.distance,
     distance: Math.round((r.distance / 1609.34) * 10) / 10,
     duration: r.duration,
+    legs: r.legs.map((l) => ({ distance: l.distance, duration: l.duration })),
     steps,
   };
+}
+
+// Best visiting order for the stops between start and the final destination.
+// Returns the stops reordered (the destination stays last).
+export async function optimizeStops(from, stops, to) {
+  if (stops.length < 2) return stops;
+  const points = [from, ...stops.map((s) => [s.lat, s.lng]), to];
+  const path = points.map(([lat, lng]) => `${lng},${lat}`).join(';');
+  const res = await fetch(`https://router.project-osrm.org/trip/v1/driving/${path}?source=first&destination=last&roundtrip=false&overview=false`);
+  const data = await res.json().catch(() => ({}));
+  if (data.code !== 'Ok') throw new Error("Couldn't work out a better order");
+  // waypoints[i].waypoint_index = position of input point i in the trip
+  const order = data.waypoints.map((w, i) => ({ i, at: w.waypoint_index })).slice(1, -1).sort((a, b) => a.at - b.at);
+  return order.map((o) => stops[o.i - 1]);
 }
 
 export function speak(text) {

@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Plus, Trash2, X, Car as CarIcon, Loader2 } from 'lucide-react';
+import { Plus, Trash2, X, Car as CarIcon, Loader2, ImagePlus } from 'lucide-react';
+import CarPictureEditor from '@/components/CarPictureEditor';
 import { useApp } from '@/lib/AppContext';
 import { BODY_TYPES, carSvg } from '@/lib/cars';
 
-export function CarPic({ body, color, className = 'w-6 h-12' }) {
+export function CarPic({ body, color, image, className = 'w-6 h-12' }) {
+  if (image) return <img src={image} alt="" className={`${className} object-contain scale-125`} />;
   return <span className={`inline-block ${className}`} dangerouslySetInnerHTML={{ __html: carSvg(body, color).replace('width="40" height="80"', 'width="100%" height="100%"') }} />;
 }
 
@@ -88,6 +90,7 @@ export default function GarageManager({ compact = false }) {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [picFor, setPicFor] = useState(null);
 
   const handleAdd = async (v) => {
     setSaving(true);
@@ -115,6 +118,7 @@ export default function GarageManager({ compact = false }) {
 
   return (
     <div>
+      {picFor && <CarPictureEditor vehicle={picFor} onClose={() => setPicFor(null)} />}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-bold text-foreground">Garage</h3>
         <button onClick={() => setShowForm(true)} className="flex items-center gap-1 text-xs text-primary font-medium">
@@ -125,9 +129,10 @@ export default function GarageManager({ compact = false }) {
       <div className="space-y-2">
         {vehicles.map(v => (
           <div key={v.id} className="bg-card rounded-2xl p-4 border border-border flex items-center gap-3">
-            <div className="w-12 h-14 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${v.color || '#00BFFF'}18` }}>
-              <CarPic body={v.body || 'sedan'} color={v.color || '#00BFFF'} className="w-6 h-12" />
-            </div>
+            <button onClick={() => setPicFor(v)} className="relative w-12 h-14 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${v.color || '#00BFFF'}18` }} aria-label="Car picture">
+              <CarPic body={v.body || 'sedan'} color={v.color || '#00BFFF'} image={v.image_url} className="w-6 h-12" />
+              <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-primary border-2 border-card flex items-center justify-center"><ImagePlus className="w-2.5 h-2.5 text-primary-foreground" /></span>
+            </button>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-foreground">{v.make} {v.model}</span>
@@ -155,7 +160,7 @@ export default function GarageManager({ compact = false }) {
           <div className="bg-card rounded-2xl p-8 border border-border text-center">
             <CarIcon className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">Your garage is empty</p>
-            <p className="text-xs text-muted-foreground mt-1">Add your car to show it on the map instead of a dot</p>
+            <p className="text-xs text-muted-foreground mt-1">Add your car to show it on the map instead of a dot. Tap its picture to use your own.</p>
           </div>
         )}
       </div>
