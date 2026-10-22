@@ -256,7 +256,8 @@ async function nwsAlerts(lat, lng, ctx) {
 // ---------- OpenStreetMap (Overpass) ----------
 const OSM_KINDS = {
   bumps: (bb) => `node["traffic_calming"~"bump|hump|table|cushion|dip|rumble_strip"](${bb});out 800;`,
-  limits: (bb) => `way["highway"]["maxspeed"](${bb});out tags geom 4000;`,
+  // Roads with a posted limit, plus named main roads (for the road-name pill).
+  limits: (bb) => `(way["highway"]["maxspeed"](${bb});way["highway"~"^(motorway|trunk|primary|secondary|tertiary)(_link)?$"]["name"](${bb}););out tags geom 5000;`,
   shops: (bb) => `(nwr["shop"~"car_repair|car_parts|tyres"](${bb});nwr["craft"="car_repair"](${bb});nwr["amenity"="fuel"]["fuel:octane_93"="yes"](${bb});nwr["amenity"="fuel"]["fuel:e0"="yes"](${bb});nwr["amenity"="fuel"]["fuel:ethanol_free"="yes"](${bb}););out center tags 300;`,
 };
 const OVERPASS = ["https://maps.mail.ru/osm/tools/overpass/api/interpreter", "https://overpass.openstreetmap.fr/api/interpreter", "https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter"];
@@ -264,7 +265,7 @@ async function osmLookup(kind, [s, w, n, e], ctx) {
   const r = (v) => (Math.round(v * 50) / 50).toFixed(2); // ~2 km grid so nearby lookups share the cache
   const bbox = `${r(s)},${r(w)},${r(n)},${r(e)}`;
   const query = `[out:json][timeout:25];${OSM_KINDS[kind](bbox)}`;
-  const key = new Request(`https://drivez.cache/osm/${kind}/${bbox}`);
+  const key = new Request(`https://drivez.cache/osm/${kind}/v2/${bbox}`);
   const hit = await caches.default.match(key);
   if (hit) return hit.json();
   let data = null;
@@ -281,8 +282,8 @@ async function osmLookup(kind, [s, w, n, e], ctx) {
     if (kind === "limits") {
       // Posted speed limit for a stretch of road, in mph (OSM gives "45 mph" or km/h numbers).
       const m = String(t.maxspeed || "").match(/^(\d+)\s*(mph|km\/h|kmh)?/i);
-      if (!m || !el.geometry?.length) return null;
-      const mph = /mph/i.test(m[2] || "") ? +m[1] : Math.round(+m[1] / 1.609 / 5) * 5;
+      if (!el.geometry?.length || (!m && !t.name)) return null;
+      const mph = !m ? null : /mph/i.test(m[2] || "") ? +m[1] : Math.round(+m[1] / 1.609 / 5) * 5;
       return { id: `w${el.id}`, mph, name: t.name || t.ref || "", oneway: t.oneway === "yes", g: el.geometry.map((p) => [Math.round(p.lat * 1e5) / 1e5, Math.round(p.lon * 1e5) / 1e5]) };
     }
     const lat = el.lat ?? el.center?.lat, lng = el.lon ?? el.center?.lon;

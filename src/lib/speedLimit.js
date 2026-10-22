@@ -36,7 +36,7 @@ export function useSpeedLimit(pos, heading, enabled) {
   // Which road are you on?
   useEffect(() => {
     if (!enabled || !pos || !roads.length) return;
-    let best = null;
+    let best = null, bestLimit = null;
     for (const r of roads) {
       for (let i = 1; i < r.g.length; i++) {
         const { d, brg } = segInfo(pos, r.g[i - 1], r.g[i], pos[0]);
@@ -48,9 +48,10 @@ export function useSpeedLimit(pos, heading, enabled) {
           score += gap > 50 ? 40 : gap / 5;
         }
         if (!best || score < best.score) best = { score, mph: r.mph, name: r.name };
+        if (r.mph && (!bestLimit || score < bestLimit.score)) bestLimit = { score, mph: r.mph };
       }
     }
-    if (best && best.score < 45) { setLimit(best); lastHit.current = Date.now(); }
+    if (best && best.score < 45) { setLimit({ name: best.name, mph: bestLimit && bestLimit.score < 45 ? bestLimit.mph : null }); lastHit.current = Date.now(); }
     else if (Date.now() - lastHit.current > 12000) setLimit(null); // keep the last sign briefly through gaps
   }, [enabled, roads, pos?.[0], pos?.[1], heading]); // eslint-disable-line react-hooks/exhaustive-deps
 

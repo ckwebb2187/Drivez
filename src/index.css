@@ -140,3 +140,14 @@ html:not([data-skin="standard"]) .dz-go svg { fill: currentColor; }
 .dz-slide-in-left { animation: dz-slide-in-left .28s cubic-bezier(.2,.8,.2,1); }
 @keyframes dz-slide-in { from { transform: translateX(100%); } to { transform: none; } }
 @keyframes dz-slide-in-left { from { transform: translateX(-100%); } to { transform: none; } }
+/* "YOU" callout over your car while driving */
+.dz-you {
+  pointer-events: none; font: 800 13px system-ui, sans-serif; letter-spacing: .06em;
+  color: hsl(var(--foreground)); background: hsl(var(--card) / 0.92);
+  border: 2px solid hsl(var(--primary)); border-radius: 10px; padding: 3px 10px;
+  box-shadow: 0 0 14px hsl(var(--primary) / 0.6);
+}
+.dz-you::after {
+  content: ''; position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%);
+  border: 6px solid transparent; border-top-color: hsl(var(--primary)); border-bottom: 0;
+}

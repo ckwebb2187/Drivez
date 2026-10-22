@@ -49,7 +49,7 @@ export const themeBase = (theme, isDay) => (P[theme]?.base === 'day' ? 'day' : P
 
 // A small square of building wall with windows, used as the side texture of 3D buildings.
 function windowTile(p, lit) {
-  const s = 32;
+  const s = p.neon ? 64 : 32; // Kaido Night: wider tile so neon trim is occasional
   const c = document.createElement('canvas');
   c.width = c.height = s;
   const g = c.getContext('2d');
@@ -57,7 +57,7 @@ function windowTile(p, lit) {
   const w = 3, h = 4;
   for (let y = 4; y < s; y += 10) {
     for (let x = 3; x < s; x += 8) {
-      const on = lit && Math.random() < 0.4;
+      const on = lit && Math.random() < (p.neon ? 0.16 : 0.4);
       g.fillStyle = on ? p.windows[Math.floor(Math.random() * p.windows.length)] : 'rgba(0,0,0,0.22)';
       g.globalAlpha = on ? 0.7 : 1;
       g.fillRect(x, y, w, h);
@@ -67,8 +67,8 @@ function windowTile(p, lit) {
   // Kaido Night: a neon trim strip down some walls.
   if (p.neon) {
     const col = p.neon[Math.floor(Math.random() * p.neon.length)];
-    g.fillStyle = col; g.globalAlpha = 0.9; g.fillRect(0, 0, 2, s);
-    g.globalAlpha = 0.35; g.fillRect(2, 0, 2, s);
+    g.fillStyle = col; g.globalAlpha = 0.85; g.fillRect(0, 0, 2, s);
+    g.globalAlpha = 0.25; g.fillRect(2, 0, 3, s);
     g.globalAlpha = 1;
   }
   return g.getImageData(0, 0, s, s);

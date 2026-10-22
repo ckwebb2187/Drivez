@@ -371,27 +371,49 @@ export default function LiveDrive({ active = true }) {
               </div>
             )}
 
-            {/* Speed (themed) + posted speed limit, bottom left like Waze */}
+            {/* Speed gauge (themed ring) + posted speed limit, bottom left */}
             {(() => {
               const st = speedStyle(look.theme);
               const mph = Math.round(drive.currentSpeed);
-              const over = speedLimit && mph > speedLimit.mph + 5;
+              const over = speedLimit?.mph && mph > speedLimit.mph + 5;
+              const frac = Math.min(1, mph / 100);
+              const R = 30, C = 2 * Math.PI * R;
               return (
                 <div className={`absolute left-3 ${!nav.active ? 'bottom-[96px]' : barOpen ? 'bottom-[214px]' : 'bottom-[156px]'} transition-all pointer-events-none flex items-end gap-2`}>
-                  <div className="w-[68px] h-[68px] rounded-full shadow-2xl flex flex-col items-center justify-center border-4 transition-colors"
-                    style={{ background: over ? '#d93025' : st.bg, borderColor: over ? '#ffffff' : st.ring, boxShadow: st.glow && !over ? `0 0 18px ${st.glow}88, 0 8px 20px rgba(0,0,0,.4)` : undefined }}>
-                    <span className="text-[26px] leading-none font-bold speed-font" style={{ color: over ? '#fff' : st.text }}>{mph}</span>
-                    <span className="text-[10px] font-bold -mt-0.5" style={{ color: over ? '#fff' : st.sub }}>mph</span>
+                  <div className="relative w-[76px] h-[76px] rounded-full shadow-2xl flex flex-col items-center justify-center"
+                    style={{ background: over ? '#d93025' : st.bg, boxShadow: st.glow && !over ? `0 0 18px ${st.glow}88, 0 8px 20px rgba(0,0,0,.4)` : '0 8px 20px rgba(0,0,0,.4)' }}>
+                    <svg className="absolute inset-0" viewBox="0 0 76 76" aria-hidden="true">
+                      <circle cx="38" cy="38" r={R} fill="none" stroke={over ? '#ffffff55' : st.ring} strokeOpacity="0.45" strokeWidth="5" />
+                      <circle cx="38" cy="38" r={R} fill="none" stroke={over ? '#fff' : st.glow || st.sub} strokeWidth="5" strokeLinecap="round"
+                        strokeDasharray={`${C * 0.75 * frac} ${C}`} transform="rotate(135 38 38)" style={{ transition: 'stroke-dasharray .4s' }} />
+                    </svg>
+                    <span className="relative text-[26px] leading-none font-bold speed-font" style={{ color: over ? '#fff' : st.text }}>{mph}</span>
+                    <span className="relative text-[10px] font-bold" style={{ color: over ? '#fff' : st.sub }}>mph</span>
                   </div>
-                  {speedLimit && (
-                    <div className="w-[46px] rounded-md bg-white border-[3px] border-black flex flex-col items-center py-0.5 shadow-xl" title={speedLimit.name}>
-                      <span className="text-[7px] font-black leading-[8px] text-black text-center">SPEED<br />LIMIT</span>
-                      <span className="text-[20px] leading-none font-black text-black speed-font">{speedLimit.mph}</span>
-                    </div>
+                  {speedLimit?.mph && (
+                    (() => {
+                      // Classic white sign on the standard map; themed colors everywhere else. Red edge when you're over.
+                      const plain = look.theme === 'standard';
+                      const edge = over ? '#ff3b30' : plain ? '#000' : (st.glow || st.ring);
+                      return (
+                        <div className="w-[38px] rounded-md border-2 flex flex-col items-center py-0.5"
+                          style={{ background: plain ? '#fff' : st.bg, borderColor: edge, boxShadow: !plain && (st.glow || over) ? `0 0 10px ${edge}99, 0 6px 14px rgba(0,0,0,.35)` : '0 6px 14px rgba(0,0,0,.35)' }}>
+                          <span className="text-[6px] font-black leading-[7px] text-center" style={{ color: plain ? '#000' : st.sub }}>SPEED<br />LIMIT</span>
+                          <span className="text-[16px] leading-none font-black speed-font" style={{ color: plain ? '#000' : st.text }}>{speedLimit.mph}</span>
+                        </div>
+                      );
+                    })()
                   )}
                 </div>
               );
             })()}
+
+            {/* Road you're on (like the design: a pill at the bottom) */}
+            {speedLimit?.name && !nav.active && (
+              <div className="absolute bottom-[100px] left-[150px] right-[72px] flex justify-center pointer-events-none">
+                <div className="max-w-full truncate rounded-full bg-primary text-primary-foreground text-sm font-bold px-4 py-2 shadow-xl">{speedLimit.name}</div>
+              </div>
+            )}
 
             {/* Re-center (shows after you move the map) */}
             {!follow && (
