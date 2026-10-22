@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { MapContainer, Polyline, CircleMarker, Tooltip } from 'react-leaflet';
-import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star } from 'lucide-react';
+import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles } from 'lucide-react';
 import { BaseLayer } from '@/components/DarkMap';
 import { LocationMarker, PinMarker, FollowMe, FitBounds, CarMarker, ReportMarkers, ReportButton } from '@/components/MapBits';
 import { useReports } from '@/lib/reports';
 import MusicButton from '@/components/MusicButton';
 import { WeatherLayer, WeatherButton, WeatherTimeBadge } from '@/components/Weather';
+import SetPlaceModal from '@/components/SetPlaceModal';
+import { suggestDrives } from '@/lib/predict';
 import TripCard from '@/components/TripCard';
 import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
@@ -18,7 +20,8 @@ const FALLBACK_CENTER = [39.8283, -98.5795]; // middle of the US until we know w
 export default function MapHome() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, stats, trips, vehicles, savedRoutes, myCar, places, addPlace, deletePlace } = useApp();
+  const { user, stats, trips, vehicles, savedRoutes, myCar, places, addPlace, deletePlace, home, work } = useApp();
+  const [setting, setSetting] = useState(null); // 'home' | 'work' while choosing the address
 
   // Your location
   const [pos, setPos] = useState(null);
@@ -116,7 +119,7 @@ export default function MapHome() {
   const savedMatches = useMemo(() => {
     const s = query.trim().toLowerCase();
     const withDist = (p) => ({ ...p, distance: pos ? distM(pos, [p.lat, p.lng]) : null, saved: true });
-    if (!s) return places.map(withDist).sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0)).slice(0, 6);
+    if (!s) return places.filter((p) => !p.kind).map(withDist).sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0)).slice(0, 6);
     return places.filter((p) => `${p.name} ${p.address}`.toLowerCase().includes(s)).map(withDist)
       .sort((a, b) => (a.distance ?? 0) - (b.distance ?? 0)).slice(0, 5);
   }, [places, query, pos]);
@@ -126,13 +129,34 @@ export default function MapHome() {
     try { if (savedHere) await deletePlace(savedHere.id); else await addPlace(dest); } catch { /* ignore */ }
   };
 
+  const goHomeWork = (kind) => {
+    const p = kind === 'home' ? home : work;
+    if (!p) { setSetting(kind); return; }
+    choose({ ...p, name: kind === 'home' ? 'Home' : 'Work' });
+  };
+
+  // Suggested drive (like Waze): where you usually go around this time.
+  const posKey = pos ? `${pos[0].toFixed(3)},${pos[1].toFixed(3)}` : '';
+  const suggestion = useMemo(() => suggestDrives({ trips, places, pos })[0] || null, [trips, places, posKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [dismissed, setDismissed] = useState(() => { try { return sessionStorage.getItem('dz_sugg_off') || ''; } catch { return ''; } });
+  const [suggEta, setSuggEta] = useState(null);
+  const suggKey = suggestion ? `${suggestion.lat.toFixed(4)},${suggestion.lng.toFixed(4)}` : '';
+  useEffect(() => {
+    setSuggEta(null);
+    if (!suggestion || !pos) return undefined;
+    let alive = true;
+    getRoute(pos, [suggestion.lat, suggestion.lng]).then((r) => alive && setSuggEta(r.duration)).catch(() => {});
+    return () => { alive = false; };
+  }, [suggKey, !!pos]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dismissSuggestion = () => { setDismissed(suggKey); try { sessionStorage.setItem('dz_sugg_off', suggKey); } catch { /* ignore */ } };
+
   // Opened from Saved places: route straight there.
   useEffect(() => {
     const g = location.state?.go;
     if (g) { navigate('.', { replace: true, state: null }); choose(g); }
   }, [location.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const showResults = focused && !dest && (query.trim().length >= 3 || (query.trim().length === 0 && savedMatches.length > 0));
+  const showResults = focused && !dest && (query.trim().length >= 3 || query.trim().length === 0);
   const searchList = [...savedMatches, ...(query.trim().length >= 3 ? results.filter((r) => !savedMatches.some((m) => Math.abs(m.lat - r.lat) < 1e-4 && Math.abs(m.lng - r.lng) < 1e-4)) : [])];
   const quickRoutes = savedRoutes.slice(0, 3);
 
@@ -198,6 +222,8 @@ export default function MapHome() {
         {/* Quick chips (like Google Maps) */}
         {!showResults && !route && (
           <div className="flex gap-2 mt-2 overflow-x-auto no-scrollbar">
+            <ChipButton onClick={() => goHomeWork('home')} icon={Home} label={home ? 'Home' : 'Set home'} />
+            <ChipButton onClick={() => goHomeWork('work')} icon={Briefcase} label={work ? 'Work' : 'Set work'} />
             <Chip to="/places" icon={Star} label="Saved" />
             <Chip to="/routes" icon={RouteIcon} label="Routes" />
             <Chip to="/live-map" icon={Radio} label={friends.length ? `${friends.length} friend${friends.length > 1 ? 's' : ''} driving` : 'Friends live'} />
@@ -205,10 +231,41 @@ export default function MapHome() {
           </div>
         )}
 
+        {/* Suggested drive */}
+        {!showResults && !route && !routing && !routeErr && suggestion && dismissed !== suggKey && (
+          <div className="mt-2 bg-card/95 backdrop-blur rounded-2xl border border-border shadow-xl flex items-center gap-3 pl-3 pr-1.5 py-2 dz-pop-in">
+            <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+              {suggestion.kind === 'home' ? <Home className="w-4 h-4 text-primary" /> : suggestion.kind === 'work' ? <Briefcase className="w-4 h-4 text-primary" /> : <Sparkles className="w-4 h-4 text-primary" />}
+            </div>
+            <button onClick={() => choose(suggestion)} className="flex-1 min-w-0 text-left">
+              <div className="text-sm font-semibold text-foreground truncate">
+                {suggestion.kind === 'home' ? 'Home' : suggestion.kind === 'work' ? 'Work' : suggestion.name}{suggEta != null ? ` · ${formatEta(suggEta)}` : ''}
+              </div>
+              <div className="text-[11px] text-muted-foreground truncate">{suggestion.reason}{suggEta != null ? ` · arrive ${arrivalTime(suggEta)}` : ''}</div>
+            </button>
+            <button onClick={() => choose(suggestion)} className="h-9 px-4 rounded-full bg-[#4285F4] text-white text-xs font-bold flex items-center gap-1"><Navigation className="w-3.5 h-3.5 fill-white" /> Go</button>
+            <button onClick={dismissSuggestion} className="w-8 h-8 flex items-center justify-center" aria-label="Hide suggestion"><X className="w-4 h-4 text-muted-foreground" /></button>
+          </div>
+        )}
+
         {/* Search results */}
         {showResults && (
           <div className="mt-2 bg-card/98 backdrop-blur rounded-2xl shadow-2xl border border-border overflow-hidden max-h-[60vh] overflow-y-auto">
-            {searchList.length === 0 && !searching && <p className="px-4 py-4 text-sm text-muted-foreground">No places found</p>}
+            {query.trim().length === 0 && (['home', 'work']).map((k) => {
+              const p = k === 'home' ? home : work;
+              const KIcon = k === 'home' ? Home : Briefcase;
+              return (
+                <button key={k} onMouseDown={(e) => e.preventDefault()} onClick={() => goHomeWork(k)} className="w-full flex items-center gap-3 px-4 py-3 text-left border-b border-border active:bg-secondary">
+                  <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0"><KIcon className="w-4 h-4 text-primary" /></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-foreground">{k === 'home' ? 'Home' : 'Work'}</div>
+                    <div className="text-xs text-muted-foreground truncate">{p ? p.address : 'Tap to set'}</div>
+                  </div>
+                  {p && <button onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); setSetting(k); }} className="text-[11px] text-primary font-semibold px-2">Edit</button>}
+                </button>
+              );
+            })}
+            {searchList.length === 0 && !searching && query.trim().length >= 3 && <p className="px-4 py-4 text-sm text-muted-foreground">No places found</p>}
             {searchList.map((r) => (
               <button key={r.id} onMouseDown={(e) => e.preventDefault()} onClick={() => choose(r)} className="w-full flex items-center gap-3 px-4 py-3 text-left border-b border-border last:border-0 active:bg-secondary">
                 <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0">{r.saved ? <Star className="w-4 h-4 text-amber-400 fill-amber-400" /> : <MapPin className="w-4 h-4 text-muted-foreground" />}</div>
@@ -332,7 +389,16 @@ export default function MapHome() {
           </div>
         </div>
       )}
+      {setting && <SetPlaceModal kind={setting} pos={pos} onClose={() => setSetting(null)} />}
     </div>
+  );
+}
+
+function ChipButton({ onClick, icon: Icon, label }) {
+  return (
+    <button onClick={onClick} className="shrink-0 flex items-center gap-1.5 bg-card/95 backdrop-blur border border-border rounded-full px-3.5 h-9 text-xs font-semibold text-foreground shadow-lg">
+      <Icon className="w-3.5 h-3.5 text-primary" /> {label}
+    </button>
   );
 }
 

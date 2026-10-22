@@ -179,7 +179,7 @@ export function AppProvider({ children }) {
   };
 
   const addPlace = async (p) => {
-    const rec = await base44.entities.Place.create({ name: p.name, address: p.address || '', lat: p.lat, lng: p.lng, list: p.list || 'Saved', source: 'drivez' });
+    const rec = await base44.entities.Place.create({ name: p.name, address: p.address || '', lat: p.lat, lng: p.lng, list: p.list || 'Saved', source: 'drivez', ...(p.kind ? { kind: p.kind } : {}) });
     setPlaces(prev => [rec, ...prev]);
     return rec;
   };
@@ -187,6 +187,16 @@ export function AppProvider({ children }) {
   const deletePlace = async (id) => {
     await base44.entities.Place.delete(id);
     setPlaces(prev => prev.filter(p => p.id !== id));
+  };
+
+  // Home and Work (like Waze): one of each, stored as saved places.
+  const home = useMemo(() => places.find(p => p.kind === 'home') || null, [places]);
+  const work = useMemo(() => places.find(p => p.kind === 'work') || null, [places]);
+  const setHomeWork = async (kind, p) => {
+    const old = places.filter(x => x.kind === kind);
+    const rec = await addPlace({ name: kind === 'home' ? 'Home' : 'Work', address: p.name && p.address && !p.address.startsWith(p.name) ? `${p.name}, ${p.address}` : (p.address || p.name || ''), lat: p.lat, lng: p.lng, list: kind === 'home' ? 'Home' : 'Work', kind });
+    for (const o of old) { try { await deletePlace(o.id); } catch { /* already gone */ } }
+    return rec;
   };
 
   const shareRouteWithFriends = async (routeId, emails) => {
@@ -200,7 +210,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       user, stats, weeklyStats, vehicles, trips, savedRoutes, loading, activeVehicle, myCar, setPrimaryVehicle,
       toggleGhostMode, updateUser, addVehicle, removeVehicle, addTrip,
-      addRoute, deleteRoute, shareRouteWithFriends, places, addPlace, deletePlace, refreshData: loadData
+      addRoute, deleteRoute, shareRouteWithFriends, places, addPlace, deletePlace, home, work, setHomeWork, refreshData: loadData
     }}>
       {children}
     </AppContext.Provider>

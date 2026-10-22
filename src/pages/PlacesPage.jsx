@@ -1,18 +1,25 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import SetPlaceModal from '@/components/SetPlaceModal';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Search, Star, Trash2, Navigation, Upload, MapPin } from 'lucide-react';
+import { ChevronLeft, Search, Star, Trash2, Navigation, Upload, MapPin, Home, Briefcase } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 
 export default function PlacesPage() {
   const navigate = useNavigate();
-  const { places, deletePlace } = useApp();
+  const { places, deletePlace, home, work } = useApp();
+  const [setting, setSetting] = useState(null);
+  const [pos, setPos] = useState(null);
+  useEffect(() => {
+    navigator.geolocation?.getCurrentPosition((p) => setPos([p.coords.latitude, p.coords.longitude]), () => {}, { maximumAge: 60000 });
+  }, []);
   const [q, setQ] = useState('');
   const [list, setList] = useState('All');
 
-  const lists = useMemo(() => ['All', ...new Set(places.map((p) => p.list || 'Saved'))], [places]);
+  const lists = useMemo(() => ['All', ...new Set(places.filter((p) => !p.kind).map((p) => p.list || 'Saved'))], [places]);
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
     return places
+      .filter((p) => !p.kind)
       .filter((p) => list === 'All' || (p.list || 'Saved') === list)
       .filter((p) => !s || `${p.name} ${p.address}`.toLowerCase().includes(s))
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -42,6 +49,19 @@ export default function PlacesPage() {
           <Search className="w-4 h-4 text-muted-foreground" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search your places" className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" />
         </div>
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          {[['home', home, Home, 'Home'], ['work', work, Briefcase, 'Work']].map(([k, p, Icon, label]) => (
+            <div key={k} className="bg-card border border-border rounded-2xl p-3">
+              <button onClick={() => (p ? go({ ...p, name: label }) : setSetting(k))} className="w-full text-left">
+                <Icon className="w-5 h-5 text-primary mb-1" />
+                <div className="text-sm font-bold text-foreground">{label}</div>
+                <div className="text-[11px] text-muted-foreground truncate">{p ? p.address : 'Not set'}</div>
+              </button>
+              <button onClick={() => setSetting(k)} className="text-[11px] text-primary font-semibold mt-1">{p ? 'Change' : 'Set'}</button>
+            </div>
+          ))}
+        </div>
+
         {lists.length > 2 && (
           <div className="flex gap-2 overflow-x-auto no-scrollbar mb-3">
             {lists.map((l) => (
@@ -50,7 +70,8 @@ export default function PlacesPage() {
           </div>
         )}
 
-        {places.length === 0 ? (
+        {setting && <SetPlaceModal kind={setting} pos={pos} onClose={() => setSetting(null)} />}
+        {places.filter((p) => !p.kind).length === 0 ? (
           <div className="text-center py-12">
             <MapPin className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">No saved places yet</p>

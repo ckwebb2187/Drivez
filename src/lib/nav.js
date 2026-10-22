@@ -81,25 +81,14 @@ function ordinal(n) {
   return ['first', 'second', 'third', 'fourth', 'fifth', 'sixth'][n - 1] || `${n}th`;
 }
 
-// Place search, biased towards the user's position when known.
+// Place search, biased towards the user's position when known. The Drivez server
+// combines a places search with the US Census address finder for exact house numbers.
 export async function searchPlaces(q, near) {
-  const params = new URLSearchParams({ q, limit: '6', lang: 'en' });
-  if (near) { params.set('lat', near[0]); params.set('lon', near[1]); }
-  const res = await fetch(`https://photon.komoot.io/api/?${params}`);
+  const params = new URLSearchParams({ q });
+  if (near) { params.set('lat', near[0]); params.set('lng', near[1]); }
+  const res = await fetch(`/api/geocode?${params}`, { credentials: 'same-origin' });
   if (!res.ok) throw new Error('Search is unavailable right now');
-  const data = await res.json();
-  return (data.features || []).map((f) => {
-    const p = f.properties || {};
-    const street = [p.housenumber, p.street].filter(Boolean).join(' ');
-    const name = p.name || street || p.city || 'Dropped pin';
-    const address = [p.name ? street : '', p.city || p.district, p.state].filter(Boolean).join(', ');
-    const [lng, lat] = f.geometry.coordinates;
-    return {
-      id: `${p.osm_type}${p.osm_id}`,
-      name, address, lat, lng,
-      distance: near ? distM(near, [lat, lng]) : null,
-    };
-  });
+  return (await res.json()).results || [];
 }
 
 // Driving directions from `from` to `to` ([lat, lng]).

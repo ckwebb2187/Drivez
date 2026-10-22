@@ -202,6 +202,89 @@ async function postTripToDiscord(webhook, user, trip, vehicle, origin) {
   if (!r.ok) throw new HttpError(502, `Discord rejected the post (${r.status}). Check the webhook link.`);
 }
 
+// ---------- place search ----------
+const ABBR = { mt: "mount", ft: "fort", pt: "point", hwy: "highway", pkwy: "parkway", fwy: "freeway", expy: "expressway", blvd: "boulevard", ln: "lane", ct: "court", cir: "circle", trl: "trail", pl: "place", ter: "terrace", sq: "square" };
+const expandAbbr = (q) => q.replace(/\b([A-Za-z]+)\.?(?=\s|,|$)/g, (w, a) => ABBR[a.toLowerCase()] || w);
+const titleCase = (s) => s.toLowerCase().replace(/\b([a-z])/g, (c) => c.toUpperCase()).replace(/\b(Ne|Nw|Se|Sw|[NSEW])\b/g, (c) => c.toUpperCase());
+const metersBetween = (a, b) => { const R = 6371000, r = Math.PI / 180; const h = Math.sin((b[0] - a[0]) * r / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin((b[1] - a[1]) * r / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
+
+async function cachedJSON(ctx, url, ttl, headers = {}) {
+  const key = new Request(url);
+  const hit = await caches.default.match(key);
+  if (hit) return hit.json();
+  const res = await fetch(url, { headers: { "user-agent": "Drivez/1.0 (https://drivez.webb-home.workers.dev)", ...headers } });
+  if (!res.ok) throw new Error(`lookup failed ${res.status}`);
+  const data = await res.json();
+  ctx.waitUntil(caches.default.put(key, new Response(JSON.stringify(data), { headers: { "content-type": "application/json", "cache-control": `public, max-age=${ttl}` } })));
+  return data;
+}
+
+async function photon(q, near, ctx) {
+  const p = new URLSearchParams({ q, limit: "7", lang: "en" });
+  if (near) { p.set("lat", near[0]); p.set("lon", near[1]); }
+  const d = await cachedJSON(ctx, `https://photon.komoot.io/api/?${p}`, 86400).catch(() => ({ features: [] }));
+  return (d.features || []).map((f) => {
+    const pr = f.properties || {};
+    const street = [pr.housenumber, pr.street].filter(Boolean).join(" ");
+    const [lng, lat] = f.geometry.coordinates;
+    return {
+      id: `${pr.osm_type}${pr.osm_id}`,
+      name: pr.name || street || pr.city || "Dropped pin",
+      address: [pr.name ? street : "", pr.city || pr.district || pr.county, pr.state].filter(Boolean).join(", "),
+      lat, lng, exact: !!pr.housenumber,
+    };
+  });
+}
+
+// The city and state you're in, to finish addresses typed without them.
+async function nearbyArea(near, ctx) {
+  if (!near) return null;
+  const lat = near[0].toFixed(2), lng = near[1].toFixed(2);
+  const d = await cachedJSON(ctx, `https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}&limit=1&lang=en`, 7 * 86400).catch(() => null);
+  const p = d?.features?.[0]?.properties;
+  return p && p.countrycode === "US" && p.state ? { city: p.city || p.county || "", state: p.state } : null;
+}
+
+async function census(address, ctx) {
+  const u = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?benchmark=Public_AR_Current&format=json&address=${encodeURIComponent(address)}`;
+  const d = await cachedJSON(ctx, u, 7 * 86400).catch(() => null);
+  return (d?.result?.addressMatches || []).slice(0, 3).map((m) => {
+    const [street, ...rest] = m.matchedAddress.split(", ");
+    const zip = rest.pop();
+    return {
+      id: `census:${m.matchedAddress}`,
+      name: titleCase(street),
+      address: `${rest.map((x, i) => (i === rest.length - 1 ? x : titleCase(x))).join(", ")} ${zip}`.trim(),
+      lat: m.coordinates.y, lng: m.coordinates.x, exact: true,
+    };
+  });
+}
+
+async function geocode(q, near, ctx) {
+  const num = (q.match(/^\s*(\d+[a-z]?)\s+\S/i) || [])[1];
+  const hasCity = /,/.test(q) || /\b\d{5}\b/.test(q.replace(/^\s*\d+/, "")) || /\b[A-Z]{2}\s*$/.test(q.trim());
+  const [base, area] = await Promise.all([photon(q, near, ctx), num ? nearbyArea(near, ctx) : null]);
+  let results = base;
+  if (!results.length && expandAbbr(q) !== q) results = await photon(expandAbbr(q), near, ctx);
+  // A result only counts as the exact address if it has the house number you typed.
+  for (const r of results) r.exact = !!num && r.name.toLowerCase().startsWith(num.toLowerCase() + " ");
+  let exact = [];
+  if (num) {
+    // Street addresses: the Census finds exact house numbers. Without a city, look in your area first.
+    const tries = [];
+    if (!hasCity && area) tries.push(`${q}, ${area.city}, ${area.state}`, `${q}, ${area.state}`);
+    tries.push(q);
+    for (const t of tries) { exact = await census(t, ctx); if (exact.length) break; }
+  }
+  const byDist = (a, b) => (near ? metersBetween(near, [a.lat, a.lng]) - metersBetween(near, [b.lat, b.lng]) : 0);
+  // Once the address is found nearby, drop same-number streets in other states.
+  const far = (r) => exact.length && near && metersBetween(near, [r.lat, r.lng]) > 300000;
+  const all = [...exact, ...results.filter((r) => r.exact && !far(r)).sort(byDist), ...results.filter((r) => !r.exact)];
+  const out = [];
+  for (const r of all) if (!out.some((o) => metersBetween([o.lat, o.lng], [r.lat, r.lng]) < 25)) out.push(r);
+  return out.slice(0, 8).map((r) => ({ ...r, distance: near ? metersBetween(near, [r.lat, r.lng]) : null }));
+}
+
 // ---------- routes ----------
 async function handleApi(req, env, ctx, url) {
   const db = env.DB;
@@ -379,6 +462,14 @@ async function handleApi(req, env, ctx, url) {
     if (!me.password_hash && linked <= 1) throw new HttpError(400, "That's your only way to log in, so it can't be disconnected.");
     await db.prepare(`UPDATE users SET ${p}_id = NULL WHERE id = ?`).bind(me.id).run();
     return json({ ok: true });
+  }
+
+  // --- place search: Photon (places, businesses) + US Census (exact street addresses) ---
+  if (path === "/geocode" && method === "GET") {
+    const q = (url.searchParams.get("q") || "").trim().slice(0, 200);
+    const lat = +url.searchParams.get("lat"), lng = +url.searchParams.get("lng");
+    if (q.length < 3) return json({ results: [] });
+    return json({ results: await geocode(q, Number.isFinite(lat) && Number.isFinite(lng) && (lat || lng) ? [lat, lng] : null, ctx) });
   }
 
   // --- weather map overlays ---
