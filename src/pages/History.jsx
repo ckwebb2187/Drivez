@@ -24,8 +24,9 @@ function groupByDate(trips) {
 export default function History() {
   const { trips, vehicles, loading } = useApp();
   const [filter, setFilter] = useState('all');
-  const [shown, setShown] = useState(15); // draw drives in pages so the screen opens fast
-  const filtered = filter === 'all' ? trips : trips.filter(t => t.vehicleId === filter);
+  const [shown, setShown] = useState(30); // draw drives in pages so the screen opens fast
+  const sorted = [...trips].sort((a, b) => String(b.start_time).localeCompare(String(a.start_time))); // newest drive first
+  const filtered = filter === 'all' ? sorted : sorted.filter(t => t.vehicleId === filter);
   const grouped = groupByDate(filtered.slice(0, shown));
   const totalMiles = Math.round(trips.reduce((s, t) => s + (t.distance || 0), 0)).toLocaleString();
 
@@ -64,7 +65,7 @@ export default function History() {
         ))}
       </div>
 
-      <div className="px-5 space-y-5 pb-4">
+      <div className="px-5 space-y-3 pb-4">
         {grouped.map(([label, groupTrips]) => (
           <div key={label}>
             <div className="flex items-center gap-2 mb-2">
@@ -72,7 +73,7 @@ export default function History() {
               <div className="flex-1 h-px bg-border" />
               <span className="text-[10px] text-muted-foreground">{groupTrips.length}</span>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-1.5">
               {groupTrips.map(trip => (
                 <TripCard key={trip.id} trip={trip} vehicle={vehicles.find(v => v.id === trip.vehicleId)} />
               ))}

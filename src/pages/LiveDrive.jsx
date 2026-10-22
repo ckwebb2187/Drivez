@@ -108,6 +108,15 @@ export default function LiveDrive({ active = true }) {
   }, [drive.status]);
   useEffect(() => () => { window.__dzDriveStatus = 'idle'; window.dispatchEvent(new Event('dz-drive-status')); }, []);
   const [barOpen, setBarOpen] = useState(false);
+  const [endArmed, setEndArmed] = useState(false);
+  // Free drive (no route): end and save on its own after 10 minutes parked.
+  const lastMoving = useRef(Date.now());
+  useEffect(() => { if (drive.currentSpeed > 3 || drive.status !== 'driving') lastMoving.current = Date.now(); }, [drive.currentSpeed, drive.status]);
+  useEffect(() => {
+    if (drive.status !== 'driving') return undefined;
+    const t = setInterval(() => { if (!nav.active && Date.now() - lastMoving.current > 10 * 60000) drive.end(); }, 30000);
+    return () => clearInterval(t);
+  }, [drive.status, nav.active]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const guideRoute = routeId ? savedRoutes.find(r => r.id === routeId) : null;
 
@@ -368,7 +377,7 @@ export default function LiveDrive({ active = true }) {
               const mph = Math.round(drive.currentSpeed);
               const over = speedLimit && mph > speedLimit.mph + 5;
               return (
-                <div className={`absolute left-3 ${barOpen ? 'bottom-[214px]' : 'bottom-[156px]'} transition-all pointer-events-none flex items-end gap-2`}>
+                <div className={`absolute left-3 ${!nav.active ? 'bottom-[96px]' : barOpen ? 'bottom-[214px]' : 'bottom-[156px]'} transition-all pointer-events-none flex items-end gap-2`}>
                   <div className="w-[68px] h-[68px] rounded-full shadow-2xl flex flex-col items-center justify-center border-4 transition-colors"
                     style={{ background: over ? '#d93025' : st.bg, borderColor: over ? '#ffffff' : st.ring, boxShadow: st.glow && !over ? `0 0 18px ${st.glow}88, 0 8px 20px rgba(0,0,0,.4)` : undefined }}>
                     <span className="text-[26px] leading-none font-bold speed-font" style={{ color: over ? '#fff' : st.text }}>{mph}</span>
@@ -386,7 +395,7 @@ export default function LiveDrive({ active = true }) {
 
             {/* Re-center (shows after you move the map) */}
             {!follow && (
-              <div className={`absolute left-1/2 -translate-x-1/2 ${barOpen ? 'bottom-[160px]' : 'bottom-[156px]'} pointer-events-auto`}>
+              <div className={`absolute left-1/2 -translate-x-1/2 ${!nav.active ? 'bottom-[96px]' : barOpen ? 'bottom-[160px]' : 'bottom-[156px]'} pointer-events-auto`}>
                 <button onClick={recenter} className="h-11 px-5 rounded-full bg-card/95 backdrop-blur border border-border shadow-2xl text-sm font-bold text-[#8ab4f8] flex items-center gap-2">
                   <Navigation2 className="w-4 h-4 fill-[#8ab4f8]" /> Re-center
                 </button>
@@ -394,14 +403,21 @@ export default function LiveDrive({ active = true }) {
             )}
 
             {/* Music + report shortcuts */}
-            <div className={`absolute right-3 ${barOpen ? 'bottom-[214px]' : 'bottom-[156px]'} transition-all pointer-events-auto flex flex-col gap-3`}>
+            <div className={`absolute right-3 ${!nav.active ? 'bottom-[96px]' : barOpen ? 'bottom-[214px]' : 'bottom-[156px]'} transition-all pointer-events-auto flex flex-col gap-3`}>
               <WeatherButton className="!w-[50px] !h-[50px]" />
               <MusicButton size={50} />
               <ReportButton size={50} onReport={(type) => roadReports.report(type, drive.currentPosition)} disabled={!drive.currentPosition} />
+              {!nav.active && (
+                <button onClick={() => { if (endArmed) { setEndArmed(false); drive.end(); } else { setEndArmed(true); setTimeout(() => setEndArmed(false), 3500); } }}
+                  className={`h-[50px] rounded-full shadow-xl border flex items-center justify-center gap-1.5 transition-all ${endArmed ? 'w-[128px] bg-destructive border-destructive text-white' : 'w-[50px] bg-card border-border text-destructive'}`}
+                  aria-label="End drive">
+                  <Square className="w-4 h-4 fill-current" />{endArmed && <span className="text-xs font-bold">Tap to end</span>}
+                </button>
+              )}
             </div>
 
-            {/* Slim bottom bar: tap to show End route / End Drive */}
-            <div className="absolute left-0 right-0 bottom-[84px] px-3 pointer-events-auto">
+            {/* Slim bottom bar while following a route: ETA, then Skip stop / End route / End drive */}
+            {nav.active && <div className="absolute left-0 right-0 bottom-[84px] px-3 pointer-events-auto">
               <div className="bg-card/95 backdrop-blur rounded-2xl border border-border shadow-2xl overflow-hidden">
                 <button onClick={() => setBarOpen((o) => !o)} className="w-full flex items-center gap-3 px-4 h-[60px] text-left">
                   {nav.active && !nav.arrived ? (
@@ -443,7 +459,7 @@ export default function LiveDrive({ active = true }) {
                   </div>
                 )}
               </div>
-            </div>
+            </div>}
           </motion.div>
         )}
 

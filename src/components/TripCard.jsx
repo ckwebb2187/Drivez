@@ -1,68 +1,32 @@
 import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Gauge, MapPin, Clock, TrendingUp } from 'lucide-react';
 import RouteThumbnail from './RouteThumbnail';
-import { formatDuration, formatTimeAgo, getInitials } from '@/lib/helpers';
+import { formatDuration } from '@/lib/helpers';
 
+// One compact row per drive: little route sketch, where, when, miles, time, top speed.
 function TripCard({ trip, vehicle }) {
   const navigate = useNavigate();
-
+  const where = trip.imported && !trip.start_location
+    ? `From ${trip.source === 'waze' ? 'Waze' : trip.source === 'gpx' ? 'GPX file' : 'Google Maps'}`
+    : `${trip.startLocation}${trip.endLocation ? ` → ${trip.endLocation}` : ''}`;
+  const time = new Date(trip.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   return (
-    <div
-      onClick={() => navigate(`/trip/${trip.id}`)}
-      className="bg-card rounded-2xl overflow-hidden border border-border active:scale-[0.98] transition-transform cursor-pointer"
-    >
-      <div className="relative h-32 bg-secondary">
+    <button onClick={() => navigate(`/trip/${trip.id}`)}
+      className="w-full bg-card rounded-xl border border-border flex items-center gap-3 p-2 pr-3 text-left active:bg-secondary">
+      <div className="w-14 h-14 rounded-lg bg-secondary overflow-hidden shrink-0">
         <RouteThumbnail route={trip.route} className="w-full h-full" color={trip.userColor || '#00BFFF'} />
-        <div className="absolute top-3 left-3 px-2 py-0.5 rounded-full bg-black/55 max-w-[70%]">
-          <span className="text-[10px] font-medium text-foreground truncate block">
-            {trip.imported && !trip.start_location
-              ? `From ${trip.source === 'waze' ? 'Waze' : trip.source === 'gpx' ? 'GPX file' : 'Google Maps'}`
-              : <>{trip.startLocation}{trip.endLocation ? ` → ${trip.endLocation}` : ''}</>}
-          </span>
-        </div>
-        {trip.isFriendTrip && (
-          <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/55">
-            <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style={{ backgroundColor: trip.userColor }}>
-              {getInitials(trip.userName)}
-            </div>
-            <span className="text-[10px] font-medium text-foreground">{trip.userName}</span>
-          </div>
-        )}
       </div>
-      <div className="p-3.5">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <MapPin className="w-3 h-3" />
-            <span className="truncate max-w-[140px]">{trip.title}</span>
-          </div>
-          <span className="text-[10px] text-muted-foreground">{formatTimeAgo(trip.date)}</span>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold text-foreground truncate">{where || trip.title}</div>
+        <div className="text-[11px] text-muted-foreground truncate">
+          {time} · {trip.distance} mi · {formatDuration(trip.duration)}{vehicle ? ` · ${vehicle.nickname || vehicle.model}` : ''}{trip.isFriendTrip ? ` · ${trip.userName}` : ''}
         </div>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1">
-              <TrendingUp className="w-3.5 h-3.5 text-primary" />
-              <span className="text-sm font-bold text-primary">{trip.imported ? trip.avgSpeed : trip.topSpeed}</span>
-              <span className="text-[10px] text-muted-foreground">{trip.imported ? 'mph avg' : 'mph'}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Gauge className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-sm font-semibold text-foreground">{trip.distance}</span>
-              <span className="text-[10px] text-muted-foreground">mi</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-sm font-semibold text-foreground">{formatDuration(trip.duration)}</span>
-            </div>
-          </div>
-        </div>
-        {vehicle && (
-          <div className="mt-2 pt-2 border-t border-border">
-            <span className="text-[10px] text-muted-foreground">{vehicle.year} {vehicle.make} {vehicle.model}</span>
-          </div>
-        )}
       </div>
-    </div>
+      <div className="text-right shrink-0">
+        <div className="text-sm font-bold text-primary leading-none">{trip.imported ? trip.avgSpeed : trip.topSpeed}</div>
+        <div className="text-[9px] text-muted-foreground">{trip.imported ? 'avg' : 'top'} mph</div>
+      </div>
+    </button>
   );
 }
 
