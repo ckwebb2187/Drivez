@@ -537,6 +537,8 @@ async function handleApi(req, env, ctx, url) {
           make: v.make, model: v.model, year: v.year, nickname: v.nickname || "", color: v.color, body: v.body, image_url: v.image_url || null,
           catalog_id: v.catalog_id || null, shape: v.shape || null, wheels: v.wheels || null, wheel_color: v.wheel_color || null,
           glow_on: v.glow_on, glow_color: v.glow_color || null, scoop: v.scoop ?? null, wing: v.wing ?? null, model3d: v.model3d || null, display: v.display || null, paint: v.paint || null,
+          finish: v.finish || null, lights: v.lights || null, lashes: !!v.lashes, decal: v.decal || null, decal_color: v.decal_color || null, decal_text: v.decal_text || null, glow_pulse: v.glow_pulse || null, charm: v.charm || null,
+          photos: (v.photos || []).slice(0, 12),
           specs: v.specs || null,
         };
         if (can("mods")) out.mods = (v.mods || []).map((m) => ({ name: m.name, category: m.category || "", note: m.note || "" }));
@@ -556,6 +558,14 @@ async function handleApi(req, env, ctx, url) {
   if (ci && method === "GET") {
     const row = await db.prepare("SELECT mime, data FROM car_images WHERE vehicle_id = ?").bind(ci[1]).first();
     if (!row) throw new HttpError(404, "No picture");
+    return new Response(new Uint8Array(row.data), { headers: { "content-type": row.mime, "cache-control": "public, max-age=31536000, immutable" } });
+  }
+
+  // Car gallery photos (ids are random, so a link is needed to see one).
+  const cp = path.match(/^\/car-photo\/([a-f0-9]{24})$/);
+  if (cp && method === "GET") {
+    const row = await db.prepare("SELECT mime, data FROM car_photos WHERE id = ?").bind(cp[1]).first();
+    if (!row) throw new HttpError(404, "No photo");
     return new Response(new Uint8Array(row.data), { headers: { "content-type": row.mime, "cache-control": "public, max-age=31536000, immutable" } });
   }
 
@@ -786,6 +796,35 @@ async function handleApi(req, env, ctx, url) {
     return json(parseRecord({ ...rec, data: JSON.stringify(data), owner_email: me.email }));
   }
 
+  // --- photo gallery for a car in your garage ---
+  const vp = path.match(/^\/vehicles\/([A-Za-z0-9_-]+)\/photos(?:\/([a-f0-9]{24}))?$/);
+  if (vp && ((method === "POST" && !vp[2]) || (method === "DELETE" && vp[2]))) {
+    const rec = await db.prepare("SELECT * FROM records WHERE id = ? AND entity = 'Vehicle' AND owner_id = ?").bind(vp[1], me.id).first();
+    if (!rec) throw new HttpError(404, "Vehicle not found");
+    const data = JSON.parse(rec.data);
+    const photos = Array.isArray(data.photos) ? data.photos : [];
+    if (method === "POST") {
+      if (photos.length >= 24) throw new HttpError(400, "That's the most photos one car can hold (24). Delete one first.");
+      if (!/^image\/(jpeg|png|webp)$/.test(String(body.mime || ""))) throw new HttpError(400, "Use a JPEG, PNG or WebP photo.");
+      let bytes;
+      try { bytes = Uint8Array.from(atob(String(body.data || "")), (c) => c.charCodeAt(0)); } catch { throw new HttpError(400, "That photo couldn't be read."); }
+      if (!bytes.length || bytes.length > 900 * 1024) throw new HttpError(413, "That photo is too big.");
+      const id = uid();
+      data.photos = [{ id, url: `/api/car-photo/${id}`, caption: String(body.caption || "").slice(0, 120), at: now() }, ...photos];
+      await db.batch([
+        db.prepare("INSERT INTO car_photos (id, vehicle_id, owner_id, mime, data, created) VALUES (?, ?, ?, ?, ?, ?)").bind(id, rec.id, me.id, body.mime, bytes, Date.now()),
+        db.prepare("UPDATE records SET data = ?, updated_date = ? WHERE id = ?").bind(JSON.stringify(data), now(), rec.id),
+      ]);
+    } else {
+      data.photos = photos.filter((p) => p.id !== vp[2]);
+      await db.batch([
+        db.prepare("DELETE FROM car_photos WHERE id = ? AND owner_id = ?").bind(vp[2], me.id),
+        db.prepare("UPDATE records SET data = ?, updated_date = ? WHERE id = ?").bind(JSON.stringify(data), now(), rec.id),
+      ]);
+    }
+    return json(parseRecord({ ...rec, data: JSON.stringify(data), owner_email: me.email }));
+  }
+
   // --- bulk import of saved places and drives (Google Maps, Waze, GPX/KML files) ---
   if (path === "/import" && method === "POST") {
     const places = Array.isArray(body.places) ? body.places.slice(0, 2000) : [];
@@ -959,6 +998,174 @@ async function handleApi(req, env, ctx, url) {
        WHERE l.updated > ? AND u.ghost_mode = 0 AND l.user_id IN (${ids.map(() => "?").join(",")})`
     ).bind(Date.now() - LIVE_FRESH_MS, ...ids).all();
     return json({ drivers: results.map((r) => ({ ...card({ ...r, id: r.user_id }), lat: r.lat, lng: r.lng, speed: r.speed, heading: r.heading, car: r.car_body || r.car_image ? { body: r.car_body || 'sedan', color: r.car_color || r.color, image: r.car_image || null } : null, updated: new Date(r.updated).toISOString() })) });
+  }
+
+  // --- group drives (convoys): everyone heads to the same place and sees each other on the map ---
+  const CONVOY_HOURS = 12;
+  const convoyOut = async (c) => {
+    const { results } = await db.prepare(
+      `SELECT u.id, u.display_name, u.username, u.avatar_url, u.color, u.ghost_mode, l.lat, l.lng, l.speed, l.heading, l.car_body, l.car_color, l.car_image, l.updated
+       FROM convoy_members m JOIN users u ON u.id = m.user_id LEFT JOIN live_pos l ON l.user_id = u.id WHERE m.convoy_id = ? ORDER BY m.joined`
+    ).bind(c.id).all();
+    const fresh = Date.now() - LIVE_FRESH_MS;
+    return {
+      id: c.id, code: c.code, name: c.name || "", dest: JSON.parse(c.dest), leaderId: c.owner_id, isLeader: c.owner_id === me.id,
+      expires: new Date(c.expires).toISOString(),
+      members: results.map((r) => ({
+        ...card(r), me: r.id === me.id,
+        live: !r.ghost_mode && r.updated > fresh ? { lat: r.lat, lng: r.lng, speed: r.speed, heading: r.heading, car: { body: r.car_body || "sedan", color: r.car_color || r.color, image: r.car_image || null } } : null,
+      })),
+    };
+  };
+  if (path === "/convoys" && method === "POST") {
+    const d = body.dest || {};
+    const lat = +d.lat, lng = +d.lng;
+    if (!isFinite(lat) || !isFinite(lng)) throw new HttpError(400, "Pick a destination first.");
+    // One group drive at a time: leave any you're in.
+    await db.prepare("DELETE FROM convoy_members WHERE user_id = ?").bind(me.id).run();
+    const id = uid(), t = Date.now();
+    const code = crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+    const dest = JSON.stringify({ name: String(d.name || "Destination").slice(0, 120), lat, lng });
+    await db.batch([
+      db.prepare("INSERT INTO convoys (id, code, owner_id, name, dest, created, expires) VALUES (?, ?, ?, ?, ?, ?, ?)").bind(id, code, me.id, String(body.name || "").slice(0, 60), dest, t, t + CONVOY_HOURS * 3600000),
+      db.prepare("INSERT INTO convoy_members (convoy_id, user_id, joined) VALUES (?, ?, ?)").bind(id, me.id, t),
+    ]);
+    return json(await convoyOut(await db.prepare("SELECT * FROM convoys WHERE id = ?").bind(id).first()));
+  }
+  if (path === "/convoys/mine" && method === "GET") {
+    const c = await db.prepare("SELECT c.* FROM convoys c JOIN convoy_members m ON m.convoy_id = c.id WHERE m.user_id = ? AND c.expires > ? ORDER BY m.joined DESC LIMIT 1").bind(me.id, Date.now()).first();
+    return json({ convoy: c ? await convoyOut(c) : null });
+  }
+  const cv = path.match(/^\/convoys\/([a-f0-9]{8})(?:\/(join|leave))?$/);
+  if (cv) {
+    const c = await db.prepare("SELECT * FROM convoys WHERE code = ? AND expires > ?").bind(cv[1], Date.now()).first();
+    if (!c) throw new HttpError(404, "That group drive has ended.");
+    if (!cv[2] && method === "GET") return json(await convoyOut(c));
+    if (cv[2] === "join" && method === "POST") {
+      await db.batch([
+        db.prepare("DELETE FROM convoy_members WHERE user_id = ? AND convoy_id != ?").bind(me.id, c.id),
+        db.prepare("INSERT OR IGNORE INTO convoy_members (convoy_id, user_id, joined) VALUES (?, ?, ?)").bind(c.id, me.id, Date.now()),
+      ]);
+      return json(await convoyOut(c));
+    }
+    if (cv[2] === "leave" && method === "POST") {
+      // The leader leaving ends it for everyone.
+      if (c.owner_id === me.id) await db.batch([db.prepare("DELETE FROM convoy_members WHERE convoy_id = ?").bind(c.id), db.prepare("UPDATE convoys SET expires = ? WHERE id = ?").bind(Date.now(), c.id)]);
+      else await db.prepare("DELETE FROM convoy_members WHERE convoy_id = ? AND user_id = ?").bind(c.id, me.id).run();
+      return json({ ok: true });
+    }
+  }
+
+  // --- car meets: anyone can post one; public meets show to drivers nearby, friends-only to friends ---
+  const meetOut = (r) => ({
+    id: r.id, title: r.title, about: r.about || "", place: r.place || "", lat: r.lat, lng: r.lng,
+    starts: new Date(r.starts).toISOString(), visibility: r.visibility, mine: r.owner_id === me.id,
+    host: { ...card({ id: r.owner_id, display_name: r.display_name, username: r.username, avatar_url: r.avatar_url, color: r.color }) },
+    going: r.going || 0, imGoing: !!r.im_going,
+  });
+  if (path === "/meets" && method === "GET") {
+    const lat = +url.searchParams.get("lat"), lng = +url.searchParams.get("lng");
+    const ids = await friendIds(db, me.id);
+    const near = isFinite(lat) && isFinite(lng);
+    const r = 1.0; // ~110 km
+    const { results } = await db.prepare(
+      `SELECT m.*, u.display_name, u.username, u.avatar_url, u.color,
+        (SELECT COUNT(*) FROM meet_rsvps x WHERE x.meet_id = m.id) AS going,
+        (SELECT 1 FROM meet_rsvps x WHERE x.meet_id = m.id AND x.user_id = ?) AS im_going
+       FROM meets m JOIN users u ON u.id = m.owner_id
+       WHERE m.starts > ? AND (m.owner_id = ? OR (m.visibility = 'friends' AND m.owner_id IN (${ids.map(() => "?").join(",") || "''"}))
+         OR (m.visibility = 'public' AND ${near ? "m.lat BETWEEN ? AND ? AND m.lng BETWEEN ? AND ?" : "1"}))
+       ORDER BY m.starts LIMIT 100`
+    ).bind(me.id, Date.now() - 3 * 3600000, me.id, ...ids, ...(near ? [lat - r, lat + r, lng - r * 1.3, lng + r * 1.3] : [])).all();
+    return json({ meets: results.map(meetOut) });
+  }
+  if (path === "/meets" && method === "POST") {
+    const title = String(body.title || "").trim().slice(0, 80);
+    const lat = +body.lat, lng = +body.lng, starts = Date.parse(body.starts);
+    if (!title) throw new HttpError(400, "Give the meet a name.");
+    if (!isFinite(lat) || !isFinite(lng)) throw new HttpError(400, "Pick where the meet is.");
+    if (!isFinite(starts) || starts < Date.now() - 3600000) throw new HttpError(400, "Pick a time that hasn't passed.");
+    const id = uid();
+    await db.batch([
+      db.prepare("INSERT INTO meets (id, owner_id, title, about, place, lat, lng, starts, visibility, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .bind(id, me.id, title, String(body.about || "").slice(0, 500), String(body.place || "").slice(0, 160), lat, lng, starts, body.visibility === "public" ? "public" : "friends", Date.now()),
+      db.prepare("INSERT INTO meet_rsvps (meet_id, user_id) VALUES (?, ?)").bind(id, me.id),
+    ]);
+    return json({ ok: true, id });
+  }
+  const mt = path.match(/^\/meets\/([a-f0-9]{24})\/(rsvp|delete)$/);
+  if (mt && method === "POST") {
+    const m = await db.prepare("SELECT * FROM meets WHERE id = ?").bind(mt[1]).first();
+    if (!m) throw new HttpError(404, "That meet is gone.");
+    if (mt[2] === "delete") {
+      if (m.owner_id !== me.id) throw new HttpError(403, "Only the host can cancel it.");
+      await db.batch([db.prepare("DELETE FROM meets WHERE id = ?").bind(m.id), db.prepare("DELETE FROM meet_rsvps WHERE meet_id = ?").bind(m.id)]);
+    } else if (body.going) await db.prepare("INSERT OR IGNORE INTO meet_rsvps (meet_id, user_id) VALUES (?, ?)").bind(m.id, me.id).run();
+    else await db.prepare("DELETE FROM meet_rsvps WHERE meet_id = ? AND user_id = ?").bind(m.id, me.id).run();
+    return json({ ok: true });
+  }
+
+  // --- feed: recent drives, new car photos and meets from you and your friends ---
+  if (path === "/feed" && method === "GET") {
+    const ids = await friendIds(db, me.id);
+    const people = [me.id, ...ids];
+    const qs = people.map(() => "?").join(",");
+    const { results: users } = await db.prepare(`SELECT id, display_name, username, avatar_url, color, profile FROM users WHERE id IN (${qs})`).bind(...people).all();
+    // Respect "Miles & drives" visibility: friends see it unless set to "Only me".
+    const byId = Object.fromEntries(users.map((u) => [u.id, u]));
+    const showsDrives = (u) => u.id === me.id || readProfile(u.profile).show?.stats !== "me";
+    const showsCar = (u) => u.id === me.id || readProfile(u.profile).show?.car !== "me";
+    const since = new Date(Date.now() - 30 * 86400000).toISOString();
+    const { results: recs } = await db.prepare(
+      `SELECT id, entity, owner_id, data, created_date FROM records WHERE owner_id IN (${qs}) AND ((entity = 'Trip' AND created_date > ?) OR entity = 'Vehicle') ORDER BY created_date DESC LIMIT 400`
+    ).bind(...people, since).all();
+    const items = [];
+    const cars = {};
+    for (const r of recs) if (r.entity === "Vehicle") { const v = JSON.parse(r.data); cars[r.id] = v; }
+    // Trim the first and last stretch of a drive so homes aren't shown.
+    const trim = (pts) => {
+      if (!Array.isArray(pts) || pts.length < 6) return [];
+      const n = pts.length, cut = Math.max(2, Math.round(n * 0.08));
+      const mid = pts.slice(cut, n - cut);
+      const step = Math.max(1, Math.ceil(mid.length / 60));
+      return mid.filter((_, i) => i % step === 0).map((p) => [Math.round(p.lat * 1e4) / 1e4, Math.round(p.lng * 1e4) / 1e4]);
+    };
+    for (const r of recs) {
+      const u = byId[r.owner_id];
+      if (!u) continue;
+      const d = JSON.parse(r.data);
+      if (r.entity === "Trip" && showsDrives(u) && (d.distance || 0) >= 1) {
+        const v = cars[d.vehicle_id];
+        items.push({
+          id: `t_${r.id}`, kind: "drive", at: d.start_time || r.created_date, user: card(u),
+          title: d.title || "Drive", distance: d.distance || 0, duration: d.duration || 0, topSpeed: d.top_speed || 0,
+          mode: d.mode || null, convoy: !!d.convoy, corners: d.corners || null,
+          car: v ? `${v.year || ""} ${v.make || ""} ${v.model || ""}`.trim() : "", end: String(d.end_location || "").split(",").slice(-1)[0].trim(),
+          path: trim(d.route_points),
+        });
+      }
+      if (r.entity === "Vehicle" && showsCar(u)) {
+        for (const p of (d.photos || []).filter((x) => x.at > since).slice(0, 6)) {
+          items.push({ id: `p_${p.id}`, kind: "photo", at: p.at, user: card(u), url: p.url, caption: p.caption || "", car: `${d.year || ""} ${d.make || ""} ${d.model || ""}`.trim() });
+        }
+      }
+    }
+    const { results: mts } = await db.prepare(`SELECT * FROM meets WHERE owner_id IN (${qs}) AND starts > ? AND (visibility = 'public' OR visibility = 'friends') ORDER BY created DESC LIMIT 20`).bind(...people, Date.now()).all();
+    for (const m of mts) items.push({ id: `m_${m.id}`, kind: "meet", at: new Date(m.created).toISOString(), user: card(byId[m.owner_id]), meetId: m.id, title: m.title, place: m.place || "", starts: new Date(m.starts).toISOString(), lat: m.lat, lng: m.lng });
+    items.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+    const top = items.slice(0, 60);
+    if (top.length) {
+      const { results: likes } = await db.prepare(`SELECT item_id, COUNT(*) AS n, SUM(user_id = ?) AS mine FROM feed_likes WHERE item_id IN (${top.map(() => "?").join(",")}) GROUP BY item_id`).bind(me.id, ...top.map((i) => i.id)).all();
+      const L = Object.fromEntries(likes.map((l) => [l.item_id, l]));
+      for (const it of top) { it.likes = L[it.id]?.n || 0; it.liked = !!L[it.id]?.mine; }
+    }
+    return json({ items: top });
+  }
+  const fl = path.match(/^\/feed\/([a-z]_[a-f0-9A-Za-z_-]{6,40})\/like$/);
+  if (fl && method === "POST") {
+    if (body.like) await db.prepare("INSERT OR IGNORE INTO feed_likes (item_id, user_id) VALUES (?, ?)").bind(fl[1], me.id).run();
+    else await db.prepare("DELETE FROM feed_likes WHERE item_id = ? AND user_id = ?").bind(fl[1], me.id).run();
+    return json({ ok: true });
   }
 
   // --- road reports (police, crashes, hazards, traffic, closures) ---

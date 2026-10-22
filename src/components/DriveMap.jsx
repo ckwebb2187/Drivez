@@ -80,7 +80,7 @@ export default function DriveMap(props) {
 function DriveMapInner({
   pos, heading, speed = 0, car, driving, routeCoords, dest, stops = [], guide, trail, reports = [],
   follow = true, onUserMove, className = '', active = true, theme = 'standard', base = 'day', lite = false, fitCoords = null,
-  friends = [], onFriendTap,
+  friends = [], onFriendTap, pins = [], onPinTap,
 }) {
   const box = useRef(null);
   const mapRef = useRef(null);
@@ -88,6 +88,9 @@ function DriveMapInner({
   const carRef = useRef(null);
   const pinRef = useRef(null);
   const reportMarkers = useRef(new Map());
+  const pinMarkers = useRef(new Map());
+  const pinTap = useRef(onPinTap);
+  pinTap.current = onPinTap;
   const friendMarkers = useRef(new Map());
   const friendTap = useRef(onFriendTap);
   friendTap.current = onFriendTap;
@@ -291,11 +294,11 @@ function DriveMapInner({
       const add = async () => {
         const { car3dLayer, prepareCarPicture } = await import('@/lib/car3d'); // 3D engine loads only for driving
         // Built car: shape, wheels, paint and underglow from the garage.
-        let colors = { body: car.color || '#1f5ad6', glow: car.glow || null, shape: car.shape, wheels: car.wheels, wheelColor: car.wheelColor, scoop: car.scoop, wing: car.wing };
+        let colors = { body: car.color || '#1f5ad6', glow: car.glow || null, shape: car.shape, wheels: car.wheels, wheelColor: car.wheelColor, scoop: car.scoop, wing: car.wing, style: car.style || {} };
         if (car.display !== 'build' && car.image) {
           try {
             const pic = await prepareCarPicture(car.image);
-            colors = car.display === 'picture' ? { ...pic, glow: car.glow !== undefined ? car.glow : pic.glow } : { ...colors, picture: pic.picture, aspect: pic.aspect, glow: car.glow !== undefined ? car.glow : pic.glow };
+            colors = car.display === 'picture' ? { ...pic, style: car.style || {}, glow: car.glow !== undefined ? car.glow : pic.glow } : { ...colors, picture: pic.picture, aspect: pic.aspect, glow: car.glow !== undefined ? car.glow : pic.glow };
           } catch { /* keep the built car */ }
         }
         const model = car.display === 'model' && car.model3d && CAR_MODELS[car.model3d];
@@ -406,6 +409,28 @@ function DriveMapInner({
     }
     for (const [id, m] of reportMarkers.current) if (!keep.has(id)) { m.remove(); reportMarkers.current.delete(id); }
   }, [reports]);
+
+  // Extra pins (car meets): emoji badge with a short label. Tap to open.
+  useEffect(() => {
+    const map = mapRef.current;
+    const keep = new Set();
+    for (const p of pins) {
+      keep.add(p.id);
+      if (pinMarkers.current.has(p.id)) continue;
+      const el = document.createElement('div');
+      el.style.cssText = 'display:flex;flex-direction:column;align-items:center;cursor:pointer';
+      const dot = document.createElement('div');
+      dot.style.cssText = 'width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;background:hsl(var(--card));border:2px solid hsl(var(--primary));box-shadow:0 0 12px hsl(var(--primary) / .6)';
+      dot.textContent = p.emoji || '📍';
+      const label = document.createElement('div');
+      label.style.cssText = 'margin-top:2px;font:700 10px system-ui;color:#fff;background:rgba(15,18,28,.85);padding:1px 6px;border-radius:8px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis';
+      label.textContent = p.label || '';
+      el.append(dot, label);
+      el.addEventListener('click', (e) => { e.stopPropagation(); pinTap.current?.(p); });
+      pinMarkers.current.set(p.id, new maplibregl.Marker({ element: el, anchor: 'bottom', pitchAlignment: 'viewport' }).setLngLat([p.lng, p.lat]).addTo(map));
+    }
+    for (const [id, m] of pinMarkers.current) if (!keep.has(id)) { m.remove(); pinMarkers.current.delete(id); }
+  }, [pins.map((p) => p.id).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Friends driving now: their car + name. Tap to see their profile.
   useEffect(() => {

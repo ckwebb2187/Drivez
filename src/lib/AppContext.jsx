@@ -193,6 +193,16 @@ export function AppProvider({ children }) {
     return rec;
   };
 
+  // Gallery photos for a car: add one (base64 JPEG) or delete one by id.
+  const addVehiclePhoto = async (id, data, caption = '') => {
+    const rec = await api.post(`/vehicles/${id}/photos`, { mime: 'image/jpeg', data, caption });
+    setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...rec } : v));
+  };
+  const removeVehiclePhoto = async (id, photoId) => {
+    const rec = await api.del(`/vehicles/${id}/photos/${photoId}`);
+    setVehicles(prev => prev.map(v => v.id === id ? { ...v, ...rec } : v));
+  };
+
   const removeVehicle = async (id) => {
     await base44.entities.Vehicle.delete(id);
     setVehicles(prev => prev.filter(v => v.id !== id));
@@ -269,7 +279,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       user, scene, setAppMode, carBt, btCar, saveProfile, stats, weeklyStats, vehicles, trips, savedRoutes, loading, activeVehicle, myCar, setPrimaryVehicle,
-      toggleGhostMode, updateUser, addVehicle, updateTrip, deleteTrip, removeVehicle, setVehicleImage, updateVehicle, addTrip,
+      toggleGhostMode, updateUser, addVehicle, updateTrip, deleteTrip, removeVehicle, setVehicleImage, addVehiclePhoto, removeVehiclePhoto, updateVehicle, addTrip,
       addRoute, deleteRoute, shareRouteWithFriends, places, addPlace, deletePlace, renamePlace, home, work, setHomeWork, refreshData: loadData
     }}>
       {children}

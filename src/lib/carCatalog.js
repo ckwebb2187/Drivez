@@ -94,6 +94,17 @@ export function carLook(v) {
     // undefined = not chosen yet (a car picture's own underglow is used); null = off.
     glow: v?.glow_on === false ? null : v?.glow_color || undefined,
     model3d: v?.model3d === 'none' ? null : v?.model3d || cat?.model3d || null,
+    // Extras: paint finish, light style, decals, underglow animation, mirror charm.
+    style: {
+      finish: v?.finish || 'metallic',
+      lights: v?.lights || 'stock',
+      lashes: !!v?.lashes,
+      decal: v?.decal || 'none',
+      decalColor: v?.decal_color || '#ffffff',
+      decalText: v?.decal_text || '',
+      pulse: v?.glow_pulse || 'off',
+    },
+    charm: v?.charm || null,
   };
 }
 

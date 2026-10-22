@@ -165,9 +165,9 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
         // The car.
         let car;
         const model = look.display === 'model' && look.model3d && CAR_MODELS[look.model3d];
-        if (model) car = await car3d.buildModelCar({ url: model.url, paint: look.modelPaint || null, glow: look.glow || null, frontAxis: model.frontAxis, paintMaterials: model.paintMaterials });
-        else if (look.display === 'picture' && look.image) { const pic = await car3d.prepareCarPicture(look.image); car = car3d.buildPictureCar({ ...pic, glow: look.glow !== undefined ? look.glow : pic.glow }); }
-        else car = car3d.buildCar({ body: look.paint, glow: look.glow || null, shape: look.shape, wheels: look.wheels, wheelColor: look.wheelColor, scoop: look.scoop, wing: look.wing });
+        if (model) car = await car3d.buildModelCar({ url: model.url, paint: look.modelPaint || null, glow: look.glow || null, frontAxis: model.frontAxis, paintMaterials: model.paintMaterials, style: look.style || {} });
+        else if (look.display === 'picture' && look.image) { const pic = await car3d.prepareCarPicture(look.image); car = car3d.buildPictureCar({ ...pic, style: look.style || {}, glow: look.glow !== undefined ? look.glow : pic.glow }); }
+        else car = car3d.buildCar({ body: look.paint, glow: look.glow || null, shape: look.shape, wheels: look.wheels, wheelColor: look.wheelColor, scoop: look.scoop, wing: look.wing, style: look.style || {} });
         if (!alive) return;
         car.position.y = 0.3;
         car.rotation.y = -0.5;
@@ -208,6 +208,7 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
           neon.intensity = 16 + Math.sin(t / 500) * 3;
           camera.position.set(Math.sin(angle) * 10.5, 3.6, Math.cos(angle) * 10.5 + 1);
           camera.lookAt(0, 1.2, -0.8);
+          car.userData.tick?.(t);
           renderer.render(scene, camera);
         };
         raf = requestAnimationFrame(tick);

@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
-import { X, Clock, Star, Route as RouteIcon, Radio, Trophy, Upload, User, Settings, Navigation, Flame } from 'lucide-react';
+import { X, Clock, Star, Route as RouteIcon, Radio, Trophy, Upload, User, Settings, Navigation, Flame, CalendarDays, Wrench } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import InviteButton from '@/components/InviteButton';
 import { ThemePicker } from '@/components/MapLookSettings';
@@ -15,6 +15,7 @@ export default function LeftDrawer({ open, onClose }) {
     ['/places', Star, 'Saved places', 'Home, work and favorites'],
     ['/routes', RouteIcon, 'Routes & plans', 'Saved drives and multi-stop plans'],
     ['/live-map', Radio, 'Friends live', 'Who is driving right now'],
+    ...(scene ? [['/feed', Flame, 'Feed', "Friends' drives, builds and meets"], ['/meets', CalendarDays, 'Meets & shops', 'Car meets, tuners, parts, 93 gas']] : []),
     ...(scene ? [['/leaderboard', Trophy, 'Ranks', 'Leaderboards']] : []),
     ['/import', Upload, 'Import', 'From Google Maps & Waze'],
     ['/profile', Settings, 'Profile & settings', 'Garage, privacy, Discord, app'],

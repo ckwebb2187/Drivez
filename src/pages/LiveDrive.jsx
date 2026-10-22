@@ -8,7 +8,7 @@ import { useGpsDrive } from '@/lib/useGpsDrive';
 import { useApp } from '@/lib/AppContext';
 import { formatDuration } from '@/lib/helpers';
 import { useNavigation } from '@/lib/useNavigation';
-import { formatNavDistance, formatEta, arrivalTime } from '@/lib/nav';
+import { formatNavDistance, formatEta, arrivalTime, distM } from '@/lib/nav';
 import { TurnIcon, ReportButton } from '@/components/MapBits';
 import { useReports, useReportAlerts, useMappedBumps, REPORT_TYPES } from '@/lib/reports';
 import MusicButton from '@/components/MusicButton';
@@ -19,6 +19,7 @@ import { useMapLook, speedStyle } from '@/lib/mapTheme';
 import DriverSheet from '@/components/DriverSheet';
 import { api } from '@/api/base44Client';
 import { mileageMode } from '@/lib/carBluetooth';
+import { useConvoy } from '@/lib/convoy';
 
 const MAX_POINTS = 400;
 
@@ -85,6 +86,26 @@ export default function LiveDrive({ active = true }) {
     const t = setInterval(load, 15000);
     return () => { alive = false; clearInterval(t); };
   }, [active]);
+  // Group drive: the others in your convoy show on the map like friends (even if they aren't friends yet).
+  const { convoy, leave: leaveConvoy } = useConvoy(active);
+  const [convoyOpen, setConvoyOpen] = useState(false);
+  const convoyDrivers = useMemo(() => (convoy?.members || []).filter((m) => !m.me && m.live).map((m) => ({ ...m, ...m.live, name: `👥 ${m.name}` })), [convoy]);
+  const mapFriends = useMemo(() => {
+    const ids = new Set(convoyDrivers.map((d) => d.userId));
+    return [...convoyDrivers, ...friends.filter((f) => !ids.has(f.userId))];
+  }, [friends, convoyDrivers]);
+  // Upcoming car meets near you, pinned on the map (scene mode).
+  const [meets, setMeets] = useState([]);
+  const meetsAt = useRef(null);
+  useEffect(() => {
+    const p = drive.currentPosition || herePos;
+    if (!active || !scene || !p) return;
+    if (meetsAt.current && Date.now() - meetsAt.current < 5 * 60000) return;
+    meetsAt.current = Date.now();
+    api.get(`/meets?lat=${p[0]}&lng=${p[1]}`).then((d) => setMeets(d.meets || [])).catch(() => {});
+  }, [active, scene, herePos, drive.currentPosition]); // eslint-disable-line react-hooks/exhaustive-deps
+  const meetPins = useMemo(() => meets.filter((m) => new Date(m.starts).getTime() - Date.now() < 7 * 86400000)
+    .map((m) => ({ id: m.id, lat: m.lat, lng: m.lng, emoji: '🏁', label: `${m.title} · ${new Date(m.starts).toLocaleDateString([], { weekday: 'short' })}` })), [meets]);
   // Route being previewed on the map before you tap Go.
   const [preview, setPreview] = useState(null);
   // Lowered car: also warn about speed bumps and dips mapped in OpenStreetMap.
@@ -107,6 +128,27 @@ export default function LiveDrive({ active = true }) {
     window.dispatchEvent(new Event('dz-drive-status'));
   }, [drive.status]);
   useEffect(() => () => { window.__dzDriveStatus = 'idle'; window.dispatchEvent(new Event('dz-drive-status')); }, []);
+  // Drive mode: normal cruising, Tōge (mountain roads: corner count + G) or Wangan (highway: top speed + 0-60).
+  const [driveMode, setDriveMode] = useState(() => { try { return localStorage.getItem('dz-drive-mode') || 'cruise'; } catch { return 'cruise'; } });
+  const cycleMode = () => {
+    const next = { cruise: 'toge', toge: 'wangan', wangan: 'cruise' }[driveMode] || 'cruise';
+    setDriveMode(next);
+    try { localStorage.setItem('dz-drive-mode', next); } catch { /* ignore */ }
+  };
+  const corners = useRef({ n: 0, acc: 0, last: null, at: 0 });
+  const [cornerCount, setCornerCount] = useState(0);
+  useEffect(() => { if (drive.status !== 'driving') { corners.current = { n: 0, acc: 0, last: null, at: 0 }; setCornerCount(0); } }, [drive.status]);
+  useEffect(() => {
+    // A corner = at least 45° of turning within a few seconds while moving.
+    const c = corners.current, h = drive.heading;
+    if (drive.status !== 'driving' || h == null || drive.currentSpeed < 12) { c.last = h; c.acc = 0; return; }
+    if (c.last != null) {
+      let d = h - c.last; if (d > 180) d -= 360; if (d < -180) d += 360;
+      c.acc = Math.sign(d) === Math.sign(c.acc) || !c.acc ? c.acc + d : d;
+      if (Math.abs(c.acc) >= 45 && Date.now() - c.at > 3000) { c.n += 1; c.at = Date.now(); c.acc = 0; setCornerCount(c.n); }
+    }
+    c.last = h;
+  }, [drive.heading]); // eslint-disable-line react-hooks/exhaustive-deps
   const [barOpen, setBarOpen] = useState(false);
   const [endArmed, setEndArmed] = useState(false);
   // Free drive (no route): end and save on its own after 10 minutes parked.
@@ -201,6 +243,9 @@ export default function LiveDrive({ active = true }) {
       hard_brakes: drive.stats.hardBrakes,
       hard_accels: drive.stats.hardAccels,
       smoothness: drive.stats.smoothness,
+      ...(driveMode !== 'cruise' ? { mode: driveMode } : {}),
+      ...(convoy ? { convoy: convoy.code } : {}),
+      ...(driveMode === 'toge' ? { corners: corners.current.n } : {}),
     };
     const odoNote = tripCar && scene && !countsMiles
       ? (mileageMode(tripCar) === 'manual' ? '' : ` · not added to ${tripCar.nickname || tripCar.model} miles`)
@@ -262,7 +307,9 @@ export default function LiveDrive({ active = true }) {
           dest={navPlan ? navPlan.dest : preview ? preview.dest : null}
           stops={nav.active ? nav.stops.slice(nav.stopIdx) : preview ? preview.stops : []}
           fitCoords={drive.status === 'idle' && preview ? preview.route.coords : null}
-          friends={friends}
+          friends={mapFriends}
+          pins={meetPins}
+          onPinTap={() => navigate('/meets')}
           onFriendTap={setOpenDriver}
           guide={guideRoute ? guideRoute.route : null}
           trail={drive.route}
@@ -357,19 +404,82 @@ export default function LiveDrive({ active = true }) {
               </div>
             )}
 
-            {/* Report warning */}
-            {reportAlert && (
-              <div className={`absolute left-3 right-[76px] ${nav.active ? 'top-[150px]' : 'top-[max(12px,env(safe-area-inset-top))]'} pointer-events-auto`}>
-                <button onClick={dismissAlert} className="w-full flex items-center gap-3 rounded-2xl px-4 py-3 shadow-2xl text-left" style={{ background: REPORT_TYPES[reportAlert.type]?.color || '#F9AB00' }}>
-                  <span className="text-2xl">{REPORT_TYPES[reportAlert.type]?.emoji}</span>
-                  <span className="flex-1 text-white">
-                    <span className="block text-sm font-bold">{REPORT_TYPES[reportAlert.type]?.label} ahead</span>
-                    <span className="block text-xs opacity-90">{formatNavDistance(reportAlert.distance)} · reported by {reportAlert.by}</span>
-                  </span>
-                  <X className="w-4 h-4 text-white/80" />
+            {/* Report warning: themed card with live distance, a countdown bar and "still there?" votes */}
+            {reportAlert && (() => {
+              const t = REPORT_TYPES[reportAlert.type] || { label: 'Report', emoji: '⚠️', color: '#F9AB00' };
+              const here = drive.currentPosition;
+              const left = here ? Math.max(0, distM(here, [reportAlert.lat, reportAlert.lng])) : reportAlert.distance;
+              const voteAndClose = (yes) => { roadReports.vote(reportAlert.id, yes).catch(() => {}); dismissAlert(); };
+              return (
+                <div key={reportAlert.id} className={`absolute left-3 right-[76px] ${nav.active ? 'top-[150px]' : 'top-[max(12px,env(safe-area-inset-top))]'} pointer-events-auto dz-pop-in`}>
+                  <div className="rounded-2xl shadow-2xl overflow-hidden bg-card/95 backdrop-blur border border-border" style={{ boxShadow: `0 0 0 2px ${t.color}, 0 10px 30px rgba(0,0,0,.45), 0 0 18px ${t.color}55` }}>
+                    <div className="flex items-center gap-3 px-3 py-2.5">
+                      <div className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl shrink-0" style={{ background: `${t.color}26` }}>{t.emoji}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-foreground truncate">{t.label} ahead</div>
+                        <div className="text-xs text-muted-foreground truncate"><span className="font-bold speed-font" style={{ color: t.color }}>{formatNavDistance(left)}</span> · {reportAlert.mapped ? 'from map data' : `reported by ${reportAlert.by}`}</div>
+                      </div>
+                      {!reportAlert.mapped ? (
+                        <div className="flex gap-1.5 shrink-0">
+                          <button onClick={() => voteAndClose(true)} className="w-10 h-10 rounded-xl bg-secondary text-lg" aria-label="Still there">👍</button>
+                          <button onClick={() => voteAndClose(false)} className="w-10 h-10 rounded-xl bg-secondary text-lg" aria-label="Not there">👎</button>
+                        </div>
+                      ) : (
+                        <button onClick={dismissAlert} className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0" aria-label="Dismiss"><X className="w-4 h-4 text-muted-foreground" /></button>
+                      )}
+                    </div>
+                    <div className="h-1 bg-secondary"><div className="h-full dz-alert-timer" style={{ background: t.color }} /></div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Group drive chip (top right): who's with you and how far */}
+            {convoy && (
+              <div className={`absolute right-3 ${nav.active ? 'top-[150px]' : 'top-[max(12px,env(safe-area-inset-top))]'} pointer-events-auto`}>
+                <button onClick={() => setConvoyOpen((o) => !o)} className="h-10 px-3 rounded-full bg-card/95 backdrop-blur border border-border shadow-xl flex items-center gap-1.5 text-xs font-bold text-foreground">
+                  👥 {convoy.members.length}
                 </button>
+                {convoyOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-card rounded-2xl border border-border shadow-2xl p-3 space-y-2">
+                    <div className="text-[11px] font-bold text-primary uppercase tracking-wide">Group drive · {convoy.dest.name}</div>
+                    {convoy.members.map((m) => (
+                      <div key={m.id} className="flex items-center gap-2 text-sm">
+                        <span className={`w-2 h-2 rounded-full ${m.live || m.me ? 'bg-accent' : 'bg-muted'}`} />
+                        <span className="flex-1 truncate text-foreground">{m.me ? 'You' : m.name}{m.id === convoy.leaderId ? ' · lead' : ''}</span>
+                        <span className="text-[11px] text-muted-foreground">{m.me ? '' : m.live && drive.currentPosition ? formatNavDistance(distM(drive.currentPosition, [m.live.lat, m.live.lng])) : 'offline'}</span>
+                      </div>
+                    ))}
+                    <button onClick={() => { setConvoyOpen(false); leaveConvoy(); }} className="w-full h-9 rounded-xl bg-secondary text-xs font-semibold text-destructive">{convoy.isLeader ? 'End group drive' : 'Leave group'}</button>
+                  </div>
+                )}
               </div>
             )}
+
+            {/* Tōge / Wangan run card */}
+            {driveMode !== 'cruise' && (() => {
+              const toge = driveMode === 'toge';
+              const st = speedStyle(look.theme);
+              const top = nav.active ? (reportAlert ? 'top-[222px]' : 'top-[150px]') : reportAlert ? 'top-[84px]' : 'top-[max(12px,env(safe-area-inset-top))]';
+              const cells = toge
+                ? [[cornerCount, 'corners'], [drive.stats.maxG ? drive.stats.maxG.toFixed(2) : '–', 'max G'], [formatDuration(drive.elapsedTime), 'run']]
+                : [[Math.round(drive.maxSpeed || 0), 'top mph'], [drive.stats.best060 ? `${drive.stats.best060.toFixed(1)}s` : '–', '0-60'], [drive.distance, 'mi']];
+              return (
+                <div className={`absolute left-3 ${top} pointer-events-none`}>
+                  <div className="rounded-2xl shadow-2xl px-3 py-2 border" style={{ background: st.bg, borderColor: st.glow || st.ring, boxShadow: st.glow ? `0 0 14px ${st.glow}66` : undefined }}>
+                    <div className="text-[10px] font-black tracking-[0.2em]" style={{ color: st.glow || st.sub }}>{toge ? '峠 TŌGE' : '湾岸 WANGAN'}</div>
+                    <div className="flex gap-3 mt-0.5">
+                      {cells.map(([v, l]) => (
+                        <div key={l} className="text-center">
+                          <div className="text-base font-black leading-none speed-font" style={{ color: st.text }}>{v}</div>
+                          <div className="text-[9px] font-semibold" style={{ color: st.sub }}>{l}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Speed gauge (themed ring) + posted speed limit, bottom left */}
             {(() => {
@@ -426,6 +536,11 @@ export default function LiveDrive({ active = true }) {
 
             {/* Music + report shortcuts */}
             <div className={`absolute right-3 ${!nav.active ? 'bottom-[96px]' : barOpen ? 'bottom-[214px]' : 'bottom-[156px]'} transition-all pointer-events-auto flex flex-col gap-3`}>
+              <button onClick={cycleMode} aria-label="Drive mode"
+                className={`w-[50px] h-[50px] rounded-full shadow-xl border flex flex-col items-center justify-center leading-none ${driveMode === 'cruise' ? 'bg-card border-border text-muted-foreground' : 'bg-primary border-primary text-primary-foreground'}`}>
+                <span className="text-base font-black">{driveMode === 'toge' ? '峠' : driveMode === 'wangan' ? '湾' : '巡'}</span>
+                <span className="text-[8px] font-bold mt-0.5">{driveMode === 'toge' ? 'TŌGE' : driveMode === 'wangan' ? 'WANGAN' : 'CRUISE'}</span>
+              </button>
               <WeatherButton className="!w-[50px] !h-[50px]" />
               <MusicButton size={50} />
               <ReportButton size={50} onReport={(type) => roadReports.report(type, drive.currentPosition)} disabled={!drive.currentPosition} />

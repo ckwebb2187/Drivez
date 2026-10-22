@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Ghost, MapPin, Calendar, Eye, EyeOff, Pencil, LogOut, Loader2, Camera, Trash2, ImagePlus, Upload, Star, ChevronRight, Navigation, Flame, BarChart3, QrCode, Users, Palette, MessageCircle, ShieldCheck, Smartphone } from 'lucide-react';
+import { Ghost, MapPin, Calendar, Eye, EyeOff, Pencil, LogOut, Loader2, Camera, Trash2, ImagePlus, Upload, Star, ChevronRight, Navigation, Flame, BarChart3, QrCode, Users, Palette, Award, MessageCircle, ShieldCheck, Smartphone } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import { base44, api } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
@@ -17,9 +17,11 @@ import PrivacySettings from '@/components/PrivacySettings';
 import { getInitials } from '@/lib/helpers';
 import ProfileSharing from '@/components/ProfileSharing';
 import MapLookSettings from '@/components/MapLookSettings';
+import Badges from '@/components/Badges';
+import { badgeProgress } from '@/lib/badges';
 
 export default function Profile() {
-  const { user, scene, setAppMode, stats, weeklyStats, toggleGhostMode } = useApp();
+  const { user, scene, setAppMode, stats, weeklyStats, toggleGhostMode, trips, vehicles } = useApp();
   const [modeBusy, setModeBusy] = useState(false);
   const switchMode = async (m) => { if (m === user.appMode) return; setModeBusy(true); try { await setAppMode(m); } finally { setModeBusy(false); } };
   const [editing, setEditing] = useState(false);
@@ -174,6 +176,9 @@ export default function Profile() {
         <div className="pt-2"><GarageManager /></div>
 
         <div className="pt-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">You</div>
+        <Collapsible id="badges" icon={Award} title="Badges" subtitle={`${badgeProgress(trips, vehicles).filter((b) => b.tier >= 0).length} earned · night drives, streaks, Tōge runs…`}>
+          <Badges trips={trips} cars={vehicles} />
+        </Collapsible>
         <Collapsible id="charts" icon={BarChart3} title="Charts" subtitle="Drives and speed by week">
           <StatsDashboard stats={stats} weekly={weeklyStats} chartsOnly />
         </Collapsible>

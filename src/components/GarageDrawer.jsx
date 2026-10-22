@@ -39,7 +39,7 @@ export default function GarageDrawer({ open, onClose }) {
   const v = vehicles.find((x) => x.id === carId) || activeVehicle;
   const L = v ? carLook(v) : null;
   const disp = v ? displayMode(v) : null;
-  const look = v ? { display: disp, shape: L.shape, wheels: L.wheels, wheelColor: L.wheelColor, scoop: L.scoop, wing: L.wing, paint: v.color || '#1f5ad6', glow: L.glow, model3d: L.model3d, image: v.image_url || null, modelPaint: disp === 'model' ? v.paint || null : null } : null;
+  const look = v ? { display: disp, shape: L.shape, wheels: L.wheels, wheelColor: L.wheelColor, scoop: L.scoop, wing: L.wing, paint: v.color || '#1f5ad6', glow: L.glow, model3d: L.model3d, style: L.style, image: v.image_url || null, modelPaint: disp === 'model' ? v.paint || null : null } : null;
   const socials = { ...(user?.profile?.socials || {}) };
   const odo = v ? odometer(v, trips) : null;
 
@@ -77,7 +77,7 @@ export default function GarageDrawer({ open, onClose }) {
               </div>
               <div className="flex items-end justify-between">
                 <div>
-                  <div className="text-base font-bold text-foreground">{v.year} {v.make} {v.model}</div>
+                  <div className="text-base font-bold text-foreground">{v.year} {v.make} {v.model}{L.charm ? ` ${L.charm}` : ''}</div>
                   <div className="text-[11px] text-muted-foreground">{v.nickname ? `"${v.nickname}" · ` : ''}{odo != null ? `${odo.toLocaleString()} mi` : 'Set your odometer'}{(v.mods || []).length ? ` · ${v.mods.length} mods` : ''}</div>
                 </div>
                 {activeVehicle?.id !== v.id

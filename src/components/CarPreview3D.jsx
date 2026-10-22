@@ -41,12 +41,12 @@ export default function CarPreview3D({ look, height = 220 }) {
         const glow = look.glow || null;
         const model = look.display === 'model' && look.model3d && CAR_MODELS[look.model3d];
         if (model) {
-          car = await car3d.buildModelCar({ url: model.url, paint: look.modelPaint || null, glow, frontAxis: model.frontAxis, paintMaterials: model.paintMaterials });
+          car = await car3d.buildModelCar({ url: model.url, paint: look.modelPaint || null, glow, frontAxis: model.frontAxis, paintMaterials: model.paintMaterials, style: look.style || {} });
         } else if (look.display === 'picture' && look.image) {
           const pic = await car3d.prepareCarPicture(look.image);
-          car = car3d.buildPictureCar({ ...pic, glow: look.glow !== undefined ? look.glow : pic.glow });
+          car = car3d.buildPictureCar({ ...pic, style: look.style || {}, glow: look.glow !== undefined ? look.glow : pic.glow });
         } else {
-          car = car3d.buildCar({ body: look.paint, glow, shape: look.shape, wheels: look.wheels, wheelColor: look.wheelColor, scoop: look.scoop, wing: look.wing });
+          car = car3d.buildCar({ body: look.paint, glow, shape: look.shape, wheels: look.wheels, wheelColor: look.wheelColor, scoop: look.scoop, wing: look.wing, style: look.style || {} });
         }
         if (!alive) return;
         scene.add(car);
@@ -70,6 +70,7 @@ export default function CarPreview3D({ look, height = 220 }) {
           const r = 8.2;
           camera.position.set(Math.sin(angle) * r, 2.6, Math.cos(angle) * r);
           camera.lookAt(0, 0.55, 0);
+          car.userData.tick?.(t);
           renderer.render(scene, camera);
         };
         raf = requestAnimationFrame(tick);

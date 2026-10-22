@@ -1,3 +1,6 @@
+import FeedPage from '@/pages/FeedPage';
+import MeetsPage from '@/pages/MeetsPage';
+import ConvoyPage from '@/pages/ConvoyPage';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
@@ -48,6 +51,9 @@ export default function App() {
                   <Route path="/history" element={<History />} />
                   <Route path="/leaderboard" element={<Leaderboard />} />
                   <Route path="/profile" element={<Profile />} />
+                  <Route path="/feed" element={<FeedPage />} />
+                  <Route path="/meets" element={<MeetsPage />} />
+                  <Route path="/convoy/:code" element={<ConvoyPage />} />
                   {/* Full-screen pages: also inside Layout so a drive in progress keeps running. */}
                   <Route path="/trip/:id" element={<TripDetailPage />} />
                   <Route path="/live-map" element={<LiveMap />} />

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles, Plus, ArrowUp, ArrowDown, Shuffle, Save, TrafficCone, Play, Bookmark, Trophy, Menu } from 'lucide-react';
+import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles, Plus, ArrowUp, ArrowDown, Shuffle, Save, TrafficCone, Play, Bookmark, Trophy, Menu, Users } from 'lucide-react';
 import { ReportButton } from '@/components/MapBits';
 import MusicButton from '@/components/MusicButton';
 import { WeatherButton, WeatherTimeBadge } from '@/components/Weather';
@@ -20,6 +20,7 @@ import { AlertsBanner, RouteConditions } from '@/components/WeatherAlerts';
 import { useWeatherAlerts } from '@/lib/alerts';
 import { useTrafficEta } from '@/lib/traffic';
 import { getInitials } from '@/lib/helpers';
+import { startConvoy } from '@/lib/convoy';
 
 const DRIVE_ERRORS = {
   denied: 'Location permission denied. Turn on location for Kaido Maps in your settings, then try again.',
@@ -44,6 +45,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
   const [searching, setSearching] = useState(false);
   const [dest, setDest] = useState(null);
   const [route, setRoute] = useState(null);
+  const [alts, setAlts] = useState([]); // other ways to get there (route choices)
   const [routing, setRouting] = useState(false);
   const [routeErr, setRouteErr] = useState('');
 
@@ -92,7 +94,10 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
     if (!pos) { setRouteErr('Waiting for your location to plan the route…'); return; }
     setRouting(true);
     try {
-      setRoute(await getRoute(pos, [place.lat, place.lng], stopList, place.name));
+      const r = await getRoute(pos, [place.lat, place.lng], stopList, place.name);
+      const choices = (r.alternatives || [r]).map(({ alternatives, ...x }) => x);
+      setAlts(choices.length > 1 ? choices : []);
+      setRoute(choices[0]);
     } catch (e) {
       setRouteErr(e.message);
     } finally {
@@ -132,6 +137,12 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
   // Tell the map what to preview, and start navigating right here on Go.
   useEffect(() => { onPreview?.(route && dest ? { route, dest, stops } : null); }, [route]); // eslint-disable-line react-hooks/exhaustive-deps
   const go = () => { const p = { dest, stops, route }; clearSearch(); onGo(p); };
+  // Group drive: make a convoy to this destination, share the link, then go.
+  const [convoyBusy, setConvoyBusy] = useState(false);
+  const goTogether = async () => {
+    setConvoyBusy(true);
+    try { await startConvoy(dest); go(); } catch (e) { setRouteErr(e.message || 'Could not start a group drive.'); } finally { setConvoyBusy(false); }
+  };
 
   // Live traffic ETA for the planned route (TomTom, when set up).
   const trafficPoints = useMemo(() => (route && pos && dest ? [pos, ...stops.map((x) => [x.lat, x.lng]), [dest.lat, dest.lng]] : null), [route]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -336,6 +347,19 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
                       Arrive around {arrivalTime(routeSeconds)} · {stops.length ? `${stops.length + 1} stops` : dest.name}
                     </p>
+                    {alts.length > 1 && (
+                      <div className="flex gap-1.5 mt-2 overflow-x-auto no-scrollbar">
+                        {alts.map((a, i) => {
+                          const on = a.coords === route.coords;
+                          return (
+                            <button key={i} onClick={() => setRoute(a)} className={`shrink-0 rounded-xl border px-2.5 py-1.5 text-left ${on ? 'border-primary bg-primary/10' : 'border-border bg-secondary/50'}`}>
+                              <div className={`text-sm font-bold ${on ? 'text-primary' : 'text-foreground'}`}>{formatEta(a.duration)} <span className="text-[11px] font-normal text-muted-foreground">{a.distance} mi</span></div>
+                              <div className="text-[10px] text-muted-foreground max-w-[150px] truncate">{a.labels?.length ? a.labels.join(' · ') : 'Other way'}{a.via ? ` · via ${a.via}` : ''}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                     <RouteConditions route={route} />
                     {traffic && (
                       <p className={`text-[11px] mt-0.5 font-semibold flex items-center gap-1 ${traffic.delay > 300 ? 'text-[#F9AB00]' : traffic.delay > 60 ? 'text-[#FBBC04]' : 'text-[#34A853]'}`}>
@@ -386,6 +410,11 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
                   <button onClick={go} className="flex-1 h-12 rounded-full dz-go font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#4285F4]/30">
                     <Navigation className="w-4 h-4 fill-white" /> Go
                   </button>
+                  {scene && !stops.length && (
+                    <button onClick={goTogether} disabled={convoyBusy} className="h-12 px-4 rounded-full bg-secondary text-foreground font-semibold text-sm flex items-center gap-1.5" aria-label="Group drive">
+                      {convoyBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />} Group
+                    </button>
+                  )}
                   <button onClick={clearSearch} className="h-12 px-5 rounded-full bg-secondary text-foreground font-semibold text-sm">Cancel</button>
                 </div>
               </>

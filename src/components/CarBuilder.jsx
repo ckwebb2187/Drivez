@@ -5,9 +5,22 @@ import CarPictureEditor from '@/components/CarPictureEditor';
 import { CATALOG, MAKES, SHAPES, WHEELS, WHEEL_COLORS, guessCatalog, carLook, displayMode } from '@/lib/carCatalog';
 import { CAR_MODELS } from '@/lib/carModels';
 
+// Same lists the 3D car uses (kept here so the garage doesn't load three.js just for labels).
+const FINISHES = [['metallic', 'Metallic'], ['gloss', 'Gloss'], ['matte', 'Matte'], ['pearl', 'Pearl'], ['chrome', 'Chrome']];
+const LIGHTS = [['stock', 'Stock'], ['led', 'LED'], ['halo', 'Halo rings'], ['yellow', 'JDM yellow']];
+const DECALS = [['none', 'None'], ['stripes', 'Stripes'], ['rising', 'Rising sun'], ['number', 'Race number'], ['checker', 'Checkers'], ['flames', 'Flames'], ['sakura', 'Sakura']];
+const PULSES = [['off', 'Steady'], ['breathe', 'Breathe'], ['strobe', 'Strobe'], ['rainbow', 'Rainbow']];
+const DECAL_COLORS = ['#ffffff', '#111214', '#ff2d55', '#00e5ff', '#ffd400', '#ff8a3d', '#ff8fb3', '#39ff14'];
+export const CHARMS = ['🌸', '🔰', '🎲', '🦊', '🐉', '🍥', '⭐', '🍀', '💀', '🧿', '🐱', '🎌'];
+
 const PAINTS = ['#1f4fbf', '#0b3d91', '#e8e8ea', '#111214', '#7a7f87', '#c1121f', '#ff6b00', '#ffd400', '#2f9e44', '#6a3cbc', '#ff4fa3', '#00bcd4'];
 const GLOWS = ['#00e5ff', '#ff2d95', '#7c4dff', '#39ff14', '#ff3b30', '#ffffff', '#ffb300'];
 const field = 'w-full bg-secondary rounded-xl px-3 py-2.5 text-sm text-foreground border border-border focus:border-primary outline-none';
+const Chips = ({ items, value, onPick, cols = 'grid-cols-3' }) => (
+  <div className={`grid ${cols} gap-1.5`}>
+    {items.map(([k, l]) => <button key={k} onClick={() => onPick(k)} className={`text-xs py-2 rounded-lg border ${value === k ? 'border-primary bg-primary/10 text-primary font-semibold' : 'border-border text-muted-foreground'}`}>{l}</button>)}
+  </div>
+);
 const Label = ({ children }) => <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">{children}</div>;
 const Toggle = ({ on }) => (
   <span className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${on ? 'bg-[#34A853]' : 'bg-muted'}`}>
@@ -47,7 +60,7 @@ export default function CarBuilder({ vehicle: v, save }) {
     setCarOpen(false);
   };
   const years = cat ? Array.from({ length: cat.years[1] - cat.years[0] + 1 }, (_, i) => cat.years[1] - i) : [];
-  const preview = { display, shape: look.shape, wheels: look.wheels, wheelColor: look.wheelColor, scoop: look.scoop, wing: look.wing, paint, glow: v.glow_on === false ? null : v.glow_color ? glowColor : undefined, model3d: look.model3d, image: v.image_url || null, modelPaint: display === 'model' ? (v.paint || null) : null };
+  const preview = { display, shape: look.shape, wheels: look.wheels, wheelColor: look.wheelColor, scoop: look.scoop, wing: look.wing, paint, glow: v.glow_on === false ? null : v.glow_color ? glowColor : undefined, model3d: look.model3d, style: look.style, image: v.image_url || null, modelPaint: display === 'model' ? (v.paint || null) : null };
   const specs = v.specs || {};
   const setSpec = (k, val) => save({ specs: { ...specs, [k]: val } });
 
@@ -132,6 +145,7 @@ export default function CarBuilder({ vehicle: v, save }) {
           {PAINTS.map((c) => <Swatch key={c} color={c} on={paint.toLowerCase() === c} onClick={() => setPaintSoon(c)} />)}
         </div>
         {display === 'model' && v.paint && <button onClick={() => save({ paint: null })} className="text-[11px] text-primary mt-1">Use the model's own paint</button>}
+        {display !== 'picture' && <div className="mt-2"><Chips items={FINISHES} value={look.style.finish} onPick={(k) => save({ finish: k })} cols="grid-cols-5" /></div>}
       </div>
 
       {/* Wheels */}
@@ -161,6 +175,7 @@ export default function CarBuilder({ vehicle: v, save }) {
             {GLOWS.map((c) => <Swatch key={c} color={c} on={glowColor.toLowerCase() === c} onClick={() => setGlowSoon(c)} />)}
           </div>
         )}
+        {!!v.glow_color && v.glow_on !== false && <div className="mt-3"><Chips items={PULSES} value={look.style.pulse} onPick={(k) => save({ glow_pulse: k })} cols="grid-cols-4" /></div>}
       </div>
 
       {/* Details */}
@@ -172,6 +187,44 @@ export default function CarBuilder({ vehicle: v, save }) {
           <button onClick={() => save({ lowered: !v.lowered })} className={`flex-1 text-xs py-2.5 rounded-xl border ${v.lowered ? 'border-primary bg-primary/10 text-primary font-semibold' : 'border-border text-muted-foreground'}`}>Lowered</button>
         </div>
       )}
+
+      {/* Lights */}
+      {display !== 'picture' && (
+        <div>
+          <Label>Headlights</Label>
+          <Chips items={LIGHTS} value={look.style.lights} onPick={(k) => save({ lights: k })} cols="grid-cols-4" />
+          {display === 'build' && (
+            <button onClick={() => save({ lashes: !v.lashes })} className={`mt-1.5 w-full text-xs py-2 rounded-lg border ${v.lashes ? 'border-primary bg-primary/10 text-primary font-semibold' : 'border-border text-muted-foreground'}`}>Headlight lashes</button>
+          )}
+        </div>
+      )}
+
+      {/* Decals */}
+      {display === 'build' && (
+        <div>
+          <Label>Decals</Label>
+          <Chips items={DECALS} value={look.style.decal} onPick={(k) => save({ decal: k })} cols="grid-cols-4" />
+          {look.style.decal !== 'none' && (
+            <div className="flex gap-2 mt-2 items-center overflow-x-auto no-scrollbar py-1">
+              {DECAL_COLORS.map((c) => <Swatch key={c} color={c} on={look.style.decalColor === c} onClick={() => save({ decal_color: c })} />)}
+              {look.style.decal === 'number' && (
+                <input defaultValue={v.decal_text || ''} maxLength={3} inputMode="numeric" placeholder="86" onBlur={(e) => save({ decal_text: e.target.value.trim().slice(0, 3) || null })} className="w-16 shrink-0 bg-secondary rounded-lg px-2 py-1.5 text-sm text-foreground border border-border outline-none text-center" />
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Mirror charm */}
+      <div>
+        <Label>Mirror charm (shows on your garage and profile)</Label>
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1">
+          <button onClick={() => save({ charm: null })} className={`shrink-0 h-9 px-3 rounded-full border text-xs ${!v.charm ? 'border-primary text-primary font-semibold' : 'border-border text-muted-foreground'}`}>None</button>
+          {CHARMS.map((c) => (
+            <button key={c} onClick={() => save({ charm: c })} className={`shrink-0 w-9 h-9 rounded-full border text-lg ${v.charm === c ? 'border-primary bg-primary/10' : 'border-border'}`}>{c}</button>
+          ))}
+        </div>
+      </div>
 
       {/* Specs */}
       <div className="bg-card rounded-2xl border border-border">

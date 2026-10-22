@@ -4,6 +4,7 @@ import { Loader2, MapPin, Users, Gauge, Route as RouteIcon, Lock, ArrowLeft } fr
 import { api } from '@/api/base44Client';
 import { CarPic } from '@/components/GarageManager';
 import { SOCIAL_LINKS } from '@/components/ProfileSharing';
+import CarPhotos from '@/components/CarPhotos';
 import { getInitials } from '@/lib/helpers';
 
 // What someone sees when they scan your QR sticker or open your link.
@@ -48,10 +49,11 @@ export default function PublicProfile() {
         {p.car && (
           <div className="bg-card rounded-2xl border border-border p-4">
             <div className="text-[11px] text-muted-foreground">Drives</div>
-            <div className="text-lg font-bold text-foreground">{p.car.year} {p.car.make} {p.car.model}</div>
+            <div className="text-lg font-bold text-foreground">{p.car.year} {p.car.make} {p.car.model}{p.car.charm ? ` ${p.car.charm}` : ''}</div>
             {p.car.nickname && <div className="text-xs text-primary">"{p.car.nickname}"</div>}
           </div>
         )}
+        {p.car?.photos?.length > 0 && <CarPhotos photos={p.car.photos} editable={false} />}
 
         {p.stats && (
           <div className="grid grid-cols-2 gap-2">

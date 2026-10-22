@@ -48,9 +48,9 @@ export default function DriverSheet({ driver, moving = false, onClose }) {
           <div className="space-y-4">
             {v && (
               <>
-                <CarPreview3D height={170} look={{ display: disp, shape: look.shape, wheels: look.wheels, wheelColor: look.wheelColor, scoop: look.scoop, wing: look.wing, paint: v.color || '#1f5ad6', glow: look.glow, model3d: look.model3d, image: v.image_url, modelPaint: disp === 'model' ? v.paint : null }} />
+                <CarPreview3D height={170} look={{ display: disp, shape: look.shape, wheels: look.wheels, wheelColor: look.wheelColor, scoop: look.scoop, wing: look.wing, paint: v.color || '#1f5ad6', glow: look.glow, model3d: look.model3d, style: look.style, image: v.image_url, modelPaint: disp === 'model' ? v.paint : null }} />
                 <div>
-                  <div className="text-lg font-bold text-foreground">{v.year} {v.make} {v.model}</div>
+                  <div className="text-lg font-bold text-foreground">{v.year} {v.make} {v.model}{look.charm ? ` ${look.charm}` : ''}</div>
                   {v.nickname && <div className="text-xs text-primary">"{v.nickname}"</div>}
                   {(specs.hp || specs.drivetrain || specs.trans || specs.engine) && (
                     <div className="text-xs text-muted-foreground mt-1">{[specs.hp && `${specs.hp} hp`, specs.torque && `${specs.torque} lb-ft`, specs.drivetrain, specs.trans, specs.engine].filter(Boolean).join(' · ')}</div>

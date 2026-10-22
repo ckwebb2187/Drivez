@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
-import { Gauge, Clock, User, ChevronRight } from 'lucide-react';
+import { Gauge, Clock, User, ChevronRight, Flame, CalendarDays } from 'lucide-react';
 import LiveDrive from '@/pages/LiveDrive';
 import SetupModeModal from '@/components/SetupModeModal';
 import { useApp } from '@/lib/AppContext';
@@ -9,20 +9,22 @@ import { useMapLook, featureName, applySkin } from '@/lib/mapTheme';
 
 const tabs = [
   { to: '/history', icon: Clock, label: 'History' },
+  { to: '/feed', icon: Flame, label: 'Feed', scene: true },
   { to: '/', icon: Gauge, label: 'Drive', center: true },
+  { to: '/meets', icon: CalendarDays, label: 'Meets', scene: true },
   { to: '/profile', icon: User, label: 'Profile' }
 ];
 
 export default function Layout() {
   const { pathname } = useLocation();
-  const { user } = useApp();
+  const { user, scene } = useApp();
   const [look] = useMapLook();
   // The whole app takes on the world theme's colors.
   useEffect(() => { applySkin(look.theme); }, [look.theme]);
-  const shownTabs = tabs.map((t) => (t.to === '/' && look.jpNames ? { ...t, label: 'Chizu' } : t));
+  const shownTabs = tabs.filter((t) => !t.scene || scene).map((t) => (t.to === '/' && look.jpNames ? { ...t, label: 'Chizu' } : t));
   const onDrive = pathname === '/' || pathname === '/drive'; // the drive map is the home screen
   // Detail pages (a saved drive, saved places, routes…) fill the screen without the tab bar.
-  const fullPage = !onDrive && !['/history', '/profile', '/leaderboard'].includes(pathname);
+  const fullPage = !onDrive && !['/history', '/profile', '/leaderboard', '/feed', '/meets'].includes(pathname);
   // The drive screen is kept running once opened, so switching tabs never loses a drive.
   const [driveOpened, setDriveOpened] = useState(onDrive);
   useEffect(() => { if (onDrive) setDriveOpened(true); }, [onDrive]);
@@ -93,7 +95,7 @@ export default function Layout() {
               );
             }
             return (
-              <NavLink key={tab.to} to={tab.to} className="flex flex-col items-center gap-1 py-2 px-3">
+              <NavLink key={tab.to} to={tab.to} className="flex flex-col items-center gap-1 py-2 px-2">
                 {({ isActive }) => (
                   <>
                     <Icon className={`w-5 h-5 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`} strokeWidth={2.2} />

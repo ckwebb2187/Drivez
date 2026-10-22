@@ -140,3 +140,7 @@ html:not([data-skin="standard"]) .dz-go svg { fill: currentColor; }
 .dz-slide-in-left { animation: dz-slide-in-left .28s cubic-bezier(.2,.8,.2,1); }
 @keyframes dz-slide-in { from { transform: translateX(100%); } to { transform: none; } }
 @keyframes dz-slide-in-left { from { transform: translateX(-100%); } to { transform: none; } }
+
+/* Alert card countdown (alerts close themselves after 12 s) */
+.dz-alert-timer { width: 100%; transform-origin: left; animation: dz-alert-timer 12s linear forwards; }
+@keyframes dz-alert-timer { from { transform: scaleX(1); } to { transform: scaleX(0); } }

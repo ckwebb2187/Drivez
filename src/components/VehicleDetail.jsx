@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Plus, Trash2, Wrench, Gauge, Settings2, Loader2, Check, Sparkles, Bluetooth, Hand } from 'lucide-react';
 import { mileageMode } from '@/lib/carBluetooth';
 import CarBuilder from '@/components/CarBuilder';
+import CarPhotos from '@/components/CarPhotos';
 import { useApp } from '@/lib/AppContext';
 import { CarPic } from '@/components/GarageManager';
 import { SERVICE_KINDS, MOD_CATEGORIES, kindOf, newId, odometer, reminders, trackedKinds, dueText } from '@/lib/maintenance';
@@ -77,6 +78,8 @@ export default function VehicleDetail({ vehicle: v0, onClose }) {
 
         {/* Car builder: 3D preview, car, paint, wheels, underglow, specs */}
         <CarBuilder vehicle={v} save={save} />
+
+        <CarPhotos vehicle={v} />
 
         {/* Odometer */}
         <section className="bg-card rounded-2xl border border-border p-4">

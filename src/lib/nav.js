@@ -94,19 +94,22 @@ export async function searchPlaces(q, near) {
 // Driving directions from `from` to `to` ([lat, lng]), optionally through `stops`
 // (up to 10, each { lat, lng, name }). Each leg ends with an "arrive" step.
 export const MAX_STOPS = 10;
-export async function getRoute(from, to, stops = [], destName = '') {
-  const points = [from, ...stops.map((s) => [s.lat, s.lng]), to];
-  const path = points.map(([lat, lng]) => `${lng},${lat}`).join(';');
-  const url = `https://router.project-osrm.org/route/v1/driving/${path}?overview=full&geometries=geojson&steps=true`;
-  let data = {};
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await fetch(url).catch(() => null);
-    data = res ? await res.json().catch(() => ({})) : {};
-    if (data.code === 'Ok') break;
-    await new Promise((r) => setTimeout(r, 800));
+// How twisty a route is: degrees of turning per mile (big numbers = mountain roads).
+function twistiness(coords, distM) {
+  let turn = 0;
+  const step = Math.max(1, Math.floor(coords.length / 1500));
+  let prev = null;
+  for (let i = step; i < coords.length; i += step) {
+    const [a, b] = [coords[i - step], coords[i]];
+    if (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) < 1e-5) continue;
+    const brg = (Math.atan2(b[1] - a[1], (b[0] - a[0]) / Math.cos(toRad(a[0]))) * 180) / Math.PI;
+    if (prev != null) { let d = Math.abs(brg - prev); if (d > 180) d = 360 - d; if (d < 120) turn += d; }
+    prev = brg;
   }
-  if (data.code !== 'Ok' || !data.routes?.length) throw new Error("Couldn't find a driving route there");
-  const r = data.routes[0];
+  return Math.round(turn / Math.max(0.1, distM / 1609.34));
+}
+
+function parseRoute(r, stops, destName) {
   const steps = r.legs.flatMap((leg, legIdx) => leg.steps.map((s) => {
     const step = {
       lat: s.maneuver.location[1],
@@ -128,14 +131,47 @@ export async function getRoute(from, to, stops = [], destName = '') {
     }
     return step;
   }));
+  const coords = r.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+  // Main roads used (for the "via" label on route choices).
+  const byName = {};
+  for (const st of steps) if (st.name) byName[st.name] = (byName[st.name] || 0) + st.distance;
+  const via = Object.entries(byName).sort((x, y) => y[1] - x[1])[0]?.[0] || '';
   return {
-    coords: r.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+    coords,
     distanceM: r.distance,
     distance: Math.round((r.distance / 1609.34) * 10) / 10,
     duration: r.duration,
     legs: r.legs.map((l) => ({ distance: l.distance, duration: l.duration })),
     steps,
+    via,
+    twisty: twistiness(coords, r.distance),
   };
+}
+
+// Directions. With no stops, also returns up to 2 other ways to go (route.alternatives),
+// each labeled: Fastest, Shortest, Twistiest (best for a Tōge run).
+export async function getRoute(from, to, stops = [], destName = '') {
+  const points = [from, ...stops.map((s) => [s.lat, s.lng]), to];
+  const path = points.map(([lat, lng]) => `${lng},${lat}`).join(';');
+  const url = `https://router.project-osrm.org/route/v1/driving/${path}?overview=full&geometries=geojson&steps=true${stops.length ? '' : '&alternatives=3'}`;
+  let data = {};
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await fetch(url).catch(() => null);
+    data = res ? await res.json().catch(() => ({})) : {};
+    if (data.code === 'Ok') break;
+    await new Promise((r) => setTimeout(r, 800));
+  }
+  if (data.code !== 'Ok' || !data.routes?.length) throw new Error("Couldn't find a driving route there");
+  const all = data.routes.slice(0, 3).map((r) => parseRoute(r, stops, destName));
+  const fastest = all.reduce((x, y) => (y.duration < x.duration ? y : x));
+  const shortest = all.reduce((x, y) => (y.distanceM < x.distanceM ? y : x));
+  const twistiest = all.reduce((x, y) => (y.twisty > x.twisty ? y : x));
+  all.forEach((r) => {
+    r.labels = [r === fastest && 'Fastest', r === shortest && r !== fastest && 'Shortest', all.length > 1 && r === twistiest && r.twisty > 60 && 'Twistiest'].filter(Boolean);
+  });
+  const main = all[0];
+  main.alternatives = all.map((r) => (r === main ? { ...main } : r)); // copy avoids a loop back to main
+  return main;
 }
 
 // Best visiting order for the stops between start and the final destination.
