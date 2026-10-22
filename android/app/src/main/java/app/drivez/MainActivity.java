@@ -21,15 +21,16 @@ import android.webkit.WebViewClient;
 
 import org.json.JSONObject;
 
-// Shows the Drivez web app full screen and adds what a web page can't do on its own:
+// Shows the Kaido Maps web app full screen and adds what a web page can't do on its own:
 // reading what's playing on the phone and controlling it.
 public class MainActivity extends Activity {
-    private static final int REQ_LOCATION = 1, REQ_FILE = 2;
+    private static final int REQ_LOCATION = 1, REQ_FILE = 2, REQ_BLUETOOTH = 3;
     private static final String SITE = BuildConfig.SITE;
     private static final String HOST = Uri.parse(SITE).getHost();
 
     private WebView web;
     private MediaWatcher media;
+    private CarBluetooth bt;
     private String pendingGeoOrigin;
     private GeolocationPermissions.Callback pendingGeo;
     private ValueCallback<Uri[]> pendingFiles;
@@ -52,6 +53,9 @@ public class MainActivity extends Activity {
 
         media = new MediaWatcher(this, json -> runOnUiThread(() ->
             web.evaluateJavascript("window.dispatchEvent(new CustomEvent('drivez-media',{detail:" + json + "}))", null)));
+        bt = new CarBluetooth(this, json -> runOnUiThread(() ->
+            web.evaluateJavascript("window.dispatchEvent(new CustomEvent('drivez-bt',{detail:" + json + "}))", null)));
+        bt.start();
         web.addJavascriptInterface(new Bridge(), "DrivezNative");
 
         web.setWebViewClient(new WebViewClient() {
@@ -130,6 +134,11 @@ public class MainActivity extends Activity {
             pendingGeo = null;
         }
         if (code == REQ_LOCATION && hasLocation()) web.reload();
+        if (code == REQ_BLUETOOTH) {
+            bt.start();
+            final String json = bt.status();
+            web.evaluateJavascript("window.dispatchEvent(new CustomEvent('drivez-bt',{detail:" + json + "}))", null);
+        }
     }
 
     @Override
@@ -165,6 +174,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         media.stop();
+        bt.stop();
         super.onDestroy();
     }
 
@@ -188,11 +198,22 @@ public class MainActivity extends Activity {
                 o.put("version", BuildConfig.VERSION_NAME);
                 o.put("versionCode", BuildConfig.VERSION_CODE);
                 o.put("mediaAccess", media.hasAccess());
+                o.put("bluetooth", true);
             } catch (Exception ignored) { }
             return o.toString();
         }
 
         @JavascriptInterface public String nowPlaying() { return media.snapshot(); }
+
+        // Car Bluetooth: which devices are paired / connected right now.
+        @JavascriptInterface public String bluetoothStatus() { return bt.status(); }
+
+        @JavascriptInterface public void requestBluetooth() {
+            runOnUiThread(() -> {
+                if (bt.hasPermission()) { bt.start(); web.evaluateJavascript("window.dispatchEvent(new CustomEvent('drivez-bt',{detail:" + bt.status() + "}))", null); }
+                else if (android.os.Build.VERSION.SDK_INT >= 31) requestPermissions(new String[]{ Manifest.permission.BLUETOOTH_CONNECT }, REQ_BLUETOOTH);
+            });
+        }
 
         @JavascriptInterface public void control(String action) {
             runOnUiThread(() -> media.control(action));

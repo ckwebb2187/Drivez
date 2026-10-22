@@ -17,17 +17,19 @@ export const MOD_CATEGORIES = ['Engine', 'Intake / Exhaust', 'Turbo', 'Tune', 'S
 
 export const newId = () => Math.random().toString(36).slice(2, 10);
 
-// Miles driven in the app with this car after a given date.
+// Miles driven in the app with this car after a given date. Drives marked as not
+// counting (phone wasn't on the car's Bluetooth — e.g. you were a passenger) are skipped.
 export function appMilesSince(trips, vehicleId, sinceIso) {
   const since = sinceIso ? new Date(sinceIso).getTime() : 0;
   return trips
-    .filter((t) => t.vehicleId === vehicleId && new Date(t.start_time || t.date).getTime() > since)
+    .filter((t) => t.vehicleId === vehicleId && t.odo !== false && new Date(t.start_time || t.date).getTime() > since)
     .reduce((s, t) => s + (t.distance || 0), 0);
 }
 
 // Current odometer, or null until you've entered a starting reading.
 export function odometer(vehicle, trips) {
   if (vehicle?.odometer_base == null) return null;
+  if (vehicle.mileage_mode === 'manual') return Math.round(vehicle.odometer_base);
   return Math.round(vehicle.odometer_base + appMilesSince(trips, vehicle.id, vehicle.odometer_base_date));
 }
 

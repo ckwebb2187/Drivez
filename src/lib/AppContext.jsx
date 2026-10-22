@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo } 
 import { base44, api } from '@/api/base44Client';
 import { useAuth } from './AuthContext';
 import { startOfWeek, subWeeks, format as formatDate } from 'date-fns';
+import { useCarBluetooth, connectedCar } from './carBluetooth';
 
 const AppContext = createContext(null);
 
@@ -88,6 +89,13 @@ export function AppProvider({ children }) {
   // The car you're driving: the one marked "driving this", else your first car.
   const activeVehicle = useMemo(() => vehicles.find(v => v.is_primary) || vehicles[0] || null, [vehicles]);
   const myCar = useMemo(() => activeVehicle ? { body: activeVehicle.body || 'sedan', color: activeVehicle.color || '#00BFFF', image: activeVehicle.image_url || null, model3d: activeVehicle.model3d || null, paint: activeVehicle.paint || null, lowered: !!activeVehicle.lowered } : null, [activeVehicle]);
+
+  // Android app: when the phone connects to a car's Bluetooth, that car becomes the one you're driving.
+  const carBt = useCarBluetooth();
+  const btCar = useMemo(() => connectedCar(vehicles, carBt.status), [vehicles, carBt.status]);
+  useEffect(() => {
+    if (btCar && activeVehicle && btCar.id !== activeVehicle.id) setPrimaryVehicle(btCar.id).catch(() => {});
+  }, [btCar && btCar.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setPrimaryVehicle = async (id) => {
     await Promise.all(vehicles.filter(v => !!v.is_primary !== (v.id === id)).map(v => base44.entities.Vehicle.update(v.id, { is_primary: v.id === id })));
@@ -236,7 +244,7 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      user, scene, setAppMode, saveProfile, stats, weeklyStats, vehicles, trips, savedRoutes, loading, activeVehicle, myCar, setPrimaryVehicle,
+      user, scene, setAppMode, carBt, btCar, saveProfile, stats, weeklyStats, vehicles, trips, savedRoutes, loading, activeVehicle, myCar, setPrimaryVehicle,
       toggleGhostMode, updateUser, addVehicle, removeVehicle, setVehicleImage, updateVehicle, addTrip,
       addRoute, deleteRoute, shareRouteWithFriends, places, addPlace, deletePlace, renamePlace, home, work, setHomeWork, refreshData: loadData
     }}>

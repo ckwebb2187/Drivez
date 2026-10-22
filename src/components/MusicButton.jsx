@@ -162,7 +162,7 @@ function NativeMusicButton({ size }) {
             {!access ? (
               <div className="px-3 pb-3">
                 <p className="text-[11px] text-white/70 leading-snug mb-2">
-                  Tap below, find <b>Drivez</b> in the list and turn it on. Android calls this “notification access”. Drivez only uses it to read the song and the play/pause/skip controls.
+                  Tap below, find <b>Kaido Maps</b> in the list and turn it on. Android calls this “notification access”. Kaido Maps only uses it to read the song and the play/pause/skip controls.
                 </p>
                 <p className="text-[11px] text-white/50 leading-snug mb-2">
                   If Android says it’s a <b>restricted setting</b>: tap <b>App info</b> below, then the <b>⋮</b> menu (top right) → <b>Allow restricted settings</b>, then try again.

@@ -14,6 +14,7 @@ import { useReports, useReportAlerts, useMappedBumps, REPORT_TYPES } from '@/lib
 import MusicButton from '@/components/MusicButton';
 import { WeatherButton } from '@/components/Weather';
 import TripPlanner from '@/components/TripPlanner';
+import { mileageMode } from '@/lib/carBluetooth';
 
 const MAX_POINTS = 400;
 
@@ -31,7 +32,7 @@ async function reverseGeocode(lat, lng) {
 
 export default function LiveDrive({ active = true }) {
   const navigate = useNavigate();
-  const { activeVehicle, myCar, savedRoutes, addTrip, scene } = useApp();
+  const { activeVehicle, vehicles, myCar, savedRoutes, addTrip, scene, btCar } = useApp();
   const drive = useGpsDrive(myCar);
   const location = useLocation();
   // This screen stays alive in the background while you visit other tabs, so the
@@ -140,6 +141,13 @@ export default function LiveDrive({ active = true }) {
     } catch { /* private mode */ }
   }, [drive.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Which car's Bluetooth the phone was on during this drive (Android app).
+  const btSeen = useRef(null);
+  useEffect(() => { if (drive.status === 'acquiring' || drive.status === 'idle') btSeen.current = null; }, [drive.status]);
+  useEffect(() => { if (btCar && (drive.status === 'driving' || drive.status === 'acquiring')) btSeen.current = btCar; }, [btCar, drive.status]);
+  const tripCar = btSeen.current || activeVehicle;
+  const countsMiles = !!tripCar && (btSeen.current ? true : mileageMode(tripCar) === 'all');
+
   const handleSave = async () => {
     if (!drive.route.length || saving) return;
     setSaving(true);
@@ -171,7 +179,8 @@ export default function LiveDrive({ active = true }) {
         duration: drive.elapsedTime,
         top_speed: drive.maxSpeed,
         avg_speed: avg,
-        vehicle_id: activeVehicle ? activeVehicle.id : null,
+        vehicle_id: tripCar ? tripCar.id : null,
+        odo: countsMiles,
         route_points: routePoints,
         start_location: startLocation,
         end_location: endLocation,
@@ -471,6 +480,15 @@ export default function LiveDrive({ active = true }) {
               )}
               </>}
 
+              {tripCar && scene && (
+                <p className={`text-[11px] text-center -mt-2 mb-4 ${countsMiles ? 'text-muted-foreground' : 'text-amber-400'}`}>
+                  {countsMiles
+                    ? `Miles count toward the ${tripCar.nickname || tripCar.model} odometer${btSeen.current ? ' (connected to its Bluetooth)' : ''}`
+                    : mileageMode(tripCar) === 'manual'
+                      ? `${tripCar.nickname || tripCar.model} mileage is entered by hand, so this drive isn't added`
+                      : `Not added to the ${tripCar.nickname || tripCar.model} odometer: the phone wasn't on its Bluetooth (passenger or another car?)`}
+                </p>
+              )}
               {saveError && <p className="text-xs text-destructive mb-3 text-center">{saveError}</p>}
 
               <div className="flex gap-3">

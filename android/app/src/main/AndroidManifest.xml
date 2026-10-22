@@ -6,8 +6,11 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Knowing when the phone connects to your car's Bluetooth, so its miles count. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
-    <!-- Lets Drivez open these music apps. -->
+    <!-- Lets Kaido Maps open these music apps. -->
     <queries>
         <package android:name="re.muwmix.yumaplayer" />
         <package android:name="re.muwmix.yumaplayer.canary" />
@@ -18,7 +21,7 @@
     </queries>
 
     <application
-        android:label="Drivez"
+        android:label="Kaido Maps"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:theme="@style/DrivezTheme"
@@ -37,11 +40,11 @@
             </intent-filter>
         </activity>
 
-        <!-- Needed so Android lets Drivez read what's playing (media sessions). -->
+        <!-- Needed so Android lets Kaido Maps read what's playing (media sessions). -->
         <service
             android:name=".MediaListenerService"
             android:exported="true"
-            android:label="Drivez now playing"
+            android:label="Kaido Maps now playing"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />

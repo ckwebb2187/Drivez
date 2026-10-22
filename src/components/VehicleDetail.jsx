@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, Trash2, Wrench, Gauge, Settings2, Loader2, Check, Sparkles } from 'lucide-react';
+import { X, Plus, Trash2, Wrench, Gauge, Settings2, Loader2, Check, Sparkles, Bluetooth, Hand } from 'lucide-react';
+import { mileageMode } from '@/lib/carBluetooth';
 import { useApp } from '@/lib/AppContext';
 import { CarPic } from '@/components/GarageManager';
 import { SERVICE_KINDS, MOD_CATEGORIES, kindOf, newId, odometer, reminders, trackedKinds, dueText } from '@/lib/maintenance';
@@ -11,7 +12,8 @@ const pillText = { overdue: 'Overdue', soon: 'Due soon', ok: 'OK', unknown: 'Not
 
 // One car's page: odometer, service reminders + log, and mods list.
 export default function VehicleDetail({ vehicle: v0, onClose }) {
-  const { vehicles, trips, updateVehicle, scene } = useApp();
+  const { vehicles, trips, updateVehicle, scene, carBt } = useApp();
+  const [pickBt, setPickBt] = useState(false);
   const v = vehicles.find((x) => x.id === v0.id) || v0;
   const odo = odometer(v, trips);
   const rem = reminders(v, trips);
@@ -92,6 +94,32 @@ export default function VehicleDetail({ vehicle: v0, onClose }) {
               </div>
             </div>
           )}
+        </section>
+
+        {/* How miles are counted */}
+        <section className="bg-card rounded-2xl border border-border p-4">
+          <div className="flex items-center gap-2 mb-1"><Bluetooth className="w-4 h-4 text-primary" /><h3 className="text-sm font-bold text-foreground">Mileage counting</h3></div>
+          {mileageMode(v) === 'manual' ? (
+            <p className="text-[11px] text-muted-foreground">Off: you update the odometer yourself (for cars without Bluetooth).</p>
+          ) : v.bt_device ? (
+            <p className="text-[11px] text-muted-foreground">Miles only count while your phone is connected to <b className="text-foreground">{v.bt_device.name}</b>
+              {carBt.status?.connected?.some((d) => d.address === v.bt_device.address) && <span className="text-accent font-semibold"> · connected now</span>}. Rides as a passenger and drives in other cars are left out.</p>
+          ) : (
+            <p className="text-[11px] text-muted-foreground">Every drive with this car selected counts. Link the car's Bluetooth so only drives in this car count, even with passengers or several cars.</p>
+          )}
+          <div className="flex flex-wrap gap-2 mt-3">
+            {mileageMode(v) !== 'manual' && (carBt.supported ? (
+              <button onClick={() => { if (!carBt.status?.permission) carBt.request(); setPickBt(true); }} className="h-9 px-3 rounded-full bg-primary/15 text-primary text-xs font-semibold flex items-center gap-1.5">
+                <Bluetooth className="w-3.5 h-3.5" />{v.bt_device ? 'Change device' : 'Link car Bluetooth'}
+              </button>
+            ) : (
+              <span className="text-[10px] text-muted-foreground">Bluetooth linking works in the Kaido Maps Android app.</span>
+            ))}
+            {v.bt_device && mileageMode(v) !== 'manual' && <button onClick={() => save({ bt_device: null })} className="h-9 px-3 rounded-full bg-secondary text-xs font-semibold text-foreground">Unlink</button>}
+            <button onClick={() => save({ mileage_mode: mileageMode(v) === 'manual' ? null : 'manual' })} className="h-9 px-3 rounded-full bg-secondary text-xs font-semibold text-foreground flex items-center gap-1.5">
+              <Hand className="w-3.5 h-3.5" />{mileageMode(v) === 'manual' ? 'Count drives automatically' : 'No Bluetooth: enter by hand'}
+            </button>
+          </div>
         </section>
 
         {/* Service reminders */}
@@ -181,6 +209,39 @@ export default function VehicleDetail({ vehicle: v0, onClose }) {
           </section>
         )}
       </div>
+
+      {pickBt && (
+        <div className="fixed inset-0 z-[1700] bg-black/60 flex items-end justify-center" onClick={() => setPickBt(false)}>
+          <div className="w-full max-w-md bg-card rounded-t-3xl border-t border-border p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-foreground">Which one is your {v.model}?</h3>
+            <p className="text-[11px] text-muted-foreground mb-3">Pick your car's stereo or head unit. Tip: get in the car with it on, then the right one shows "connected".</p>
+            {!carBt.status?.permission ? (
+              <button onClick={carBt.request} className="w-full bg-primary text-primary-foreground rounded-xl py-3 text-sm font-semibold">Allow Bluetooth access</button>
+            ) : !carBt.status?.enabled ? (
+              <p className="text-sm text-amber-400">Turn on Bluetooth on your phone first.</p>
+            ) : (
+              <div className="max-h-[50vh] overflow-y-auto divide-y divide-border bg-secondary/40 rounded-2xl">
+                {(carBt.status.paired || []).length === 0 && <p className="p-4 text-sm text-muted-foreground">No paired devices yet. Pair your car in the phone's Bluetooth settings.</p>}
+                {[...(carBt.status.paired || [])].sort((a, b) => (carBt.status.connected?.some((d) => d.address === b.address) ? 1 : 0) - (carBt.status.connected?.some((d) => d.address === a.address) ? 1 : 0)).map((d) => {
+                  const on = carBt.status.connected?.some((c) => c.address === d.address);
+                  const taken = vehicles.find((x) => x.id !== v.id && x.bt_device?.address === d.address);
+                  return (
+                    <button key={d.address} onClick={async () => { if (await save({ bt_device: { name: d.name, address: d.address }, mileage_mode: null })) setPickBt(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left">
+                      <Bluetooth className={`w-4 h-4 ${on ? 'text-accent' : 'text-muted-foreground'}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-foreground truncate">{d.name}</div>
+                        <div className="text-[10px] text-muted-foreground">{on ? 'Connected now' : 'Paired'}{taken ? ` · linked to ${taken.nickname || taken.model}` : ''}</div>
+                      </div>
+                      {v.bt_device?.address === d.address && <Check className="w-4 h-4 text-primary" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {logging && (
         <div className="fixed inset-0 z-[1700] bg-black/60 flex items-end justify-center" onClick={() => setLogging(null)}>
