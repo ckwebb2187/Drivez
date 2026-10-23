@@ -122,7 +122,7 @@ function DriveMapInner({
       maxPitch: 70,
       fadeDuration: 0,
     });
-    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'top-right');
+    // Map credits live in Settings → App & updates (keeps the map clear).
     // Start with the credits folded into the small (i) button.
     map.once('load', () => box.current?.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'));
     map.touchZoomRotate.disableRotation();

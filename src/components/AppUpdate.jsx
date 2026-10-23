@@ -99,6 +99,9 @@ export default function AppUpdate() {
         </div>
       </div>
       <AndroidAppCard />
+      <p className="text-[10px] text-muted-foreground leading-snug px-1">
+        Map data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" className="underline">OpenStreetMap contributors</a> · Maps by <a href="https://openfreemap.org" target="_blank" rel="noreferrer" className="underline">OpenFreeMap</a> / <a href="https://openmaptiles.org" target="_blank" rel="noreferrer" className="underline">OpenMapTiles</a> · Directions by OSRM · Weather radar: RainViewer, NOAA, AccuWeather · Traffic: TomTom
+      </p>
     </div>
   );
 }

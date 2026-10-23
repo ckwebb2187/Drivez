@@ -113,7 +113,7 @@ export function useNavigation(plan, pos, voice) {
       .finally(() => setRerouting(false));
   };
   return {
-    active: true, route, step, nextStep: steps[idx + 1], distToStep,
+    active: true, route, step, stepIdx: Math.min(idx, steps.length - 1), nextStep: steps[idx + 1], distToStep,
     remainingM, remainingS, arrived, rerouting,
     stops, stopIdx, nextStop: stops[stopIdx] || null, justReached, skipStop,
   };

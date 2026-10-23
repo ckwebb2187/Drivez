@@ -1,8 +1,9 @@
+import { createPortal } from 'react-dom';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTrafficEta } from '@/lib/traffic';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X, ChevronUp, Navigation2, SkipForward, MapPin } from 'lucide-react';
+import { ChevronDown, Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X, ChevronUp, Navigation2, SkipForward, MapPin } from 'lucide-react';
 import DriveMap from '@/components/DriveMap';
 import { useGpsDrive, pendingDrive, clearPendingDrive } from '@/lib/useGpsDrive';
 import { useApp } from '@/lib/AppContext';
@@ -233,6 +234,10 @@ export default function LiveDrive({ active = true }) {
     c.last = h;
   }, [drive.heading]); // eslint-disable-line react-hooks/exhaustive-deps
   const [barOpen, setBarOpen] = useState(false);
+  // Turn card folded into a small pill (remembered), and the full turn-by-turn list.
+  const [turnsMin, setTurnsMin] = useState(() => { try { return localStorage.getItem('dz-turns-min') === '1'; } catch { return false; } });
+  const setMin = (v) => { setTurnsMin(v); try { localStorage.setItem('dz-turns-min', v ? '1' : '0'); } catch { /* ignore */ } };
+  const [stepsOpen, setStepsOpen] = useState(false);
   const [endArmed, setEndArmed] = useState(false);
   // Free drive (no route): end and save on its own after 10 minutes parked.
   const lastMoving = useRef(Date.now());
@@ -420,7 +425,7 @@ export default function LiveDrive({ active = true }) {
 
       {/* Someone invited you to a group drive */}
       {inviteFor && inviteSeen !== inviteFor.code && active && (
-        <div className={`absolute left-3 right-3 ${drive.status === 'idle' ? 'top-[calc(max(12px,env(safe-area-inset-top))+64px)]' : nav.active ? 'top-[210px]' : 'top-[64px]'} z-[690] pointer-events-auto dz-pop-in`}>
+        <div className={`absolute left-3 right-3 ${drive.status === 'idle' ? 'top-[calc(max(12px,env(safe-area-inset-top))+64px)]' : nav.active ? (turnsMin ? 'top-[140px]' : 'top-[210px]') : 'top-[64px]'} z-[690] pointer-events-auto dz-pop-in`}>
           <div className="mx-auto max-w-md rounded-2xl bg-primary text-primary-foreground shadow-2xl pl-4 pr-1.5 py-1.5 flex items-center gap-2">
             <span className="flex-1 text-sm font-semibold truncate">👥 {inviteFor.leader?.name || 'A friend'} invited you · {inviteFor.dest.name}</span>
             <button onClick={() => { setInviteSeen(inviteFor.code); onJoinConvoy(inviteFor.code).catch(() => {}); }} className="h-9 px-3 rounded-full bg-black/20 text-xs font-bold">Join</button>
@@ -482,31 +487,50 @@ export default function LiveDrive({ active = true }) {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 z-[500] pointer-events-none"
           >
-            {nav.active && (
-              <div className="absolute top-0 left-0 right-0 p-3 pt-[max(12px,env(safe-area-inset-top))] pointer-events-auto">
-                <div className="rounded-2xl shadow-2xl overflow-hidden" style={{ background: nav.arrived ? '#188038' : look.theme === 'standard' ? '#0F7B3F' : 'hsl(var(--primary))' }}>
-                  <div className="flex items-center gap-3 px-4 py-3.5" style={{ color: nav.arrived || look.theme === 'standard' ? '#fff' : 'hsl(var(--primary-foreground))' }}>
-                    {nav.arrived ? <Check className="w-9 h-9" strokeWidth={2.6} /> : <TurnIcon step={nav.step} className="w-9 h-9 shrink-0" />}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-2xl font-bold leading-none">{nav.arrived ? 'Arrived' : nav.rerouting ? 'Rerouting…' : formatNavDistance(nav.distToStep)}</div>
-                      <div className="text-[15px] font-semibold mt-1 leading-snug line-clamp-2">{nav.arrived ? navPlan.dest.name : nav.step.text}</div>
-                    </div>
-                    <button onClick={toggleVoice} className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center shrink-0" aria-label={voiceOn ? 'Mute directions' : 'Unmute directions'}>
-                      {voiceOn ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+            {/* Turn card: tap it for every turn of the trip; the arrow folds it into a small pill. */}
+            {nav.active && (() => {
+              const bg = nav.arrived ? '#188038' : look.theme === 'standard' ? '#0F7B3F' : 'hsl(var(--primary))';
+              const fg = nav.arrived || look.theme === 'standard' ? '#fff' : 'hsl(var(--primary-foreground))';
+              if (turnsMin) return (
+                <div className="absolute top-0 left-0 p-3 pt-[max(12px,env(safe-area-inset-top))] pointer-events-auto">
+                  <div className="rounded-full shadow-2xl flex items-center gap-2 pl-3 pr-1 h-[52px]" style={{ background: bg, color: fg }}>
+                    <button onClick={() => setStepsOpen(true)} className="flex items-center gap-2" aria-label="All turns">
+                      {nav.arrived ? <Check className="w-6 h-6" /> : <TurnIcon step={nav.step} className="w-6 h-6" />}
+                      <span className="text-lg font-bold">{nav.arrived ? 'Arrived' : nav.rerouting ? 'Rerouting…' : formatNavDistance(nav.distToStep)}</span>
                     </button>
+                    <button onClick={() => setMin(false)} className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center" aria-label="Show directions"><ChevronDown className="w-5 h-5" /></button>
                   </div>
-                  {!nav.arrived && nav.nextStep && nav.step.type !== 'arrive' && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-black/20 text-xs font-medium opacity-90">
-                      Then <TurnIcon step={nav.nextStep} className="w-4 h-4" />
-                    </div>
-                  )}
                 </div>
-              </div>
-            )}
+              );
+              return (
+                <div className="absolute top-0 left-0 right-0 p-3 pt-[max(12px,env(safe-area-inset-top))] pointer-events-auto">
+                  <div className="rounded-2xl shadow-2xl overflow-hidden" style={{ background: bg }}>
+                    <div className="flex items-center gap-3 px-4 py-3.5" style={{ color: fg }}>
+                      <button onClick={() => setStepsOpen(true)} className="flex-1 min-w-0 flex items-center gap-3 text-left" aria-label="All turns">
+                        {nav.arrived ? <Check className="w-9 h-9" strokeWidth={2.6} /> : <TurnIcon step={nav.step} className="w-9 h-9 shrink-0" />}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-2xl font-bold leading-none">{nav.arrived ? 'Arrived' : nav.rerouting ? 'Rerouting…' : formatNavDistance(nav.distToStep)}</div>
+                          <div className="text-[15px] font-semibold mt-1 leading-snug line-clamp-2">{nav.arrived ? navPlan.dest.name : nav.step.text}</div>
+                        </div>
+                      </button>
+                      <button onClick={toggleVoice} className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center shrink-0" aria-label={voiceOn ? 'Mute directions' : 'Unmute directions'}>
+                        {voiceOn ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+                      </button>
+                      <button onClick={() => setMin(true)} className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center shrink-0" aria-label="Fold directions"><ChevronUp className="w-5 h-5" /></button>
+                    </div>
+                    {!nav.arrived && nav.nextStep && nav.step.type !== 'arrive' && (
+                      <button onClick={() => setStepsOpen(true)} className="w-full flex items-center gap-2 px-4 py-2 bg-black/20 text-xs font-medium opacity-90 text-left" style={{ color: fg }}>
+                        Then <TurnIcon step={nav.nextStep} className="w-4 h-4" /><span className="truncate">{nav.nextStep.text}</span><span className="ml-auto opacity-80 shrink-0">All turns ›</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Reached a stop */}
             {nav.active && nav.justReached && !nav.arrived && (
-              <div className="absolute left-3 right-3 top-[140px] pointer-events-none">
+              <div className={`absolute left-3 right-3 ${turnsMin ? 'top-[72px]' : 'top-[140px]'} pointer-events-none`}>
                 <div className="mx-auto max-w-sm rounded-2xl bg-[#188038] text-white px-4 py-2.5 shadow-2xl flex items-center gap-2 text-sm font-semibold">
                   <MapPin className="w-4 h-4" /> Reached {nav.justReached.name}
                 </div>
@@ -520,7 +544,7 @@ export default function LiveDrive({ active = true }) {
               const left = here ? Math.max(0, distM(here, [reportAlert.lat, reportAlert.lng])) : reportAlert.distance;
               const voteAndClose = (yes) => { roadReports.vote(reportAlert.id, yes).catch(() => {}); dismissAlert(); };
               return (
-                <div key={reportAlert.id} className={`absolute left-3 right-[76px] ${nav.active ? 'top-[150px]' : 'top-[max(12px,env(safe-area-inset-top))]'} pointer-events-auto dz-pop-in`}>
+                <div key={reportAlert.id} className={`absolute left-3 right-[76px] ${nav.active ? (turnsMin ? 'top-[80px]' : 'top-[150px]') : 'top-[max(12px,env(safe-area-inset-top))]'} pointer-events-auto dz-pop-in`}>
                   <div className="rounded-2xl shadow-2xl overflow-hidden bg-card/95 backdrop-blur border border-border" style={{ boxShadow: `0 0 0 2px ${t.color}, 0 10px 30px rgba(0,0,0,.45), 0 0 18px ${t.color}55` }}>
                     <div className="flex items-center gap-3 px-3 py-2.5">
                       <div className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl shrink-0" style={{ background: `${t.color}26` }}>{t.emoji}</div>
@@ -544,7 +568,7 @@ export default function LiveDrive({ active = true }) {
             })()}
 
             {/* Friends & group drive (top right): live friends, invite, join, group chat */}
-            <div className={`absolute right-3 ${nav.active ? 'top-[150px]' : 'top-[max(12px,env(safe-area-inset-top))]'}`}>
+            <div className={`absolute right-3 ${nav.active ? (turnsMin ? 'top-[80px]' : 'top-[150px]') : 'top-[max(12px,env(safe-area-inset-top))]'}`}>
               {hub}
             </div>
 
@@ -552,7 +576,7 @@ export default function LiveDrive({ active = true }) {
             {driveMode !== 'cruise' && (() => {
               const toge = driveMode === 'toge';
               const st = speedStyle(look.theme);
-              const top = nav.active ? (reportAlert ? 'top-[222px]' : 'top-[150px]') : reportAlert ? 'top-[84px]' : 'top-[max(12px,env(safe-area-inset-top))]';
+              const top = nav.active ? (turnsMin ? (reportAlert ? 'top-[152px]' : 'top-[80px]') : (reportAlert ? 'top-[222px]' : 'top-[150px]')) : reportAlert ? 'top-[84px]' : 'top-[max(12px,env(safe-area-inset-top))]';
               const cells = toge
                 ? [[cornerCount, 'corners'], [drive.stats.maxG ? drive.stats.maxG.toFixed(2) : '–', 'max G'], [formatDuration(drive.elapsedTime), 'run']]
                 : [[Math.round(drive.maxSpeed || 0), 'top mph'], [drive.stats.best060 ? `${drive.stats.best060.toFixed(1)}s` : '–', '0-60'], [drive.distance, 'mi']];
@@ -697,6 +721,23 @@ export default function LiveDrive({ active = true }) {
 
       {openDriver && active && <DriverSheet driver={openDriver} moving={drive.status === 'driving' && drive.currentSpeed > 8} onClose={() => setOpenDriver(null)} />}
 
+      {/* Every turn of the trip, step by step */}
+      {stepsOpen && nav.active && active && createPortal(
+        <div className="fixed inset-0 z-[1550] bg-black/50 flex items-end justify-center" onClick={() => setStepsOpen(false)}>
+          <div className="w-full max-w-md max-h-[80vh] flex flex-col bg-card rounded-t-3xl border-t border-border dz-pop-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 px-4 pt-4 pb-3 border-b border-border">
+              <div className="flex-1 min-w-0">
+                <div className="text-base font-bold text-foreground truncate">To {navPlan?.dest?.name}</div>
+                <div className="text-xs text-muted-foreground">{formatEta(remainingS)} · {formatNavDistance(nav.remainingM)} · arrive {arrivalTime(remainingS)}</div>
+              </div>
+              <button onClick={() => setStepsOpen(false)} className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center" aria-label="Close"><X className="w-4 h-4" /></button>
+            </div>
+            <StepList steps={nav.route.steps} current={nav.stepIdx} distToStep={nav.distToStep} />
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Unfinished drive from earlier */}
       {resumable && drive.status === 'idle' && active && (
         <div className="absolute left-3 right-3 top-[calc(max(12px,env(safe-area-inset-top))+108px)] z-[700] pointer-events-auto dz-pop-in">
@@ -722,6 +763,34 @@ export default function LiveDrive({ active = true }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// The whole trip, one row per turn. Done turns are dimmed; distances count from where you are.
+function StepList({ steps, current, distToStep }) {
+  const ref = useRef(null);
+  useEffect(() => { ref.current?.querySelector('[data-current]')?.scrollIntoView({ block: 'center' }); }, []);
+  let ahead = distToStep;
+  return (
+    <div ref={ref} className="flex-1 overflow-y-auto px-2 py-2 pb-[max(12px,env(safe-area-inset-bottom))]">
+      {steps.map((st, i) => {
+        const past = i < current, now = i === current;
+        const at = now ? distToStep : i > current ? (ahead += steps[i - 1].distance) : null;
+        return (
+          <div key={i} data-current={now ? '' : undefined}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${now ? 'bg-primary/15 border border-primary' : ''} ${past ? 'opacity-40' : ''}`}>
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${now ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'}`}>
+              <TurnIcon step={st} className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className={`text-sm leading-snug ${now ? 'font-bold text-foreground' : 'text-foreground'}`}>{st.text}</div>
+              {st.distance > 0 && st.type !== 'arrive' && <div className="text-[11px] text-muted-foreground">then {formatNavDistance(st.distance)}</div>}
+            </div>
+            <div className="text-xs font-semibold text-muted-foreground shrink-0 speed-font">{past ? 'done' : at != null ? formatNavDistance(at) : ''}</div>
+          </div>
+        );
+      })}
     </div>
   );
 }
