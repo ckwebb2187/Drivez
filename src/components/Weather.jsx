@@ -87,8 +87,9 @@ export function WeatherButton({ className = '' }) {
       </button>
       {open && createPortal(
         <div className="fixed inset-0 z-[1500] bg-black/50 flex items-end justify-center" onClick={() => setOpen(false)}>
-          <div className="w-full max-w-md bg-card border-t border-border rounded-t-3xl p-5 pb-8 dz-pop-in" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-3">
+          <div className="w-full max-w-md max-h-[85vh] overflow-y-auto overscroll-contain bg-card border-t border-border rounded-t-3xl px-5 pb-[max(20px,env(safe-area-inset-bottom))] dz-pop-in" onClick={(e) => e.stopPropagation()}>
+            {/* Header stays on screen even when the sheet scrolls, so it can always be closed. */}
+            <div className="sticky top-0 z-10 bg-card pt-5 pb-3 flex items-center justify-between">
               <h3 className="text-base font-bold text-foreground flex items-center gap-2"><CloudRain className="w-5 h-5 text-[#64b5f6]" /> Map look & layers</h3>
               <button onClick={() => setOpen(false)} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center" aria-label="Close"><X className="w-4 h-4" /></button>
             </div>
@@ -97,7 +98,7 @@ export function WeatherButton({ className = '' }) {
               <ThemePicker compact />
             </div>
             <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">Weather radar</div>
-            <div className="space-y-1.5 max-h-[40vh] overflow-y-auto no-scrollbar">
+            <div className="space-y-1.5">
               {WEATHER_LAYERS.filter((l) => !l.accu || accu).map((l) => {
                             const selected = prefs.layer === l.id;
                 return (
@@ -137,6 +138,7 @@ export function WeatherButton({ className = '' }) {
                 {prefs.playing ? 'Stop' : 'Play the last 2 hours'}{time ? ` · ${time}` : ''}
               </button>
             )}
+            <button onClick={() => setOpen(false)} className="mt-4 w-full h-12 rounded-xl dz-go text-sm font-bold">Done</button>
           </div>
         </div>,
         document.body

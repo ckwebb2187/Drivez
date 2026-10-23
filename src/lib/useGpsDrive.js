@@ -13,6 +13,17 @@ export function smoothnessScore(st) {
   return Math.max(0, Math.min(100, Math.round(100 - st.hardBrakes * 8 - st.hardAccels * 5 - (st.maxG > 0.7 ? 10 : 0))));
 }
 
+// A drive in progress is saved on the phone every few seconds, so if the app is closed or
+// restarted mid-drive it picks up where it left off (same route, miles and time).
+const LIVE_KEY = 'dz-live-drive';
+export function pendingDrive(maxAgeMs = 2 * 3600000) {
+  try {
+    const d = JSON.parse(localStorage.getItem(LIVE_KEY) || 'null');
+    return d && Date.now() - d.savedAt < maxAgeMs ? d : null;
+  } catch { return null; }
+}
+export const clearPendingDrive = () => { try { localStorage.removeItem(LIVE_KEY); } catch { /* ignore */ } };
+
 export function useGpsDrive(car) {
   const carRef = useRef(car);
   carRef.current = car;
@@ -176,24 +187,31 @@ export function useGpsDrive(car) {
   }, [onMotion]);
   const stopMotion = useCallback(() => { window.removeEventListener('devicemotion', onMotion); motionOn.current = false; }, [onMotion]);
 
-  const start = useCallback(() => {
+  const start = useCallback((snap = null) => {
     setError(null);
-    statsRef.current = emptyStats();
+    statsRef.current = snap?.stats ? { ...emptyStats(), ...snap.stats } : emptyStats();
     kin.current = { lastMph: null, lastT: null, stopAt: null, cool: 0, g: 0 };
-    setStats(emptyStats());
+    setStats({ ...statsRef.current });
     startMotion();
-    distRef.current = 0;
+    distRef.current = snap?.distance || 0;
     lastFixRef.current = null;
     gotFixRef.current = false;
     setGpsWaiting(false);
+    if (snap) {
+      setDistance(Math.round(distRef.current * 10) / 10);
+      setRoute(snap.route || []);
+      setMaxSpeed(snap.maxSpeed || 0);
+      setSpeedHistory(snap.speedHistory || []);
+    }
     if (!('geolocation' in navigator)) {
       setError('unsupported');
       return;
     }
     // Start the timer immediately, before the first GPS fix arrives
     startedRef.current = true;
-    startTimeRef.current = Date.now();
-    timerRef.current = setInterval(() => setElapsedTime(prev => prev + 1), 1000);
+    startTimeRef.current = snap?.startTime || Date.now();
+    setElapsedTime(Math.round((Date.now() - startTimeRef.current) / 1000));
+    timerRef.current = setInterval(() => setElapsedTime(Math.round((Date.now() - startTimeRef.current) / 1000)), 1000);
     acquireWakeLock();
     setStatus('acquiring');
     watchIdRef.current = navigator.geolocation.watchPosition(handleFix, handleError, {
@@ -212,6 +230,7 @@ export function useGpsDrive(car) {
   }, [stopWatching, releaseWakeLock, stopLive, stopMotion]);
 
   const reset = useCallback(() => {
+    clearPendingDrive();
     stopMotion();
     statsRef.current = emptyStats();
     setStats(emptyStats());
@@ -234,6 +253,27 @@ export function useGpsDrive(car) {
     setGpsWaiting(false);
     setHeading(null);
   }, [stopWatching, releaseWakeLock, stopLive, stopMotion]);
+
+  // Save the drive in progress (every 5 s, and right away when the app goes to the background).
+  const snapRef = useRef(null);
+  snapRef.current = status === 'driving' || status === 'acquiring'
+    ? { startTime: startTimeRef.current, distance: distRef.current, route, maxSpeed, speedHistory: speedHistory.slice(-1500), stats: statsRef.current }
+    : null;
+  useEffect(() => {
+    if (status !== 'driving' && status !== 'acquiring') return undefined;
+    const save = () => {
+      const s = snapRef.current;
+      if (!s?.startTime) return;
+      const step = Math.ceil((s.route.length || 1) / 1500);
+      try { localStorage.setItem(LIVE_KEY, JSON.stringify({ ...s, route: s.route.filter((_, i) => i % step === 0 || i === s.route.length - 1), savedAt: Date.now() })); } catch { /* storage full */ }
+    };
+    save();
+    const t = setInterval(save, 5000);
+    const onHide = () => { if (document.visibilityState === 'hidden') save(); };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', save);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', onHide); window.removeEventListener('pagehide', save); };
+  }, [status]);
 
   // Reacquire the wake lock when returning to the foreground mid-drive
   useEffect(() => {

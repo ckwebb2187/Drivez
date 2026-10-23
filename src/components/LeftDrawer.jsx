@@ -1,5 +1,7 @@
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { SettingsSheet } from '@/components/SettingsList';
 import { X, Clock, Star, Route as RouteIcon, Radio, Trophy, Upload, User, Settings, Navigation, Flame, CalendarDays, Wrench } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import InviteButton from '@/components/InviteButton';
@@ -9,6 +11,8 @@ import { getInitials } from '@/lib/helpers';
 // Left pull-out drawer: everything that isn't driving lives here, so the map stays clean.
 export default function LeftDrawer({ open, onClose }) {
   const { user, scene, stats, setAppMode } = useApp();
+  const [settings, setSettings] = useState(false);
+  if (settings) return <SettingsSheet onClose={() => { setSettings(false); onClose(); }} />;
   if (!open || !user) return null;
   const links = [
     ['/history', Clock, 'Drive history', `${stats.totalDrives} drives · ${stats.lifetimeMiles.toLocaleString()} mi`],
@@ -18,7 +22,7 @@ export default function LeftDrawer({ open, onClose }) {
     ...(scene ? [['/feed', Flame, 'Feed', "Friends' drives, builds and meets"], ['/meets', CalendarDays, 'Meets & shops', 'Car meets, tuners, parts, 93 gas']] : []),
     ...(scene ? [['/leaderboard', Trophy, 'Ranks', 'Leaderboards']] : []),
     ['/import', Upload, 'Import', 'From Google Maps & Waze'],
-    ['/profile', Settings, 'Profile & settings', 'Garage, privacy, Discord, app'],
+    ['/profile', User, 'Profile', 'Garage, badges, friends, driver profile'],
   ];
   return createPortal(
     <div className="fixed inset-0 z-[1550] bg-black/40" onClick={onClose}>
@@ -31,9 +35,14 @@ export default function LeftDrawer({ open, onClose }) {
             <div className="text-base font-bold text-foreground truncate">{user.displayName}</div>
             <div className="text-xs text-primary truncate">@{user.username}</div>
           </div>
+          <button onClick={() => setSettings(true)} className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center" aria-label="Settings"><Settings className="w-4 h-4" /></button>
           <button onClick={onClose} className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center" aria-label="Close menu"><X className="w-4 h-4" /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          <button onClick={() => setSettings(true)} className="w-full bg-card rounded-2xl border border-border flex items-center gap-3 px-4 py-3 text-left">
+            <Settings className="w-4 h-4 text-primary" />
+            <div className="flex-1"><div className="text-sm font-semibold text-foreground">Settings</div><div className="text-[11px] text-muted-foreground">Map look, voice, Discord, privacy, app</div></div>
+          </button>
           <InviteButton />
           <div className="bg-card rounded-2xl border border-border divide-y divide-border">
             {links.map(([to, Icon, title, sub]) => (

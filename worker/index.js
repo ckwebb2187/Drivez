@@ -117,7 +117,7 @@ function publicUser(u) {
 
 // Social profile settings: links, clubs, and who can see each part.
 const PROFILE_PARTS = ["car", "mods", "socials", "clubs", "stats", "bio"];
-const SOCIALS = ["instagram", "facebook", "tiktok", "youtube"];
+const SOCIALS = ["instagram", "x", "facebook", "tiktok", "youtube"];
 function readProfile(raw) {
   let p = {};
   try { p = raw ? JSON.parse(raw) : {}; } catch { p = {}; }
@@ -1172,6 +1172,7 @@ async function handleApi(req, env, ctx, url) {
     const fresh = Date.now() - LIVE_FRESH_MS;
     return {
       id: c.id, code: c.code, name: c.name || "", dest: JSON.parse(c.dest), leaderId: c.owner_id, isLeader: c.owner_id === me.id,
+      discord: c.discord || "", discordMirror: !!c.discord_mirror,
       expires: new Date(c.expires).toISOString(),
       members: results.map((r) => ({
         ...card(r), me: r.id === me.id,
@@ -1198,6 +1199,71 @@ async function handleApi(req, env, ctx, url) {
     const c = await db.prepare("SELECT c.* FROM convoys c JOIN convoy_members m ON m.convoy_id = c.id WHERE m.user_id = ? AND c.expires > ? ORDER BY m.joined DESC LIMIT 1").bind(me.id, Date.now()).first();
     return json({ convoy: c ? await convoyOut(c) : null });
   }
+  // Group drives you can join: ones a friend invited you to, or that a friend is leading / in.
+  if (path === "/convoys/open" && method === "GET") {
+    const ids = await friendIds(db, me.id);
+    const t = Date.now();
+    const { results } = await db.prepare(
+      `SELECT DISTINCT c.*, i.from_id AS invited_by FROM convoys c
+       LEFT JOIN convoy_invites i ON i.convoy_id = c.id AND i.user_id = ?1
+       WHERE c.expires > ?2 AND NOT EXISTS (SELECT 1 FROM convoy_members x WHERE x.convoy_id = c.id AND x.user_id = ?1)
+         AND (i.user_id IS NOT NULL ${ids.length ? `OR EXISTS (SELECT 1 FROM convoy_members m WHERE m.convoy_id = c.id AND m.user_id IN (${ids.map(() => "?").join(",")}))` : ""})
+       ORDER BY i.created DESC, c.created DESC LIMIT 10`
+    ).bind(me.id, t, ...ids).all();
+    const out = [];
+    for (const c of results) {
+      const o = await convoyOut(c);
+      const leader = o.members.find((m) => m.id === c.owner_id);
+      out.push({ code: o.code, name: o.name, dest: o.dest, members: o.members.length, leader: leader ? { name: leader.name, username: leader.username } : null, invited: !!c.invited_by });
+    }
+    return json({ convoys: out });
+  }
+  const cvx = path.match(/^\/convoys\/([a-f0-9]{8})\/(invite|messages|settings)$/);
+  if (cvx) {
+    const c = await db.prepare("SELECT * FROM convoys WHERE code = ? AND expires > ?").bind(cvx[1], Date.now()).first();
+    if (!c) throw new HttpError(404, "That group drive has ended.");
+    const member = await db.prepare("SELECT 1 FROM convoy_members WHERE convoy_id = ? AND user_id = ?").bind(c.id, me.id).first();
+    if (!member) throw new HttpError(403, "Join the group drive first.");
+    if (cvx[2] === "invite" && method === "POST") {
+      const ids = await friendIds(db, me.id);
+      const who = (Array.isArray(body.userIds) ? body.userIds : [body.userId]).map(String).filter((id) => ids.includes(id)).slice(0, 30);
+      if (!who.length) throw new HttpError(400, "You can invite friends only.");
+      await db.batch(who.map((id) => db.prepare("INSERT INTO convoy_invites (convoy_id, user_id, from_id, created) VALUES (?, ?, ?, ?) ON CONFLICT(convoy_id, user_id) DO UPDATE SET from_id = excluded.from_id, created = excluded.created").bind(c.id, id, me.id, Date.now())));
+      return json({ ok: true, invited: who.length });
+    }
+    if (cvx[2] === "messages" && method === "GET") {
+      const after = +url.searchParams.get("after") || 0;
+      const { results } = await db.prepare(
+        `SELECT m.id, m.text, m.created, u.id AS uid, u.display_name, u.username, u.avatar_url, u.color FROM convoy_messages m JOIN users u ON u.id = m.user_id
+         WHERE m.convoy_id = ? AND m.created > ? ORDER BY m.created DESC LIMIT 60`
+      ).bind(c.id, after).all();
+      return json({ messages: results.reverse().map((r) => ({ id: r.id, text: r.text, at: r.created, mine: r.uid === me.id, user: card({ id: r.uid, display_name: r.display_name, username: r.username, avatar_url: r.avatar_url, color: r.color }) })) });
+    }
+    if (cvx[2] === "messages" && method === "POST") {
+      const text = String(body.text || "").trim().slice(0, 300);
+      if (!text) throw new HttpError(400, "Say something.");
+      const id = uid(), t = Date.now();
+      await db.prepare("INSERT INTO convoy_messages (id, convoy_id, user_id, text, created) VALUES (?, ?, ?, ?, ?)").bind(id, c.id, me.id, text, t).run();
+      // Mirror to the leader's Discord channel when they turned that on.
+      if (c.discord_mirror) {
+        const leader = await db.prepare("SELECT discord_webhook FROM users WHERE id = ?").bind(c.owner_id).first();
+        if (leader?.discord_webhook && validWebhook(leader.discord_webhook)) {
+          ctx.waitUntil(fetch(leader.discord_webhook, { method: "POST", headers: { "content-type": "application/json" },
+            body: JSON.stringify({ username: `${me.display_name || me.username} · Kaido group drive`, content: text, allowed_mentions: { parse: [] } }) }).catch(() => {}));
+        }
+      }
+      return json({ ok: true, id, at: t });
+    }
+    if (cvx[2] === "settings" && method === "PATCH") {
+      if (c.owner_id !== me.id) throw new HttpError(403, "Only the leader can change this.");
+      let discord = body.discord === undefined ? c.discord : String(body.discord || "").trim().slice(0, 200);
+      if (discord && !/^https:\/\/(discord\.gg|discord\.com|www\.discord\.com|discordapp\.com)\//i.test(discord)) throw new HttpError(400, "That doesn't look like a Discord link (it should start with https://discord.gg/ or https://discord.com/).");
+      const mirror = body.discordMirror === undefined ? c.discord_mirror : (body.discordMirror ? 1 : 0);
+      if (mirror && !me.discord_webhook) throw new HttpError(400, "Set up Discord in Profile → Discord first, then chat can post to your channel.");
+      await db.prepare("UPDATE convoys SET discord = ?, discord_mirror = ? WHERE id = ?").bind(discord || null, mirror, c.id).run();
+      return json(await convoyOut({ ...c, discord, discord_mirror: mirror }));
+    }
+  }
   const cv = path.match(/^\/convoys\/([a-f0-9]{8})(?:\/(join|leave))?$/);
   if (cv) {
     const c = await db.prepare("SELECT * FROM convoys WHERE code = ? AND expires > ?").bind(cv[1], Date.now()).first();
@@ -1207,6 +1273,7 @@ async function handleApi(req, env, ctx, url) {
       await db.batch([
         db.prepare("DELETE FROM convoy_members WHERE user_id = ? AND convoy_id != ?").bind(me.id, c.id),
         db.prepare("INSERT OR IGNORE INTO convoy_members (convoy_id, user_id, joined) VALUES (?, ?, ?)").bind(c.id, me.id, Date.now()),
+        db.prepare("DELETE FROM convoy_invites WHERE convoy_id = ? AND user_id = ?").bind(c.id, me.id),
       ]);
       return json(await convoyOut(c));
     }

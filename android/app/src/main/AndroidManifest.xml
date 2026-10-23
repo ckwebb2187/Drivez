@@ -16,6 +16,16 @@
     <queries>
         <package android:name="re.muwmix.yumaplayer" />
         <package android:name="re.muwmix.yumaplayer.canary" />
+        <package android:name="com.spotify.music" />
+        <package android:name="com.google.android.apps.youtube.music" />
+        <package android:name="com.apple.android.music" />
+        <package android:name="com.amazon.mp3" />
+        <package android:name="com.pandora.android" />
+        <package android:name="com.soundcloud.android" />
+        <package android:name="com.aspiro.tidal" />
+        <package android:name="deezer.android.app" />
+        <package android:name="com.clearchannel.iheartradio.controller" />
+        <package android:name="com.discord" />
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.APP_MUSIC" />

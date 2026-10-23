@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Settings2, ExternalLink, Loader2, Play, Pause, SkipBack, SkipForward, ShieldCheck } from 'lucide-react';
+import { X, Settings2, ExternalLink, Loader2, Play, Pause, SkipBack, SkipForward, ShieldCheck, Plus, Check } from 'lucide-react';
 
 // Waze-style music shortcut for YumaPlayer (github.com/MuwMx/YumaPlayer).
 // Tapping it shows a small pop-up with the song that's playing. Song info comes
@@ -11,6 +11,63 @@ const PACKAGE = 're.muwmix.yumaplayer';
 // "yumaplayer://together" link. Without session details it simply opens the app.
 const INTENT = `intent://together#Intent;scheme=yumaplayer;package=${PACKAGE};end`;
 const LB_KEY = 'dz_listenbrainz_user';
+
+// Music apps you can open from the pop-up. Inside the Android app, play/pause/skip and the
+// song info work for whichever of these is playing.
+export const MUSIC_APPS = [
+  { id: 'yuma', label: 'YumaPlayer', pkg: PACKAGE, color: '#c39bff', web: 'https://github.com/MuwMx/YumaPlayer' },
+  { id: 'spotify', label: 'Spotify', pkg: 'com.spotify.music', color: '#1db954', web: 'https://open.spotify.com' },
+  { id: 'ytmusic', label: 'YouTube Music', pkg: 'com.google.android.apps.youtube.music', color: '#ff0033', web: 'https://music.youtube.com' },
+  { id: 'apple', label: 'Apple Music', pkg: 'com.apple.android.music', color: '#fa2d48', web: 'https://music.apple.com' },
+  { id: 'amazon', label: 'Amazon Music', pkg: 'com.amazon.mp3', color: '#25d1da', web: 'https://music.amazon.com' },
+  { id: 'pandora', label: 'Pandora', pkg: 'com.pandora.android', color: '#3668ff', web: 'https://www.pandora.com' },
+  { id: 'soundcloud', label: 'SoundCloud', pkg: 'com.soundcloud.android', color: '#ff5500', web: 'https://soundcloud.com' },
+  { id: 'tidal', label: 'TIDAL', pkg: 'com.aspiro.tidal', color: '#ffffff', web: 'https://listen.tidal.com' },
+  { id: 'deezer', label: 'Deezer', pkg: 'deezer.android.app', color: '#a238ff', web: 'https://www.deezer.com' },
+  { id: 'iheart', label: 'iHeartRadio', pkg: 'com.clearchannel.iheartradio.controller', color: '#c6002b', web: 'https://www.iheart.com' },
+];
+const APPS_KEY = 'dz-music-apps';
+const readApps = () => { try { const a = JSON.parse(localStorage.getItem(APPS_KEY) || 'null'); return Array.isArray(a) && a.length ? a : ['yuma']; } catch { return ['yuma']; } };
+export const appName = (pkg) => MUSIC_APPS.find((a) => pkg && pkg.startsWith(a.pkg))?.label || '';
+function openMusicApp(app) {
+  try { if (window.DrivezNative?.openApp?.(app.pkg)) return; } catch { /* fall through */ }
+  if (app.id === 'yuma') { window.location.href = INTENT; return; }
+  if (/Android/i.test(navigator.userAgent)) {
+    window.location.href = `intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${app.pkg};S.browser_fallback_url=${encodeURIComponent(app.web)};end`;
+  } else window.open(app.web, '_blank', 'noopener');
+}
+
+// Your music apps as quick buttons, plus "Add" to pick which ones show.
+function MusicApps() {
+  const [mine, setMine] = useState(readApps);
+  const [picking, setPicking] = useState(false);
+  const toggle = (id) => setMine((m) => { const next = m.includes(id) ? m.filter((x) => x !== id) : [...m, id]; try { localStorage.setItem(APPS_KEY, JSON.stringify(next)); } catch { /* ignore */ } return next; });
+  const apps = MUSIC_APPS.filter((a) => mine.includes(a.id));
+  return (
+    <div>
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+        {apps.map((a) => (
+          <button key={a.id} onClick={() => openMusicApp(a)} className="shrink-0 h-10 px-3 rounded-xl text-xs font-bold text-white bg-white/10 flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: a.color }} /><ExternalLink className="w-3.5 h-3.5 opacity-70" />{a.label}
+          </button>
+        ))}
+        <button onClick={() => setPicking((p) => !p)} className="shrink-0 h-10 px-3 rounded-xl text-xs font-bold text-white/80 border border-dashed border-white/25 flex items-center gap-1"><Plus className="w-3.5 h-3.5" />{picking ? 'Done' : 'Add app'}</button>
+      </div>
+      {picking && (
+        <div className="grid grid-cols-2 gap-1.5 mt-2">
+          {MUSIC_APPS.map((a) => {
+            const on = mine.includes(a.id);
+            return (
+              <button key={a.id} onClick={() => toggle(a.id)} className={`h-10 px-3 rounded-xl text-xs font-semibold flex items-center gap-2 border ${on ? 'border-[#c39bff] bg-[#c39bff]/15 text-white' : 'border-white/10 text-white/70'}`}>
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: a.color }} /><span className="flex-1 text-left truncate">{a.label}</span>{on && <Check className="w-3.5 h-3.5" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const readUser = () => { try { return localStorage.getItem(LB_KEY) || ''; } catch { return ''; } };
 const artCache = new Map();
@@ -112,8 +169,7 @@ function NativeMusicButton({ size }) {
   const [open, setOpen] = useState(false);
   const { access, track } = useNativeMedia();
   const ctl = (a) => { try { nativeApi().control(a); } catch { /* ignore */ } };
-  const openApp = () => { try { if (!nativeApi().openApp(PACKAGE)) window.location.href = INTENT; } catch { window.location.href = INTENT; } };
-  const fromYuma = !track || (track.app || '').startsWith(PACKAGE);
+  const playingApp = appName(track?.app);
 
   return (
     <>
@@ -143,14 +199,14 @@ function NativeMusicButton({ size }) {
                   </>
                 ) : track ? (
                   <>
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-[#ff8fd0]">{track.playing ? 'Now playing' : 'Paused'}{fromYuma ? ' · YumaPlayer' : ''}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-[#ff8fd0]">{track.playing ? 'Now playing' : 'Paused'}{playingApp ? ` · ${playingApp}` : ''}</div>
                     <div className="text-sm font-bold text-white truncate">{track.title}</div>
                     <div className="text-xs text-white/60 truncate">{track.artist}</div>
                   </>
                 ) : (
                   <>
-                    <div className="text-sm font-bold text-white">YumaPlayer</div>
-                    <div className="text-xs text-white/60">Nothing playing. Open YumaPlayer and play a song.</div>
+                    <div className="text-sm font-bold text-white">Music</div>
+                    <div className="text-xs text-white/60">Nothing playing. Open one of your music apps below.</div>
                   </>
                 )}
               </div>
@@ -185,9 +241,7 @@ function NativeMusicButton({ size }) {
                     <button onClick={() => ctl('next')} className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center active:scale-95" aria-label="Next song"><SkipForward className="w-5 h-5 text-white fill-white" /></button>
                   </div>
                 )}
-                <button onClick={openApp} className="w-full h-10 rounded-xl text-sm font-bold text-white bg-white/10 flex items-center justify-center gap-2">
-                  <ExternalLink className="w-4 h-4" /> Open YumaPlayer
-                </button>
+                <MusicApps />
               </div>
             )}
           </div>
@@ -229,7 +283,6 @@ function WebMusicButton({ size }) {
   };
   // Open the setup steps straight away the first time, so it's clear what's needed.
   const toggle = () => { if (!open && !user) { setDraft(''); setSetup(true); } setOpen(!open); };
-  const openApp = () => { window.location.href = INTENT; };
 
   return (
     <>
@@ -300,12 +353,11 @@ function WebMusicButton({ size }) {
                   <button onClick={saveUser} disabled={saving} className="px-4 rounded-xl text-sm font-bold text-[#140f24] disabled:opacity-60" style={{ background: 'linear-gradient(135deg,#7cc8ff,#ff8fd0)' }}>{saving ? '…' : 'Save'}</button>
                 </div>
                 {saveError && <p className="text-[11px] text-[#ff8f8f] mt-1.5">{saveError}</p>}
+                <div className="mt-3"><MusicApps /></div>
               </div>
             ) : (
               <div className="px-3 pb-3">
-                <button onClick={openApp} className="w-full h-10 rounded-xl text-sm font-bold text-[#140f24] flex items-center justify-center gap-2" style={{ background: 'linear-gradient(135deg,#7cc8ff,#c39bff,#ff8fd0)' }}>
-                  <ExternalLink className="w-4 h-4" /> Open YumaPlayer
-                </button>
+                <MusicApps />
               </div>
             )}
           </div>

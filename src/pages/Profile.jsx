@@ -21,12 +21,15 @@ import Badges from '@/components/Badges';
 import VoiceSettings from '@/components/VoiceSettings';
 import { badgeProgress } from '@/lib/badges';
 import UserTags from '@/components/UserTags';
+import SettingsList, { SettingsSheet } from '@/components/SettingsList';
+import { Settings } from 'lucide-react';
 
 export default function Profile() {
   const { user, scene, setAppMode, stats, weeklyStats, toggleGhostMode, trips, vehicles } = useApp();
   const [modeBusy, setModeBusy] = useState(false);
   const switchMode = async (m) => { if (m === user.appMode) return; setModeBusy(true); try { await setAppMode(m); } finally { setModeBusy(false); } };
   const [editing, setEditing] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const { checkUserAuth } = useAuth();
   const fileRef = useRef(null);
   const [picMenu, setPicMenu] = useState(false);
@@ -146,6 +149,10 @@ export default function Profile() {
           >
             <Pencil className="w-4 h-4 text-foreground" />
           </button>
+          <button onClick={() => setSettingsOpen(true)} className="w-9 h-9 rounded-full glass border border-border flex items-center justify-center ml-2" aria-label="Settings">
+            <Settings className="w-4 h-4 text-foreground" />
+          </button>
+          {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
         </div>
         {user.bio && <p className="text-xs text-muted-foreground mt-3">{user.bio}</p>}
         {picError && <p className="text-xs text-destructive mt-2">{picError}</p>}
@@ -208,47 +215,8 @@ export default function Profile() {
           <ChevronRight className="w-4 h-4 text-muted-foreground" />
         </Link>
 
-        <div className="pt-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Settings</div>
-        <button onClick={toggleGhostMode} className="w-full bg-card rounded-2xl border border-border flex items-center gap-3 px-4 py-3 text-left">
-          {user.ghostMode ? <EyeOff className="w-4 h-4 text-muted-foreground" /> : <Eye className="w-4 h-4 text-primary" />}
-          <div className="flex-1">
-            <div className="text-sm font-semibold text-foreground">Ghost mode</div>
-            <div className="text-[11px] text-muted-foreground">{user.ghostMode ? 'Hidden from friends & rankings' : 'Friends can see you while you drive'}</div>
-          </div>
-          <span className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${user.ghostMode ? 'bg-primary' : 'bg-muted'}`}>
-            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${user.ghostMode ? 'left-[22px]' : 'left-0.5'}`} />
-          </span>
-        </button>
-        <Collapsible id="look" icon={Palette} title="Map look" subtitle="World theme, battery saver, Japanese names">
-          <MapLookSettings />
-        </Collapsible>
-        <Collapsible id="voice" icon={AudioLines} title="Voice & narration" subtitle="Co-driver callouts, drive recaps, Gemini voice">
-          <VoiceSettings />
-        </Collapsible>
-        <Collapsible id="mode" icon={Flame} title="App mode" subtitle={(user.appMode || 'scene') === 'nav' ? 'Just navigation' : 'Car scene'} right={modeBusy ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /> : null}>
-          <div className="grid grid-cols-2 gap-2">
-            {[['nav', Navigation, 'Just navigation'], ['scene', Flame, 'Car scene']].map(([m, Icon, label]) => (
-              <button key={m} onClick={() => switchMode(m)} className={`rounded-xl border px-3 py-3 flex items-center gap-2 text-sm font-semibold ${(user.appMode || 'scene') === m ? 'border-primary bg-primary/10 text-primary' : 'border-border text-foreground'}`}>
-                <Icon className="w-4 h-4" />{label}
-              </button>
-            ))}
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-2">{scene ? 'All car features are on.' : 'Car features (mods, stats, rankings, driver profile) are hidden. Nothing is deleted.'}</p>
-        </Collapsible>
-        <Collapsible id="discord" icon={MessageCircle} title="Discord" subtitle="Post your drives to a channel">
-          <DiscordSettings />
-        </Collapsible>
-        <Collapsible id="privacy" icon={ShieldCheck} title="Privacy & data" subtitle="Trip history, download, delete account">
-          <PrivacySettings />
-        </Collapsible>
-        <Collapsible id="app" icon={Smartphone} title="App & updates" subtitle="Android app, version">
-          <AppUpdate />
-        </Collapsible>
-
-        <button onClick={handleLogout} className="w-full bg-card rounded-2xl border border-border flex items-center justify-center gap-2 py-3 text-destructive">
-          <LogOut className="w-4 h-4" />
-          <span className="text-sm font-semibold">Log out</span>
-        </button>
+        <div id="settings" className="pt-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Settings</div>
+        <SettingsList />
       </div>
 
       {editing && <EditProfileModal onClose={() => setEditing(false)} />}

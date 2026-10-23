@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X, ChevronUp, Navigation2, SkipForward, MapPin } from 'lucide-react';
 import DriveMap from '@/components/DriveMap';
-import { useGpsDrive } from '@/lib/useGpsDrive';
+import { useGpsDrive, pendingDrive, clearPendingDrive } from '@/lib/useGpsDrive';
 import { useApp } from '@/lib/AppContext';
 import { formatDuration } from '@/lib/helpers';
 import { useNavigation } from '@/lib/useNavigation';
@@ -19,7 +19,8 @@ import { useMapLook, speedStyle } from '@/lib/mapTheme';
 import DriverSheet from '@/components/DriverSheet';
 import { api } from '@/api/base44Client';
 import { mileageMode } from '@/lib/carBluetooth';
-import { useConvoy } from '@/lib/convoy';
+import { useConvoy, useOpenConvoys, joinConvoy } from '@/lib/convoy';
+import FriendsHub from '@/components/FriendsHub';
 import AskGemini from '@/components/AskGemini';
 import { say, getVoiceSettings, recapText, tripFacts } from '@/lib/voice';
 import { searchPlaces, getRoute } from '@/lib/nav';
@@ -91,7 +92,9 @@ export default function LiveDrive({ active = true }) {
   }, [active]);
   // Group drive: the others in your convoy show on the map like friends (even if they aren't friends yet).
   const { convoy, leave: leaveConvoy } = useConvoy(active);
-  const [convoyOpen, setConvoyOpen] = useState(false);
+  const { open: openConvoys } = useOpenConvoys(active);
+  const inviteFor = !convoy ? openConvoys.find((c) => c.invited) : null;
+  const [inviteSeen, setInviteSeen] = useState(null);
   const convoyDrivers = useMemo(() => (convoy?.members || []).filter((m) => !m.me && m.live).map((m) => ({ ...m, ...m.live, name: `👥 ${m.name}` })), [convoy]);
   const mapFriends = useMemo(() => {
     const ids = new Set(convoyDrivers.map((d) => d.userId));
@@ -153,12 +156,45 @@ export default function LiveDrive({ active = true }) {
     }
   };
 
+  // Join a group drive and head to its destination (works mid-drive too).
+  const onJoinConvoy = async (code) => {
+    const c = await joinConvoy(code);
+    const here = drive.currentPosition || herePos;
+    if (!here || !c?.dest) return;
+    const r = await getRoute(here, [c.dest.lat, c.dest.lng], [], c.dest.name);
+    const { alternatives, ...main } = r;
+    setRouteId(null);
+    setNavPlan({ dest: c.dest, stops: [], route: main });
+  };
+  const hub = (
+    <FriendsHub live={friends} convoy={convoy} openConvoys={openConvoys} here={drive.currentPosition || herePos}
+      dest={navPlan?.dest || null} onJoin={onJoinConvoy} onLeave={leaveConvoy} onDriver={setOpenDriver} />
+  );
+
   // Route being previewed on the map before you tap Go.
   const [preview, setPreview] = useState(null);
   // Lowered car: also warn about speed bumps and dips mapped in OpenStreetMap.
   const mappedBumps = useMappedBumps(drive.status === 'driving' ? drive.currentPosition : null, !!myCar?.lowered);
   const alertReports = useMemo(() => [...roadReports.reports, ...mappedBumps], [roadReports.reports, mappedBumps]);
   const [reportAlert, dismissAlert] = useReportAlerts(alertReports, drive.status === 'driving' ? drive.currentPosition : null, nav.active ? nav.route.coords : null, voiceOn, !!myCar?.lowered);
+
+  // Picking up a drive that was interrupted (app closed, phone restarted the app, graphics reset).
+  // Recent ones (under 30 min) resume on their own; older ones ask first.
+  const [resumable, setResumable] = useState(null);
+  useEffect(() => {
+    const snap = pendingDrive();
+    if (!snap || drive.status !== 'idle') return;
+    let nav = null;
+    try { nav = JSON.parse(localStorage.getItem('dz-live-nav') || 'null'); } catch { /* ignore */ }
+    if (Date.now() - snap.savedAt < 30 * 60000) { drive.start(snap); if (nav) setNavPlan(nav); }
+    else setResumable({ snap, nav });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    try {
+      if (navPlan && drive.status !== 'idle') localStorage.setItem('dz-live-nav', JSON.stringify(navPlan));
+      else if (drive.status === 'idle') localStorage.removeItem('dz-live-nav');
+    } catch { /* storage full: the drive still resumes, just without the route */ }
+  }, [navPlan, drive.status]);
 
   // Tapping "Go" on the home map starts the drive straight away.
   useEffect(() => { if (navPlan && drive.status === 'idle') drive.start(); }, [navPlan]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -376,8 +412,20 @@ export default function LiveDrive({ active = true }) {
       {/* Ask Gemini on the home map (top right, under the search bar). Kept outside the
           screen animations: anything inside them that comes and goes resets the trip planner. */}
       {drive.status === 'idle' && !preview && (
-        <div className="absolute right-3 top-[calc(max(12px,env(safe-area-inset-top))+108px)] z-[520]">
+        <div className="absolute right-3 top-[calc(max(12px,env(safe-area-inset-top))+108px)] z-[520] flex flex-col items-end gap-2">
           <AskGemini size={46} context={askContext} onAction={onAskAction} />
+          {hub}
+        </div>
+      )}
+
+      {/* Someone invited you to a group drive */}
+      {inviteFor && inviteSeen !== inviteFor.code && active && (
+        <div className={`absolute left-3 right-3 ${drive.status === 'idle' ? 'top-[calc(max(12px,env(safe-area-inset-top))+64px)]' : nav.active ? 'top-[210px]' : 'top-[64px]'} z-[690] pointer-events-auto dz-pop-in`}>
+          <div className="mx-auto max-w-md rounded-2xl bg-primary text-primary-foreground shadow-2xl pl-4 pr-1.5 py-1.5 flex items-center gap-2">
+            <span className="flex-1 text-sm font-semibold truncate">👥 {inviteFor.leader?.name || 'A friend'} invited you · {inviteFor.dest.name}</span>
+            <button onClick={() => { setInviteSeen(inviteFor.code); onJoinConvoy(inviteFor.code).catch(() => {}); }} className="h-9 px-3 rounded-full bg-black/20 text-xs font-bold">Join</button>
+            <button onClick={() => setInviteSeen(inviteFor.code)} className="w-8 h-8 flex items-center justify-center" aria-label="Not now"><X className="w-4 h-4" /></button>
+          </div>
         </div>
       )}
 
@@ -391,7 +439,7 @@ export default function LiveDrive({ active = true }) {
               roadReports={roadReports}
               onPreview={setPreview}
               onGo={(p) => { setRouteId(null); setNavPlan(p); }}
-              onStartDrive={drive.start}
+              onStartDrive={() => drive.start()}
               onRecenter={recenter}
               following={follow}
               driveError={drive.error}
@@ -495,27 +543,10 @@ export default function LiveDrive({ active = true }) {
               );
             })()}
 
-            {/* Group drive chip (top right): who's with you and how far */}
-            {convoy && (
-              <div className={`absolute right-3 ${nav.active ? 'top-[150px]' : 'top-[max(12px,env(safe-area-inset-top))]'} pointer-events-auto`}>
-                <button onClick={() => setConvoyOpen((o) => !o)} className="h-10 px-3 rounded-full bg-card/95 backdrop-blur border border-border shadow-xl flex items-center gap-1.5 text-xs font-bold text-foreground">
-                  👥 {convoy.members.length}
-                </button>
-                {convoyOpen && (
-                  <div className="absolute right-0 mt-2 w-64 bg-card rounded-2xl border border-border shadow-2xl p-3 space-y-2">
-                    <div className="text-[11px] font-bold text-primary uppercase tracking-wide">Group drive · {convoy.dest.name}</div>
-                    {convoy.members.map((m) => (
-                      <div key={m.id} className="flex items-center gap-2 text-sm">
-                        <span className={`w-2 h-2 rounded-full ${m.live || m.me ? 'bg-accent' : 'bg-muted'}`} />
-                        <span className="flex-1 truncate text-foreground">{m.me ? 'You' : m.name}{m.id === convoy.leaderId ? ' · lead' : ''}</span>
-                        <span className="text-[11px] text-muted-foreground">{m.me ? '' : m.live && drive.currentPosition ? formatNavDistance(distM(drive.currentPosition, [m.live.lat, m.live.lng])) : 'offline'}</span>
-                      </div>
-                    ))}
-                    <button onClick={() => { setConvoyOpen(false); leaveConvoy(); }} className="w-full h-9 rounded-xl bg-secondary text-xs font-semibold text-destructive">{convoy.isLeader ? 'End group drive' : 'Leave group'}</button>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Friends & group drive (top right): live friends, invite, join, group chat */}
+            <div className={`absolute right-3 ${nav.active ? 'top-[150px]' : 'top-[max(12px,env(safe-area-inset-top))]'}`}>
+              {hub}
+            </div>
 
             {/* Tōge / Wangan run card */}
             {driveMode !== 'cruise' && (() => {
@@ -665,6 +696,20 @@ export default function LiveDrive({ active = true }) {
       </AnimatePresence>
 
       {openDriver && active && <DriverSheet driver={openDriver} moving={drive.status === 'driving' && drive.currentSpeed > 8} onClose={() => setOpenDriver(null)} />}
+
+      {/* Unfinished drive from earlier */}
+      {resumable && drive.status === 'idle' && active && (
+        <div className="absolute left-3 right-3 top-[calc(max(12px,env(safe-area-inset-top))+108px)] z-[700] pointer-events-auto dz-pop-in">
+          <div className="mx-auto max-w-md rounded-2xl bg-card border border-primary shadow-2xl p-3">
+            <div className="text-sm font-bold text-foreground">Unfinished drive · {Math.round((resumable.snap.distance || 0) * 10) / 10} mi</div>
+            <div className="text-[11px] text-muted-foreground">Started {new Date(resumable.snap.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}{resumable.nav ? ` · to ${resumable.nav.dest?.name}` : ''}</div>
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => { const r = resumable; setResumable(null); drive.start(r.snap); if (r.nav) setNavPlan(r.nav); }} className="flex-1 h-10 rounded-xl dz-go text-sm font-bold">Resume drive</button>
+              <button onClick={() => { clearPendingDrive(); setResumable(null); }} className="h-10 px-4 rounded-xl bg-secondary text-sm font-semibold text-foreground">Discard</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* "Drive saved" note */}
       {toast && active && (

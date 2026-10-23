@@ -94,7 +94,7 @@ export default function GarageDrawer({ open, onClose }) {
                 <Users className="w-4 h-4 text-primary" />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-foreground">Social wall</div>
-                  <div className="text-[11px] text-muted-foreground truncate">{Object.keys(socials).length ? Object.entries(socials).map(([k, h]) => `${SOCIAL_LINKS[k]?.label || k} @${h}`).join(' · ') : 'Link Instagram, TikTok, YouTube, Facebook to light up the signs'}</div>
+                  <div className="text-[11px] text-muted-foreground truncate">{Object.keys(socials).length ? Object.entries(socials).map(([k, h]) => `${SOCIAL_LINKS[k]?.label || k} @${h}`).join(' · ') : 'Link Instagram, X, TikTok, YouTube, Facebook to light up the signs'}</div>
                 </div>
               </button>
             </>

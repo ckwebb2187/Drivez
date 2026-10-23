@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { applyTheme, animateWater, themeBase, useMapLook, isLite, routeColors } from '@/lib/mapTheme';
 import MapAtmosphere from '@/components/MapAtmosphere';
 import maplibregl from 'maplibre-gl';
@@ -69,9 +69,13 @@ export default function DriveMap(props) {
   const [look] = useMapLook();
   const lite = isLite(look);
   const base = themeBase(look.theme, isDaytime());
+  // Phones can wipe graphics memory when you switch apps mid-drive. The map library can't bring
+  // back our 3D car and extra layers after that, so rebuild the whole map fresh instead.
+  const [gen, setGen] = useState(0);
+  const rebuild = useCallback(() => setGen((g) => g + 1), []);
   return (
     <>
-      <DriveMapInner key={`${look.theme}-${base}-${lite}`} {...props} theme={look.theme} base={base} lite={lite} />
+      <DriveMapInner key={`${look.theme}-${base}-${lite}-${gen}`} {...props} theme={look.theme} base={base} lite={lite} onGraphicsLost={rebuild} />
       <MapAtmosphere theme={look.theme} pos={props.pos} active={props.active !== false} lite={lite} weatherFx={look.weatherFx} />
     </>
   );
@@ -80,8 +84,10 @@ export default function DriveMap(props) {
 function DriveMapInner({
   pos, heading, speed = 0, car, driving, routeCoords, dest, stops = [], guide, trail, reports = [],
   follow = true, onUserMove, className = '', active = true, theme = 'standard', base = 'day', lite = false, fitCoords = null,
-  friends = [], onFriendTap, pins = [], onPinTap,
+  friends = [], onFriendTap, pins = [], onPinTap, onGraphicsLost,
 }) {
+  const lostRef = useRef(onGraphicsLost);
+  lostRef.current = onGraphicsLost;
   const box = useRef(null);
   const mapRef = useRef(null);
   const readyRef = useRef(false);
@@ -136,6 +142,7 @@ function DriveMapInner({
     map.on('zoomstart', userMoved);
     map.on('pitchstart', userMoved);
 
+    map.on('webglcontextlost', () => { readyRef.current = false; setTimeout(() => lostRef.current?.(), 50); });
     map.on('load', () => {
       // Draw our lines above every road but below the street names.
       const layers = map.getStyle().layers;
@@ -352,7 +359,7 @@ function DriveMapInner({
   useEffect(() => {
     const refresh = () => {
       const map = mapRef.current;
-      if (!readyRef.current) return;
+      if (!readyRef.current || !map.getSource('dz-ahead')) return;
       const coords = routeCoords || [];
       if (coords.length > 1 && pos) {
         // Find the closest route point, searching forward from the last one.
