@@ -112,11 +112,15 @@ export function useGpsDrive(car) {
     }
     mph = Math.max(0, Math.min(mph, 200));
 
-    if (lastFixRef.current) {
-      distRef.current += haversineMiles(lastFixRef.current.lat, lastFixRef.current.lng, latitude, longitude);
+    // Distance: skip GPS wobble while stopped (tiny jumps within the fix's own accuracy),
+    // so parked time doesn't add miles. Moving fixes always count.
+    const step = lastFixRef.current ? haversineMiles(lastFixRef.current.lat, lastFixRef.current.lng, latitude, longitude) : 0;
+    const wobble = mph < 3 && step * 1609.34 < Math.max(8, accuracy * 0.6);
+    if (lastFixRef.current && !wobble) {
+      distRef.current += step;
       setDistance(Math.round(distRef.current * 10) / 10);
     }
-    lastFixRef.current = { lat: latitude, lng: longitude, timestamp: pos.timestamp };
+    if (!lastFixRef.current || !wobble) lastFixRef.current = { lat: latitude, lng: longitude, timestamp: pos.timestamp };
 
     // Hard brakes / launches (from speed change) and 0-60 timing.
     const k = kin.current, st = statsRef.current, now = pos.timestamp;

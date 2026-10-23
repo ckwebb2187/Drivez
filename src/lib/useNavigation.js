@@ -101,7 +101,10 @@ export function useNavigation(plan, pos, voice) {
   const distToStep = pos ? distM(pos, [step.lat, step.lng]) : step.distance;
   let remainingM = distToStep, remainingS = 0;
   for (let j = idx; j < steps.length; j++) { remainingM += steps[j].distance; remainingS += steps[j].duration; }
-  remainingS += distToStep / 13; // ~30 mph for the stretch to the next turn
+  // The stretch to the next turn: at the road's own expected speed (from the route), not a guess.
+  const cur = steps[Math.max(0, Math.min(idx, steps.length - 1) - 1)];
+  const roadSpeed = cur && cur.distance > 20 && cur.duration > 0 ? cur.distance / cur.duration : 13;
+  remainingS += distToStep / Math.max(3, roadSpeed);
   const skipStop = () => {
     if (stopIdx >= stops.length || !pos) return;
     const next = stopIdx + 1;

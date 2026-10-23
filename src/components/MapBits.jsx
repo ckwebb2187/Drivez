@@ -36,10 +36,10 @@ export function ReportButton({ onReport, disabled, size = 52 }) {
       <button
         onClick={() => setOpen(true)}
         aria-label="Report"
-        className="rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-transform border-2 border-white/80"
-        style={{ width: size, height: size, background: 'linear-gradient(145deg,#ffb020,#ff7a00)' }}
+        className="dz-report rounded-full flex items-center justify-center shadow-xl active:scale-95 transition-transform"
+        style={{ width: size, height: size }}
       >
-        <TriangleAlert className="w-6 h-6 text-white" strokeWidth={2.6} />
+        <TriangleAlert className="w-6 h-6 dz-report-icon" strokeWidth={2.4} />
       </button>
       {open && createPortal(
         <div className="fixed inset-0 z-[2000] flex items-end justify-center bg-black/60" onClick={() => !busy && setOpen(false)}>

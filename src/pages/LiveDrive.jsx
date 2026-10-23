@@ -234,6 +234,9 @@ export default function LiveDrive({ active = true }) {
     c.last = h;
   }, [drive.heading]); // eslint-disable-line react-hooks/exhaustive-deps
   const [barOpen, setBarOpen] = useState(false);
+  // Bottom trip bar folded into a small pill (remembered).
+  const [barMin, setBarMin] = useState(() => { try { return localStorage.getItem('dz-bar-min') === '1'; } catch { return false; } });
+  const setBarMinSaved = (v) => { setBarMin(v); try { localStorage.setItem('dz-bar-min', v ? '1' : '0'); } catch { /* ignore */ } };
   // Turn card folded into a small pill (remembered), and the full turn-by-turn list.
   const [turnsMin, setTurnsMin] = useState(() => { try { return localStorage.getItem('dz-turns-min') === '1'; } catch { return false; } });
   const setMin = (v) => { setTurnsMin(v); try { localStorage.setItem('dz-turns-min', v ? '1' : '0'); } catch { /* ignore */ } };
@@ -263,8 +266,38 @@ export default function LiveDrive({ active = true }) {
   // TomTom's time is measured from the moment it was fetched; take off the time spent driving since.
   const [trafficAt, setTrafficAt] = useState(0);
   useEffect(() => { if (traffic) setTrafficAt(Date.now()); }, [traffic]);
-  const remainingS = traffic && nav.remainingS != null
-    ? Math.max(nav.remainingS * 0.5, traffic.travelTime - (Date.now() - trafficAt) / 1000)
+  // Arrival time that keeps up with reality:
+  // 1. Route time left (each road at its expected speed), scaled by live traffic when we have it.
+  //    Traffic is kept as a ratio, so the time only drops as you actually make progress.
+  // 2. Your actual pace over the last couple of minutes (stops at lights count), blended in more
+  //    as the drive goes on, so the arrival time moves with how you're really driving.
+  const trafficRatio = useRef(1);
+  useEffect(() => {
+    if (traffic && nav.remainingS) trafficRatio.current = Math.min(3, Math.max(0.7, traffic.travelTime / nav.remainingS));
+    if (!traffic) trafficRatio.current = 1;
+  }, [traffic]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pace = useRef({ f: 1, t: null, r: null, secs: 0 });
+  const [paceF, setPaceF] = useState(1);
+  useEffect(() => {
+    const p = pace.current;
+    if (!nav.active || nav.arrived || drive.status !== 'driving' || nav.remainingS == null) { p.t = null; p.r = null; return; }
+    const now = Date.now();
+    if (p.t != null) {
+      const dt = (now - p.t) / 1000, done = p.r - nav.remainingS; // seconds of route covered
+      if (dt > 0.5 && dt < 30 && done > -30) {
+        const inst = Math.min(2.5, Math.max(0, done / dt));
+        const w = Math.min(1, dt / 120); // ~2 minute memory
+        p.f = p.f * (1 - w) + inst * w;
+        p.secs += dt;
+        setPaceF(Math.round(Math.min(1.8, Math.max(0.45, p.f)) * 50) / 50);
+      }
+    }
+    p.t = now; p.r = nav.remainingS;
+  }, [nav.remainingS]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!nav.active) { pace.current = { f: 1, t: null, r: null, secs: 0 }; setPaceF(1); } }, [nav.active]);
+  const trust = Math.min(1, pace.current.secs / 180); // fully trusted after ~3 minutes of driving
+  const remainingS = nav.remainingS != null
+    ? (nav.remainingS * trafficRatio.current) / (1 + (paceF - 1) * trust)
     : nav.remainingS;
 
   // Camera follows you; if you pan the map it waits, then snaps back after a few seconds (like Waze).
@@ -671,13 +704,27 @@ export default function LiveDrive({ active = true }) {
             </div>
 
             {/* Slim bottom bar while following a route: ETA, then Skip stop / End route / End drive */}
-            {nav.active && <div className="absolute left-0 right-0 bottom-[84px] px-3 pointer-events-auto">
-              <div className="bg-card/95 backdrop-blur rounded-2xl border border-border shadow-2xl overflow-hidden">
-                <button onClick={() => setBarOpen((o) => !o)} className="w-full flex items-center gap-3 px-4 h-[60px] text-left">
+            {/* Folded: a small glowing pill with the time left and arrival time. Tap to open. */}
+            {nav.active && barMin && (
+              <div className="absolute left-0 right-0 bottom-[88px] flex justify-center pointer-events-none">
+                <button onClick={() => setBarMinSaved(false)} className="pointer-events-auto h-11 pl-4 pr-2 rounded-full bg-card/95 backdrop-blur border border-border shadow-2xl flex items-center gap-2 dz-eta-ring" aria-label="Show trip details">
+                  {nav.arrived ? <span className="text-sm font-bold text-foreground">Arrived</span> : <>
+                    <span className="text-base font-black dz-eta-glow">{formatEta(remainingS)}</span>
+                    <span className="text-xs text-muted-foreground">· {arrivalTime(remainingS)}</span>
+                  </>}
+                  <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
+            )}
+            {nav.active && !barMin && <div className="absolute left-0 right-0 bottom-[84px] px-3 pointer-events-auto">
+              <div className="bg-card/95 backdrop-blur rounded-2xl border border-border shadow-2xl overflow-hidden dz-eta-ring">
+                <div className="w-full flex items-center gap-2 pr-2">
+                <button onClick={() => setBarOpen((o) => !o)} className="flex-1 min-w-0 flex items-center gap-3 pl-4 h-[60px] text-left">
                   {nav.active && !nav.arrived ? (
                     <div className="flex-1 min-w-0">
-                      <span className={`text-lg font-bold ${traffic && traffic.delay > 300 ? 'text-[#F9AB00]' : 'text-[#34A853]'}`}>{formatEta(remainingS)}</span>
-                      <span className="text-sm text-muted-foreground"> · {formatNavDistance(nav.remainingM)} · {arrivalTime(remainingS)}</span>
+                      <span className={`text-lg font-black ${traffic && traffic.delay > 300 ? 'text-[#F9AB00]' : 'dz-eta-glow'}`}>{formatEta(remainingS)}</span>
+                      <span className="text-sm text-muted-foreground"> · {formatNavDistance(nav.remainingM)} · </span>
+                      <span className="text-sm font-bold dz-eta-glow">{arrivalTime(remainingS)}</span>
                       {(nav.nextStop || (traffic && traffic.delay > 60)) && (
                         <div className="text-[11px] text-muted-foreground truncate -mt-0.5">
                           {nav.nextStop ? `Next: stop ${nav.stopIdx + 1} · ${nav.nextStop.name}` : ''}
@@ -695,6 +742,8 @@ export default function LiveDrive({ active = true }) {
                   )}
                   <ChevronUp className={`w-5 h-5 text-muted-foreground transition-transform ${barOpen ? '' : 'rotate-180'}`} />
                 </button>
+                <button onClick={() => { setBarOpen(false); setBarMinSaved(true); }} className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0" aria-label="Fold trip bar"><ChevronDown className="w-4 h-4 text-muted-foreground" /></button>
+                </div>
                 {barOpen && (
                   <div className="flex gap-2 px-3 pb-3">
                     {nav.active && nav.nextStop && (
