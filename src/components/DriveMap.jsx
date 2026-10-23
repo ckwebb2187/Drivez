@@ -84,8 +84,11 @@ export default function DriveMap(props) {
 function DriveMapInner({
   pos, heading, speed = 0, car, driving, routeCoords, dest, stops = [], guide, trail, reports = [],
   follow = true, onUserMove, className = '', active = true, theme = 'standard', base = 'day', lite = false, fitCoords = null,
-  friends = [], onFriendTap, pins = [], onPinTap, onGraphicsLost,
+  friends = [], onFriendTap, pins = [], onPinTap, onGraphicsLost, driveFx = null,
 }) {
+  const fxRef = useRef(driveFx);
+  fxRef.current = driveFx;
+  const brakeRef = useRef({ hist: [], until: 0 });
   const lostRef = useRef(onGraphicsLost);
   lostRef.current = onGraphicsLost;
   const box = useRef(null);
@@ -316,6 +319,15 @@ function DriveMapInner({
           map.addLayer(car3dLayer({
             colors,
             isActive: () => live.current.active,
+            getDrive: () => {
+              if (!live.current.driving) return null;
+              // Brake lights: speed dropped 4+ mph within ~2 s (stay lit a moment after).
+              const b = brakeRef.current, now = performance.now(), sp = live.current.speed || 0;
+              b.hist = [...b.hist.filter((h) => now - h.t < 2200), { t: now, s: sp }];
+              if (b.hist.length > 1 && b.hist[0].s - sp >= 4) b.until = now + 1200;
+              const f = fxRef.current || {};
+              return { speed: sp, turn: f.turn || null, alert: !!f.alert, braking: now < b.until || (sp < 2 && b.hist.some((h) => h.s >= 5)) };
+            },
             getPose: () => {
               const a = anim.current;
               const p = a.shown || pos;

@@ -217,6 +217,37 @@ function addGlow(car, { tex, w, l, color, pulse = 'off', lampPower = 6, y = 0.03
   return pool;
 }
 
+// ---------- Route-responsive effects (the map car reacts to the drive) ----------
+// Turn signals blink before each turn on your route, brake lights glow when you slow down,
+// a warning glow pulses when a hazard is ahead, and headlights / underglow brighten with speed.
+function attachDriveFx(car) {
+  if (car.userData.fx) return car.userData.fx;
+  // Size from the solid body only (the glow pools on the road are much bigger than the car).
+  const box = new THREE.Box3();
+  car.updateMatrixWorld(true);
+  car.traverse((o) => { if (o.isMesh && o.material && !o.material.transparent) box.expandByObject(o); });
+  if (box.isEmpty()) box.setFromObject(car);
+  const zF = box.min.z, zR = box.max.z, xL = box.min.x, xR = box.max.x;
+  const pool = (color, w, l, x, z, y = 0.06) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, l), new THREE.MeshBasicMaterial({ map: glowTexture(), color, transparent: true, depthWrite: false, opacity: 0, blending: THREE.AdditiveBlending }));
+    m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); m.renderOrder = 4; car.add(m); return m;
+  };
+  const blink = { left: [pool('#ffb300', 1.3, 1.3, xL, zF + 0.2), pool('#ffb300', 1.3, 1.3, xL, zR - 0.2)], right: [pool('#ffb300', 1.3, 1.3, xR, zF + 0.2), pool('#ffb300', 1.3, 1.3, xR, zR - 0.2)] };
+  const brake = pool('#ff1a1a', (xR - xL) * 1.3, 1.8, 0, zR + 0.5);
+  const warn = pool('#ff3b30', (xR - xL) * 2.6, (zR - zF) * 1.7, 0, (zF + zR) / 2, 0.035);
+  const beams = car.children.filter((c) => c.isGroup && c.children.some((m) => m.material?.blending === THREE.AdditiveBlending && m.geometry?.parameters?.height === 6));
+  const fx = (st, t) => {
+    const on = Math.floor(t / 380) % 2 === 0;
+    for (const side of ['left', 'right']) for (const m of blink[side]) m.material.opacity = st.turn === side && on ? 0.95 : 0;
+    brake.material.opacity += ((st.braking ? 0.85 : 0) - brake.material.opacity) * 0.25;
+    warn.material.opacity = st.alert ? 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(t / 220)) : 0;
+    const k = Math.min(1, (st.speed || 0) / 70);
+    for (const g of beams) for (const m of g.children) if (m.material) m.material.opacity = 0.35 + 0.45 * k;
+  };
+  car.userData.fx = fx;
+  return fx;
+}
+
 // A stylized 3D car: body shape, paint, wheels, optional hood scoop / wing, and underglow.
 
 // Headlight beams: two soft cones of light on the road ahead (front is -Z).
@@ -396,7 +427,7 @@ export function buildPictureCar({ picture, aspect, glow = null, style = {} }) {
 }
 
 // MapLibre custom layer that draws the car at getPose() = { lngLat:[lng,lat], bearing } each frame.
-export function car3dLayer({ id = 'dz-car3d', colors, getPose, screenLength = 115, isActive = () => true }) {
+export function car3dLayer({ id = 'dz-car3d', colors, getPose, screenLength = 115, isActive = () => true, getDrive = null }) {
   let renderer, scene, camera, map, car, pulseT = null;
   return {
     id,
@@ -447,8 +478,11 @@ export function car3dLayer({ id = 'dz-car3d', colors, getPose, screenLength = 11
       renderer.clearDepth();
       renderer.render(scene, camera);
       // Animated underglow: keep redrawing (about 30 times a second).
-      if (car.userData.tick && isActive()) {
-        car.userData.tick(performance.now());
+      const st = getDrive?.();
+      const fxOn = !!st && (st.turn || st.braking || st.alert);
+      if (st) attachDriveFx(car)(st, performance.now());
+      if ((car.userData.tick || fxOn) && isActive()) {
+        car.userData.tick?.(performance.now());
         if (!pulseT) pulseT = setTimeout(() => { pulseT = null; map.triggerRepaint(); }, 33);
       }
     },
@@ -552,4 +586,27 @@ export async function buildModelCar({ url, paint = null, glow = null, picture = 
   const lk = style.lights || 'stock';
   car.add(headBeams(-LEN / 2, lk === 'yellow' ? '255,214,90' : lk === 'stock' ? '255,246,214' : '225,240,255'));
   return car;
+}
+
+// ---------- Bloom (post-processing glow) for the garage scenes ----------
+// Bright things (underglow, neon, lights, screens) bleed light like a camera lens.
+// Returns { render(), setSize(w, h) } — falls back to a plain render if anything fails.
+export async function makeBloom(renderer, scene, camera, w, h, { strength = 0.85, radius = 0.45, threshold = 0.55 } = {}) {
+  try {
+    const [{ EffectComposer }, { RenderPass }, { UnrealBloomPass }, { OutputPass }] = await Promise.all([
+      import('three/examples/jsm/postprocessing/EffectComposer.js'),
+      import('three/examples/jsm/postprocessing/RenderPass.js'),
+      import('three/examples/jsm/postprocessing/UnrealBloomPass.js'),
+      import('three/examples/jsm/postprocessing/OutputPass.js'),
+    ]);
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), strength, radius, threshold);
+    composer.addPass(bloom);
+    composer.addPass(new OutputPass());
+    composer.setSize(w, h);
+    return { render: () => composer.render(), setSize: (nw, nh) => { composer.setSize(nw, nh); bloom.setSize(nw, nh); }, dispose: () => composer.dispose?.() };
+  } catch {
+    return { render: () => renderer.render(scene, camera), setSize: () => {}, dispose: () => {} };
+  }
 }

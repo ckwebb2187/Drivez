@@ -194,6 +194,10 @@ export function speak(text) {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.rate = 1.02;
+    // Speed-linked: softer when stopped, full volume at highway speed (road noise).
+    let speedLinked = true;
+    try { speedLinked = JSON.parse(localStorage.getItem('dz-voice') || '{}').speedAudio !== false; } catch { /* default on */ }
+    if (speedLinked) u.volume = Math.min(1, 0.7 + (window.__dzSpeed || 0) / 200);
     window.speechSynthesis.speak(u);
   } catch { /* speech not available */ }
 }

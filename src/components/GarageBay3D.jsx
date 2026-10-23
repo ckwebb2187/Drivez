@@ -197,7 +197,12 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
           drag = null; idleAt = performance.now();
         };
         el.addEventListener('pointerdown', down); window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
-        const onResize = () => { const nw = box.current?.clientWidth || w; renderer.setSize(nw, h); camera.aspect = nw / h; camera.updateProjectionMatrix(); };
+        // Bloom glow, unless battery saver is on.
+        let lite = false;
+        try { const lk = JSON.parse(localStorage.getItem('dz-map-look') || '{}'); lite = lk.saver === 'on' || (lk.saver !== 'off' && navigator.deviceMemory && navigator.deviceMemory <= 2); } catch { /* default */ }
+        const post = lite ? { render: () => renderer.render(scene, camera), setSize: () => {}, dispose: () => {} } : await car3d.makeBloom(renderer, scene, camera, w, h);
+        if (!alive) return;
+        const onResize = () => { const nw = box.current?.clientWidth || w; renderer.setSize(nw, h); post.setSize(nw, h); camera.aspect = nw / h; camera.updateProjectionMatrix(); };
         window.addEventListener('resize', onResize);
         cleanup = () => { el.removeEventListener('pointerdown', down); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('resize', onResize); };
 
@@ -209,7 +214,7 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
           camera.position.set(Math.sin(angle) * 10.5, 3.6, Math.cos(angle) * 10.5 + 1);
           camera.lookAt(0, 1.2, -0.8);
           car.userData.tick?.(t);
-          renderer.render(scene, camera);
+          post.render();
         };
         raf = requestAnimationFrame(tick);
       } catch (e) {

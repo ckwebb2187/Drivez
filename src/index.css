@@ -183,3 +183,8 @@ html:not([data-skin="standard"]) .dz-go svg { fill: currentColor; }
 .dz-report-icon { color: hsl(var(--primary)); filter: drop-shadow(0 0 4px hsl(var(--primary) / 0.6)); }
 html[data-skin="standard"] .dz-report { background: #fff; border-color: #f9ab00; box-shadow: 0 6px 16px rgba(0,0,0,.3); }
 html[data-skin="standard"] .dz-report-icon { color: #f29900; filter: none; }
+
+/* Meet radar sweep */
+.dz-radar-sweep { background: conic-gradient(from 0deg, hsl(var(--primary) / 0.35), hsl(var(--primary) / 0) 70deg, transparent 360deg); animation: dz-radar 3s linear infinite; }
+@keyframes dz-radar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .dz-radar-sweep { animation: none; } }

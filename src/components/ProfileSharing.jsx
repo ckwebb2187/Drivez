@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { QrCode, Instagram, Facebook, Youtube, Users, Loader2, X, Download, ExternalLink, Share2, Plus } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
+import StickerModal from '@/components/StickerModal';
 
 export const SOCIAL_LINKS = {
   instagram: { label: 'Instagram', icon: Instagram, url: (h) => `https://instagram.com/${h}` },
@@ -109,6 +110,7 @@ export function QrSheet({ username, name, onClose }) {
   const [qr, setQr] = useState('');
   useEffect(() => { loadQR().then((QRCode) => QRCode.toDataURL(url, { margin: 1, width: 512, color: { dark: '#0b1020', light: '#ffffff' } })).then(setQr); }, [url]);
 
+  const [stickerOpen, setStickerOpen] = useState(false);
   const sticker = async () => {
     // A 1200x1500 sticker: dark card, big QR, call to action.
     const c = document.createElement('canvas');
@@ -144,10 +146,11 @@ export function QrSheet({ username, name, onClose }) {
         </div>
         <p className="text-center text-xs text-muted-foreground mt-3 break-all">{url}</p>
         <div className="grid grid-cols-2 gap-2 mt-4">
-          <button onClick={sticker} className="bg-primary text-primary-foreground rounded-xl py-3 text-sm font-semibold flex items-center justify-center gap-2"><Download className="w-4 h-4" />Window sticker</button>
+          <button onClick={() => setStickerOpen(true)} className="bg-primary text-primary-foreground rounded-xl py-3 text-sm font-semibold flex items-center justify-center gap-2"><Download className="w-4 h-4" />Window sticker</button>
           <button onClick={share} className="bg-secondary text-foreground rounded-xl py-3 text-sm font-semibold flex items-center justify-center gap-2"><Share2 className="w-4 h-4" />Share link</button>
         </div>
-        <p className="text-[10px] text-muted-foreground mt-3 text-center">The sticker downloads as a picture. Print it on clear vinyl or sticker paper (about 3×4 in) for a back side window.</p>
+        <p className="text-[10px] text-muted-foreground mt-3 text-center">Design a window sticker: pick the size and style, then print it or save it.</p>
+        {stickerOpen && <StickerModal username={username} url={url} onClose={() => setStickerOpen(false)} />}
       </div>
     </div>,
     document.body

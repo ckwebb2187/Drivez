@@ -5,7 +5,7 @@ import { api } from '@/api/base44Client';
 import { speak } from '@/lib/nav';
 
 const KEY = 'dz-voice';
-const DEFAULTS = { narrate: true, style: 'device', gemVoice: 'Puck' };
+const DEFAULTS = { narrate: true, style: 'device', gemVoice: 'Puck', speedAudio: true };
 export function getVoiceSettings() {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return { ...DEFAULTS }; }
 }
@@ -29,6 +29,33 @@ export function useAiEnabled() {
 }
 
 let current = null;
+
+// Speed-linked "cockpit" audio for the Gemini voice: stopped = softer and warmer (high end rolled
+// off, like a quiet cabin); at speed = louder with a presence lift so it cuts through road noise.
+let actx = null;
+function cockpit(audio) {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    actx = actx || new Ctx();
+    if (actx.state === 'suspended') actx.resume();
+    const src = actx.createMediaElementSource(audio);
+    const low = actx.createBiquadFilter(); low.type = 'lowpass';
+    const pres = actx.createBiquadFilter(); pres.type = 'peaking'; pres.frequency.value = 2800; pres.Q.value = 0.9;
+    const gain = actx.createGain();
+    src.connect(low); low.connect(pres); pres.connect(gain); gain.connect(actx.destination);
+    const apply = () => {
+      const k = Math.min(1, (window.__dzSpeed || 0) / 70);
+      const t = actx.currentTime;
+      low.frequency.setTargetAtTime(4500 + 11500 * k, t, 0.3);
+      pres.gain.setTargetAtTime(5 * k, t, 0.3);
+      gain.gain.setTargetAtTime(0.75 + 0.5 * k, t, 0.3);
+    };
+    apply();
+    const id = setInterval(apply, 500);
+    audio.addEventListener('ended', () => clearInterval(id));
+    audio.addEventListener('pause', () => clearInterval(id));
+  } catch { /* plays normally */ }
+}
 export function stopSpeaking() {
   try { current?.pause(); } catch { /* ignore */ }
   current = null;
@@ -49,6 +76,7 @@ export async function say(text, { natural } = {}) {
       const a = new Audio(url);
       current = a;
       a.onended = () => URL.revokeObjectURL(url);
+      if (v.speedAudio) cockpit(a);
       await a.play();
       return;
     } catch { /* fall back to the phone voice */ }

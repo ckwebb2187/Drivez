@@ -17,6 +17,10 @@ export default function VoiceSettings() {
         <div className="flex-1"><div className="text-sm font-semibold text-foreground">Co-driver narration</div><div className="text-[11px] text-muted-foreground">Callouts every 5 miles, Tōge corner counts, and a spoken recap when a drive is saved</div></div>
         <Toggle on={v.narrate} />
       </button>
+      <button onClick={() => set({ speedAudio: !v.speedAudio })} className="w-full flex items-center gap-3 text-left">
+        <div className="flex-1"><div className="text-sm font-semibold text-foreground">Speed-linked audio</div><div className="text-[11px] text-muted-foreground">Voice is softer when you’re stopped and louder and clearer at highway speed</div></div>
+        <Toggle on={v.speedAudio} />
+      </button>
       <div>
         <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">Voice</div>
         <div className="flex bg-secondary rounded-xl p-1">

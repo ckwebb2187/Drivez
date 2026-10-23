@@ -21,6 +21,7 @@ import { useWeatherAlerts } from '@/lib/alerts';
 import { useTrafficEta } from '@/lib/traffic';
 import { getInitials } from '@/lib/helpers';
 import { startConvoy } from '@/lib/convoy';
+import { isLowered, countBumps } from '@/lib/bumps';
 
 const DRIVE_ERRORS = {
   denied: 'Location permission denied. Turn on location for Kaido Maps in your settings, then try again.',
@@ -46,6 +47,12 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
   const [dest, setDest] = useState(null);
   const [route, setRoute] = useState(null);
   const [alts, setAlts] = useState([]); // other ways to get there (route choices)
+  const [smoothNote, setSmoothNote] = useState('');
+  // Lowered car (switch or suspension mods): route choices count speed bumps and pick the smoothest.
+  const lowRef = useRef(false);
+  const reportsRef = useRef([]);
+  lowRef.current = isLowered(activeVehicle, myCar);
+  reportsRef.current = roadReports?.reports || [];
   const [routing, setRouting] = useState(false);
   const [routeErr, setRouteErr] = useState('');
 
@@ -98,6 +105,19 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
       const choices = (r.alternatives || [r]).map(({ alternatives, ...x }) => x);
       setAlts(choices.length > 1 ? choices : []);
       setRoute(choices[0]);
+      setSmoothNote('');
+      if (lowRef.current) {
+        countBumps(choices, reportsRef.current).then((rs) => {
+          const fastest = rs.reduce((a, b) => (b.duration < a.duration ? b : a));
+          const smooth = rs.reduce((a, b) => (b.bumps < a.bumps || (b.bumps === a.bumps && b.duration < a.duration) ? b : a));
+          if (rs.length > 1 && smooth !== fastest) smooth.labels = [...(smooth.labels || []), 'Fewest bumps'];
+          setAlts(rs.length > 1 ? [...rs] : []);
+          // Take the smoother way when it's clearly smoother and not much slower.
+          const pick = smooth !== rs[0] && rs[0].bumps - smooth.bumps >= 3 && smooth.duration <= fastest.duration * 1.2 ? smooth : rs[0];
+          setRoute(pick);
+          setSmoothNote(pick.bumps ? `Lowered car: ${pick.bumps} speed bump${pick.bumps === 1 ? '' : 's'} or dips on this way${pick !== rs[0] ? ` (${rs[0].bumps} on the other)` : ''}` : 'Lowered car: no mapped speed bumps on this way');
+        }).catch(() => {});
+      }
     } catch (e) {
       setRouteErr(e.message);
     } finally {
@@ -355,11 +375,13 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
                             <button key={i} onClick={() => setRoute(a)} className={`shrink-0 rounded-xl border px-2.5 py-1.5 text-left ${on ? 'border-primary bg-primary/10' : 'border-border bg-secondary/50'}`}>
                               <div className={`text-sm font-bold ${on ? 'text-primary' : 'text-foreground'}`}>{formatEta(a.duration)} <span className="text-[11px] font-normal text-muted-foreground">{a.distance} mi</span></div>
                               <div className="text-[10px] text-muted-foreground max-w-[150px] truncate">{a.labels?.length ? a.labels.join(' · ') : 'Other way'}{a.via ? ` · via ${a.via}` : ''}</div>
+                              {a.bumps != null && <div className={`text-[10px] font-semibold ${a.bumps > 5 ? 'text-[#F9AB00]' : 'text-accent'}`}>{a.bumps} bump{a.bumps === 1 ? '' : 's'} / dips</div>}
                             </button>
                           );
                         })}
                       </div>
                     )}
+                    {smoothNote && <p className="text-[11px] text-accent mt-1">〰️ {smoothNote}</p>}
                     <RouteConditions route={route} />
                     {traffic && (
                       <p className={`text-[11px] mt-0.5 font-semibold flex items-center gap-1 ${traffic.delay > 300 ? 'text-[#F9AB00]' : traffic.delay > 60 ? 'text-[#FBBC04]' : 'text-[#34A853]'}`}>

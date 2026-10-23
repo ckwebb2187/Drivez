@@ -22,6 +22,7 @@ import { api } from '@/api/base44Client';
 import { mileageMode } from '@/lib/carBluetooth';
 import { useConvoy, useOpenConvoys, joinConvoy } from '@/lib/convoy';
 import FriendsHub from '@/components/FriendsHub';
+import MeetRadar from '@/components/MeetRadar';
 import AskGemini from '@/components/AskGemini';
 import { say, getVoiceSettings, recapText, tripFacts } from '@/lib/voice';
 import { searchPlaces, getRoute } from '@/lib/nav';
@@ -79,6 +80,8 @@ export default function LiveDrive({ active = true }) {
   }, [drive.status, active]);
   const roadReports = useReports(drive.currentPosition || herePos);
   const [look] = useMapLook();
+  // Shared with the voice so it can follow your speed (speed-linked audio).
+  useEffect(() => { window.__dzSpeed = drive.status === 'driving' ? drive.currentSpeed : 0; }, [drive.currentSpeed, drive.status]);
   const speedLimit = useSpeedLimit(drive.status === 'driving' ? drive.currentPosition : null, drive.heading, drive.status === 'driving');
   // Friends driving right now (shown on the map; tap one for their profile).
   const [friends, setFriends] = useState([]);
@@ -167,6 +170,20 @@ export default function LiveDrive({ active = true }) {
     setRouteId(null);
     setNavPlan({ dest: c.dest, stops: [], route: main });
   };
+  // Radar: meets, friends driving and your group around you. "Go" routes there (or starts the drive).
+  const radarGo = async (dest) => {
+    const here = drive.currentPosition || herePos;
+    if (!here) return;
+    const r = await getRoute(here, [dest.lat, dest.lng], [], dest.name).catch(() => null);
+    if (!r) return;
+    const { alternatives, ...main } = r;
+    setRouteId(null);
+    setNavPlan({ dest, stops: [], route: main });
+  };
+  const radar = scene ? (
+    <MeetRadar here={drive.currentPosition || herePos} heading={drive.status === 'driving' ? drive.heading : null}
+      meets={meets} friends={mapFriends} convoy={convoy} onDrive={radarGo} onDriver={setOpenDriver} />
+  ) : null;
   const hub = (
     <FriendsHub live={friends} convoy={convoy} openConvoys={openConvoys} here={drive.currentPosition || herePos}
       dest={navPlan?.dest || null} onJoin={onJoinConvoy} onLeave={leaveConvoy} onDriver={setOpenDriver} />
@@ -435,6 +452,10 @@ export default function LiveDrive({ active = true }) {
           stops={nav.active ? nav.stops.slice(nav.stopIdx) : preview ? preview.stops : []}
           fitCoords={drive.status === 'idle' && preview ? preview.route.coords : null}
           friends={mapFriends}
+          driveFx={{
+            turn: nav.active && !nav.arrived && nav.distToStep < 160 && /left|right/.test(nav.step?.modifier || '') && nav.step?.type !== 'depart' ? (/left/.test(nav.step.modifier) ? 'left' : 'right') : null,
+            alert: !!reportAlert,
+          }}
           pins={meetPins}
           onPinTap={() => navigate('/meets')}
           onFriendTap={setOpenDriver}
@@ -453,6 +474,7 @@ export default function LiveDrive({ active = true }) {
         <div className="absolute right-3 top-[calc(max(12px,env(safe-area-inset-top))+108px)] z-[520] flex flex-col items-end gap-2">
           <AskGemini size={46} context={askContext} onAction={onAskAction} />
           {hub}
+          {radar}
         </div>
       )}
 
@@ -601,8 +623,9 @@ export default function LiveDrive({ active = true }) {
             })()}
 
             {/* Friends & group drive (top right): live friends, invite, join, group chat */}
-            <div className={`absolute right-3 ${nav.active ? (turnsMin ? 'top-[80px]' : 'top-[150px]') : 'top-[max(12px,env(safe-area-inset-top))]'}`}>
+            <div className={`absolute right-3 flex flex-col items-end gap-2 ${nav.active ? (turnsMin ? 'top-[80px]' : 'top-[150px]') : 'top-[max(12px,env(safe-area-inset-top))]'}`}>
               {hub}
+              {radar}
             </div>
 
             {/* Tōge / Wangan run card */}
