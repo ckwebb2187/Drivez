@@ -22,10 +22,14 @@ export default function SettingsList() {
   const [modeBusy, setModeBusy] = useState(false);
   const units = useUnits();
   const switchMode = async (m) => { if (m === user.appMode) return; setModeBusy(true); try { await setAppMode(m); } finally { setModeBusy(false); } };
+  const fam = useFamilyBrief();
+  const [, setUnlocked] = useState(0);
   if (!user) return null;
+  if (fam?.locked && unlockedFor !== fam.id) return <PinGate onOpen={() => { unlockedFor = fam.id; setUnlocked((n) => n + 1); }} onLogout={logout} />;
+  const ghostLocked = !!fam?.controls && !fam.controls.mapVisible;
   return (
     <div className="space-y-3">
-      <button onClick={toggleGhostMode} className="w-full bg-card rounded-2xl border border-border flex items-center gap-3 px-4 py-3 text-left">
+      <button onClick={ghostLocked ? undefined : toggleGhostMode} disabled={ghostLocked} className="w-full bg-card rounded-2xl border border-border flex items-center gap-3 px-4 py-3 text-left">
         {user.ghostMode ? <EyeOff className="w-4 h-4 text-muted-foreground" /> : <Eye className="w-4 h-4 text-primary" />}
         <div className="flex-1">
           <div className="text-sm font-semibold text-foreground">Ghost mode</div>
