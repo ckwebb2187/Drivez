@@ -499,6 +499,8 @@ function DriveMapInner({
       const dot = document.createElement('div');
       dot.style.cssText = 'width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;background:hsl(var(--card));border:2px solid hsl(var(--primary));box-shadow:0 0 12px hsl(var(--primary) / .6)';
       dot.textContent = p.emoji || '📍';
+      // Radar-style ping behind the badge (battery saver: none).
+      if (!lite) { dot.style.position = 'relative'; const ping = document.createElement('div'); ping.className = 'dz-ping'; dot.append(ping); }
       const label = document.createElement('div');
       label.style.cssText = 'margin-top:2px;font:700 10px system-ui;color:#fff;background:rgba(15,18,28,.85);padding:1px 6px;border-radius:8px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis';
       label.textContent = p.label || '';
