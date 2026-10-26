@@ -9,7 +9,7 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - [x] T01 · S · Take the charts library off startup. `charts-*.js` (~88 KB gz) loads at startup.
   Find what statically imports recharts in the startup path (start at `src/components/StatsDashboard.jsx`,
   `src/pages/Profile.jsx`) and load it with `React.lazy`/`import()`. Done when `charts` is not in startup files in perf-check.
-- [ ] T02 · S · Check the startup path for other heavy imports (three.js, qrcode, leaflet) that could load later.
+- [x] T02 · S · Check the startup path for other heavy imports (three.js, qrcode, leaflet) that could load later.
   Lazy-load any that aren't needed for the first screen. Done when startup KB drops or the ticket logs "nothing to cut".
 
 ## Phase 1: Navigation basics
