@@ -39,7 +39,7 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - [x] T18 · S · Ghost runs, part 2: compare against the convoy leader's run on the same section.
 
 ## Phase 4: Group drives & voice
-- [ ] T19 · M · Discord voice: one-tap join from the drive screen (deep link to the group's Discord channel) and a mute/unmute button on the HUD.
+- [x] T19 · M · Discord voice: one-tap join from the drive screen (deep link to the group's Discord channel) and a mute/unmute button on the HUD.
 - [x] T20 · S · Convoy alerts, spoken hands-free: "<friend> just left", "is halfway", "just arrived". Opt-in per trip.
 - [x] T21 · M · Spotted mode, part 1: opt-in setting, delayed location, home zone where you're never shown.
 - [x] T22 · M · Spotted mode, part 2: spotted feed and "crossed paths" cards after a drive.

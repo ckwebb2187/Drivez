@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTrafficEta } from '@/lib/traffic';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X, ChevronUp, Navigation2, SkipForward, MapPin, Settings } from 'lucide-react';
+import { ChevronDown, Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X, ChevronUp, Navigation2, SkipForward, MapPin, Settings, Headphones, Mic, MicOff } from 'lucide-react';
 import { SettingsSheet } from '@/components/SettingsList';
 import DriveMap from '@/components/DriveMap';
 import { useGpsDrive, pendingDrive, clearPendingDrive } from '@/lib/useGpsDrive';
@@ -309,7 +309,10 @@ export default function LiveDrive({ active = true, peek = false }) {
   useTeenAlerts({ driving: drive.status === 'driving', speed: drive.currentSpeed, limit: speedLimit?.mph || null, hardBrakes: drive.stats?.hardBrakes, pos: drive.currentPosition });
   const canGroup = useAllowed('convoys');
   // Group drive: voice clips from the others play by themselves; on-the-way / halfway / arrived updates show and are spoken.
-  const [groupNews, clearGroupNews] = useGroupLive(convoy?.code, active, { speak: (t) => { if (voiceOn) say(t); } });
+  // Group audio mute (HUD button): stops voice clips and spoken group updates. Remembered on this phone.
+  const [groupMuted, setGroupMuted] = useState(() => { try { return localStorage.getItem('dz-group-mute') === '1'; } catch { return false; } });
+  const toggleGroupMute = () => setGroupMuted((m) => { try { localStorage.setItem('dz-group-mute', m ? '0' : '1'); } catch { /* private mode */ } return !m; });
+  const [groupNews, clearGroupNews] = useGroupLive(convoy?.code, active, { speak: (t) => { if (voiceOn && !groupMuted) say(t); }, autoplay: !groupMuted });
   useEffect(() => { if (!groupNews) return undefined; const t = setTimeout(clearGroupNews, 7000); return () => clearTimeout(t); }, [groupNews?.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const canMeets = useAllowed('meets');
   const radar = scene && canMeets ? (
@@ -810,6 +813,20 @@ export default function LiveDrive({ active = true, peek = false }) {
               {hub}
               {radar}
               {convoy && canGroup && <PushToTalk code={convoy.code} />}
+              {convoy && canGroup && (
+                <div className="flex gap-2 pointer-events-auto">
+                  {convoy.discord && (
+                    <a href={convoy.discord} target="_blank" rel="noreferrer" aria-label="Join group voice on Discord"
+                      className="w-10 h-10 rounded-full shadow-xl flex items-center justify-center text-white" style={{ background: '#5865F2' }}>
+                      <Headphones className="w-4 h-4" />
+                    </a>
+                  )}
+                  <button onClick={toggleGroupMute} aria-label={groupMuted ? 'Unmute group audio' : 'Mute group audio'}
+                    className={`w-10 h-10 rounded-full shadow-xl border flex items-center justify-center ${groupMuted ? 'bg-destructive border-destructive text-white' : 'bg-card/95 border-border text-foreground'}`}>
+                    {groupMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                  </button>
+                </div>
+              )}
             </div>
 
 

@@ -29,3 +29,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-10-26 · T17 · done · startup +0.5 KB · entering a saved section shows your best run as a see-through ghost car (trace replayed by time)
 2026-10-26 · T18 · done · startup +0.2 KB · /convoys/:code/leader-run (members only) returns leader's best run on a section starting nearby; shown as 'Leader' ghost
 2026-10-26 · T14-T18 · deployed · live check ok 215 ms (first try 404 while Cloudflare updated) · -
+2026-10-26 · T19 · done · startup +0.3 KB · group drive HUD: one-tap Discord (group's link) + mute/unmute group audio (voice clips + spoken updates; app can't mute Discord itself)
