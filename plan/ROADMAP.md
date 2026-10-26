@@ -26,10 +26,10 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
   end the drive automatically, fade out the drive HUD, and show the summary card (distance, Flow Score, smoothness, acceleration times).
 
 ## Phase 2: Map life
-- [ ] T10 · M · Area pings: radar-style pulses on scenic lookouts, Toge sections, meets and specialty stops already in app data. Battery saver = static dots.
-- [ ] T11 · M · Passing pings: small game-style tag when you pass a friend or convoy member (friends' live positions already exist). Not tappable while moving.
-- [ ] T12 · S · Convoy radar blips: add convoy members to the existing `MeetRadar` component as minimal dots.
-- [ ] T13 · S · HUD style: animated black wireframe look for the route header and Groups tab; make the Groups button smaller.
+- [x] T10 · M · Area pings: radar-style pulses on scenic lookouts, Toge sections, meets and specialty stops already in app data. Battery saver = static dots.
+- [x] T11 · M · Passing pings: small game-style tag when you pass a friend or convoy member (friends' live positions already exist). Not tappable while moving.
+- [x] T12 · S · Convoy radar blips: add convoy members to the existing `MeetRadar` component as minimal dots.
+- [x] T13 · S · HUD style: animated black wireframe look for the route header and Groups tab; make the Groups button smaller.
 
 ## Phase 3: Driving skill
 - [ ] T14 · S · Acceleration times: add 60–100 mph and 30 mph roll times next to the existing 0-60 (drive stats code). Show on trip detail and profile showcase.

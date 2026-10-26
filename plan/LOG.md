@@ -17,3 +17,8 @@ One line per run: date · ticket · result · startup KB · note.
 2026-10-26 · T07 · done · startup 564.1 KB gz (+0.5) · Home/Work beacon + light pillar, still dot in battery saver
 2026-10-26 · T08 · done · startup 564.6 KB gz · neon rings at destination, camera eases to bird's-eye on arrival
 2026-10-26 · T09 · done · startup 564.6 KB gz · arrived + stopped 8 s ends the drive; summary card (distance, time, flow, 0-60, max g)
+2026-10-26 · T07-T09 · deployed · live check ok 258 ms · -
+2026-10-26 · T10 · done · startup 565 KB gz · radar ping on map pins (meets now; sections later), none in battery saver
+2026-10-26 · T11 · done · startup 565 KB gz · FRIEND/GROUP tag when someone goes from 400 m+ to 150 m, not tappable
+2026-10-26 · T12 · already done · - · convoy members were already 'group' blips in MeetRadar (convoyDrivers in mapFriends)
+2026-10-26 · T13 · done · startup 565.4 KB gz (+0.8) · black animated wireframe turn card (themed looks) + smaller Groups button

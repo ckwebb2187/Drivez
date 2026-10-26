@@ -248,3 +248,18 @@ html[data-skin="standard"] .dz-report-icon { color: #f29900; filter: none; }
 .dz-arrive-still i { animation: none; opacity: .8; transform: scale(.5); }
 .dz-arrive-still i + i { display: none; }
 @media (prefers-reduced-motion: reduce) { .dz-arrive i { animation: none; opacity: .8; transform: scale(.5); } }
+
+/* Radar ping on map pins (T10) */
+.dz-ping, .dz-ping::after { position: absolute; inset: -2px; border-radius: 50%; border: 2px solid hsl(var(--primary) / .7); animation: dz-ping 2.6s ease-out infinite; pointer-events: none; content: ''; }
+.dz-ping::after { inset: -2px; animation-delay: 1.3s; }
+@keyframes dz-ping { from { transform: scale(1); opacity: .9; } to { transform: scale(2.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .dz-ping, .dz-ping::after { animation: none; display: none; } }
+
+/* Black animated wireframe HUD (T13): route header and Groups button */
+.dz-wire { position: relative; isolation: isolate; background-color: #05070b !important; box-shadow: inset 0 0 0 1px hsl(var(--primary) / .55), 0 0 14px hsl(var(--primary) / .25), 0 10px 30px rgba(0,0,0,.45); }
+.dz-wire::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none; opacity: .35;
+  background-image: linear-gradient(hsl(var(--primary) / .5) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary) / .5) 1px, transparent 1px);
+  background-size: 18px 18px; animation: dz-wire 6s linear infinite;
+  -webkit-mask-image: linear-gradient(to bottom, #000, transparent 85%); mask-image: linear-gradient(to bottom, #000, transparent 85%); }
+@keyframes dz-wire { from { background-position: 0 0, 0 0; } to { background-position: 0 18px, 18px 0; } }
+@media (prefers-reduced-motion: reduce) { .dz-wire::before { animation: none; } }

@@ -27,3 +27,5 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-10-26T18:20,T06,live,,,7569,15478,pass
 2026-10-26T18:21,T07,build,564.1,943.4,,,pass
 2026-10-26T18:24,T09,build,564.6,943.8,,,pass
+2026-10-26T18:25,T09,live,,,83,258,pass
+2026-10-26T18:27,T13,build,565.4,944.2,,,pass

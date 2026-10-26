@@ -157,6 +157,26 @@ export default function LiveDrive({ active = true, peek = false }) {
     const ids = new Set(convoyDrivers.map((d) => d.userId));
     return [...convoyDrivers, ...friends.filter((f) => !ids.has(f.userId))];
   }, [friends, convoyDrivers]);
+  // Passing pings: a small game-style tag when you pass a friend or group member (not tappable).
+  const [passing, setPassing] = useState(null);
+  const passedAt = useRef({});
+  useEffect(() => {
+    const me = drive.currentPosition;
+    if (drive.status !== 'driving' || !me) return;
+    const group = new Set(convoyDrivers.map((d) => d.userId));
+    // Only when someone goes from far (400 m+) to close (150 m), so a group riding together doesn't keep pinging.
+    for (const f of mapFriends) {
+      if (f.lat == null) continue;
+      const d = distM([me.lat, me.lng], [f.lat, f.lng]);
+      const st = passedAt.current[f.userId] || (passedAt.current[f.userId] = { far: d > 400, at: 0 });
+      if (d > 400) { st.far = true; continue; }
+      if (d > 150 || !st.far || Date.now() - st.at < 5 * 60000) continue;
+      st.far = false; st.at = Date.now();
+      setPassing({ name: f.name.replace(/^👥 /, ''), group: group.has(f.userId), key: Date.now() });
+      break;
+    }
+  }, [drive.currentPosition, mapFriends]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!passing) return undefined; const t = setTimeout(() => setPassing(null), 4500); return () => clearTimeout(t); }, [passing]);
   // Upcoming car meets near you, pinned on the map (scene mode).
   const [meets, setMeets] = useState([]);
   const meetsAt = useRef(null);
@@ -641,11 +661,13 @@ export default function LiveDrive({ active = true, peek = false }) {
           >
             {/* Turn card: tap it for every turn of the trip; the arrow folds it into a small pill. */}
             {nav.active && (() => {
-              const bg = nav.arrived ? '#188038' : look.theme === 'standard' ? '#0F7B3F' : 'hsl(var(--primary))';
-              const fg = nav.arrived || look.theme === 'standard' ? '#fff' : 'hsl(var(--primary-foreground))';
+              // Themed looks get the black animated wireframe header; Standard keeps the plain green card.
+              const wire = !nav.arrived && look.theme !== 'standard';
+              const bg = nav.arrived ? '#188038' : look.theme === 'standard' ? '#0F7B3F' : '#05070b';
+              const fg = '#fff';
               if (turnsMin) return (
                 <div className="absolute top-0 left-0 p-3 pt-[max(12px,env(safe-area-inset-top))] pointer-events-auto">
-                  <div className="rounded-full shadow-2xl flex items-center gap-2 pl-3 pr-1 h-[52px]" style={{ background: bg, color: fg }}>
+                  <div className={`rounded-full shadow-2xl flex items-center gap-2 pl-3 pr-1 h-[52px] ${wire ? 'dz-wire' : ''}`} style={{ background: bg, color: fg }}>
                     <button onClick={() => setStepsOpen(true)} className="flex items-center gap-2" aria-label="All turns">
                       {nav.arrived ? <Check className="w-6 h-6" /> : <TurnIcon step={nav.step} className="w-6 h-6" />}
                       <span className="text-lg font-bold">{nav.arrived ? 'Arrived' : nav.rerouting ? 'Rerouting…' : formatNavDistance(nav.distToStep)}</span>
@@ -656,7 +678,7 @@ export default function LiveDrive({ active = true, peek = false }) {
               );
               return (
                 <div className="absolute top-0 left-0 right-0 p-3 pt-[max(12px,env(safe-area-inset-top))] pointer-events-auto">
-                  <div className="rounded-2xl shadow-2xl overflow-hidden" style={{ background: bg }}>
+                  <div className={`rounded-2xl shadow-2xl overflow-hidden ${wire ? 'dz-wire' : ''}`} style={{ background: bg }}>
                     <div className="flex items-center gap-3 px-4 py-3.5" style={{ color: fg }}>
                       <button onClick={() => setStepsOpen(true)} className="flex-1 min-w-0 flex items-center gap-3 text-left" aria-label="All turns">
                         {nav.arrived ? <Check className="w-9 h-9" strokeWidth={2.6} /> : <TurnIcon step={nav.step} className="w-9 h-9 shrink-0" />}
@@ -954,6 +976,15 @@ export default function LiveDrive({ active = true, peek = false }) {
           <button onClick={clearGroupNews} className="mx-auto max-w-md w-full text-left rounded-2xl bg-card/95 backdrop-blur border border-primary/60 shadow-2xl px-4 py-2.5 text-sm font-semibold text-foreground block">
             {groupNews.kind === 'voice' ? `🎙️ ${groupNews.user?.name || 'Group'} is talking…` : groupNews.kind === 'system' ? groupNews.text : `💬 ${groupNews.user?.name}: ${groupNews.text}`}
           </button>
+        </div>
+      )}
+      {passing && active && (
+        <div key={passing.key} className="absolute left-1/2 -translate-x-1/2 top-[38%] z-[650] pointer-events-none dz-pop-in">
+          <div className="relative flex items-center gap-2 rounded-full bg-black/75 backdrop-blur border border-primary/70 px-3 py-1.5 shadow-[0_0_18px_hsl(var(--primary)/.6)]">
+            <span className="relative w-2.5 h-2.5"><span className="dz-ping" /><span className="absolute inset-0 rounded-full bg-primary" /></span>
+            <span className="text-[11px] font-black tracking-widest text-primary">{passing.group ? 'GROUP' : 'FRIEND'}</span>
+            <span className="text-sm font-bold text-white">{passing.name}</span>
+          </div>
         </div>
       )}
       {toast && active && (
