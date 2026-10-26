@@ -39,9 +39,9 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 
 ## Phase 4: Group drives & voice
 - [ ] T19 · M · Discord voice: one-tap join from the drive screen (deep link to the group's Discord channel) and a mute/unmute button on the HUD.
-- [ ] T20 · S · Convoy alerts, spoken hands-free: "<friend> just left", "is halfway", "just arrived". Opt-in per trip.
-- [ ] T21 · M · Spotted mode, part 1: opt-in setting, delayed location, home zone where you're never shown.
-- [ ] T22 · M · Spotted mode, part 2: spotted feed and "crossed paths" cards after a drive.
+- [x] T20 · S · Convoy alerts, spoken hands-free: "<friend> just left", "is halfway", "just arrived". Opt-in per trip.
+- [x] T21 · M · Spotted mode, part 1: opt-in setting, delayed location, home zone where you're never shown.
+- [x] T22 · M · Spotted mode, part 2: spotted feed and "crossed paths" cards after a drive.
 
 ## Phase 5: Offline
 - [ ] T23 · M · Offline route, part 1: when a route is planned, cache its map tiles along the corridor in the service worker (size cap, clear old).

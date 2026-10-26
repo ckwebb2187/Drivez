@@ -199,7 +199,7 @@ function GroupTab({ convoy, here, friends, inGroup, invited, busy, onInvite, onS
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar px-2 pb-2">
           {QUICK.map((q) => <button key={q} onClick={() => say(q)} className="shrink-0 text-xs px-3 py-1.5 rounded-full bg-card text-foreground border border-border">{q}</button>)}
         </div>
-        <div className="px-2 pb-2"><PushToTalk code={convoy.code} className="w-full justify-center" /></div>
+        <div className="px-2 pb-2"><PushToTalk code={convoy.code} compact={false} className="w-full justify-center" /></div>
         <div className="flex gap-2 p-2 pt-0">
           <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && say(text)} placeholder="Message the group…" className="flex-1 min-w-0 h-10 bg-card rounded-xl px-3 text-sm text-foreground border border-border focus:border-primary outline-none" />
           <button onClick={() => say(text)} className="w-10 h-10 rounded-xl dz-go flex items-center justify-center" aria-label="Send"><Send className="w-4 h-4" /></button>
