@@ -15,7 +15,7 @@ import GarageDrawer, { GarageTab } from '@/components/GarageDrawer';
 import LeftDrawer from '@/components/LeftDrawer';
 import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
-import { searchPlaces, getRoute, optimizeStops, MAX_STOPS, formatEta, arrivalTime, formatNavDistance, distM } from '@/lib/nav';
+import { searchPlaces, getRoute, optimizeStops, getAvoid, setAvoid, MAX_STOPS, formatEta, arrivalTime, formatNavDistance, distM } from '@/lib/nav';
 import PlaceSearchSheet from '@/components/PlaceSearchSheet';
 import { AlertsBanner, RouteConditions } from '@/components/WeatherAlerts';
 import { useWeatherAlerts } from '@/lib/alerts';
@@ -88,6 +88,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
 
   // Route planning: `dest` is the final destination, `stops` the places before it (up to MAX_STOPS in total).
   const [stops, setStops] = useState([]);
+  const [avoid, setAvoidState] = useState(getAvoid); // Avoid tolls / ferries (T03)
   const [addingStop, setAddingStop] = useState(false);
   const [savingPlan, setSavingPlan] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
@@ -445,6 +446,12 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
                   <button onClick={() => setAddingStop(true)} disabled={allStops.length >= MAX_STOPS + 1} className="shrink-0 h-9 px-3 rounded-full bg-secondary text-xs font-semibold text-foreground flex items-center gap-1.5 disabled:opacity-40">
                     <Plus className="w-3.5 h-3.5" /> {allStops.length >= MAX_STOPS + 1 ? `${MAX_STOPS} stops max` : 'Add stop'}
                   </button>
+                  {[['tolls', 'No tolls'], ['ferries', 'No ferries']].map(([k, l]) => (
+                    <button key={k} onClick={() => { const a = { ...avoid, [k]: !avoid[k] }; setAvoid(a); setAvoidState(a); plan(dest, stops); }}
+                      className={`shrink-0 h-9 px-3 rounded-full text-xs font-semibold ${avoid[k] ? 'bg-primary/15 text-primary border border-primary/50' : 'bg-secondary text-foreground'}`}>
+                      {avoid[k] ? '✓ ' : ''}{l}
+                    </button>
+                  ))}
                   {stops.length >= 2 && (
                     <button onClick={bestOrder} disabled={optimizing} className="shrink-0 h-9 px-3 rounded-full bg-secondary text-xs font-semibold text-foreground flex items-center gap-1.5">
                       {optimizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Shuffle className="w-3.5 h-3.5" />} Best order

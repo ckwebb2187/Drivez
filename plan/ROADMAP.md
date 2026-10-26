@@ -13,9 +13,9 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
   Lazy-load any that aren't needed for the first screen. Done when startup KB drops or the ticket logs "nothing to cut".
 
 ## Phase 1: Navigation basics
-- [?] T03 · S · Avoid Tolls / Avoid Ferries switches in route settings. Saved across sessions (localStorage like other settings).
+- [x] T03 · S · Avoid Tolls / Avoid Ferries switches in route settings. Saved across sessions (localStorage like other settings).
   Router is OSRM (`src/lib/nav.js` ~line 156): add `&exclude=toll,ferry` as chosen. If OSRM rejects it, hide the switch and mark `[?]`.
-  Owner: the free OSRM server rejects every `exclude` (toll, ferry, motorway). Switching to the free Valhalla router (FOSSGIS) would allow it. OK to switch routers?
+  Owner said yes (Oct 26): Valhalla (FOSSGIS, free) is used only while an Avoid switch is on; OSRM stays the default.
   Changing a switch re-plans the current route.
 - [x] T04 · S · Raise stop limit to 15: `MAX_STOPS` in `src/lib/nav.js`. Check the OSRM trip/optimize call still works with 16 points.
 - [x] T05 · M · Drag-to-reorder stops in `src/components/TripPlanner.jsx` (touch-friendly, no new library if possible), plus route preview after reorder.

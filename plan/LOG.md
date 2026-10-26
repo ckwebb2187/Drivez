@@ -43,3 +43,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-10-26 · T30 · done · - · problem_reports table; Report a problem tab (sends phone info); creator-only inbox on the same page
 2026-10-26 · T31 · done · startup +0 KB JS (920 B inline in index.html) · light-trail K splash, fades at 1.25 s, never blocks taps, off with reduced motion
 2026-10-26 · T29-T31 · deployed · live check ok 177 ms · roadmap clear except Needs a decision + T03
+2026-10-26 · T03 · done · startup +0.4 KB · No tolls / No ferries chips (saved per phone) switch routing to Valhalla osrm-format; reroutes follow; tested route, alternatives, stops

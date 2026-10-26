@@ -167,6 +167,26 @@ function parseRoute(r, stops, destName) {
   };
 }
 
+// Avoid tolls / ferries (saved on this phone). The free OSRM server can't avoid anything, so when
+// either is on, routes come from the free Valhalla server (FOSSGIS) in OSRM-style JSON instead.
+export function getAvoid() {
+  try { const a = JSON.parse(localStorage.getItem('dz-avoid') || '{}'); return { tolls: !!a.tolls, ferries: !!a.ferries }; } catch { return { tolls: false, ferries: false }; }
+}
+export function setAvoid(a) { try { localStorage.setItem('dz-avoid', JSON.stringify(a)); } catch { /* private mode */ } }
+
+async function valhallaRoute(points, alternatives) {
+  const { tolls, ferries } = getAvoid();
+  const q = {
+    locations: points.map(([lat, lon]) => ({ lat, lon })),
+    costing: 'auto',
+    costing_options: { auto: { use_tolls: tolls ? 0 : 0.5, use_ferry: ferries ? 0 : 0.5 } },
+    format: 'osrm', shape_format: 'geojson', units: 'km',
+    ...(alternatives ? { alternates: 2 } : {}),
+  };
+  const res = await fetch(`https://valhalla1.openstreetmap.de/route?json=${encodeURIComponent(JSON.stringify(q))}`);
+  return res.json();
+}
+
 // Directions. With no stops, also returns up to 2 other ways to go (route.alternatives),
 // each labeled: Fastest, Shortest, Twistiest (best for a Tōge run).
 export async function getRoute(from, to, stops = [], destName = '') {
@@ -174,11 +194,17 @@ export async function getRoute(from, to, stops = [], destName = '') {
   const path = points.map(([lat, lng]) => `${lng},${lat}`).join(';');
   const url = `https://router.project-osrm.org/route/v1/driving/${path}?overview=full&geometries=geojson&steps=true${stops.length ? '' : '&alternatives=3'}`;
   let data = {};
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await fetch(url).catch(() => null);
-    data = res ? await res.json().catch(() => ({})) : {};
-    if (data.code === 'Ok') break;
-    await new Promise((r) => setTimeout(r, 800));
+  const av = getAvoid();
+  if (av.tolls || av.ferries) {
+    data = await valhallaRoute(points, !stops.length).catch(() => ({}));
+    if (data.code !== 'Ok') throw new Error("Couldn't find a route that avoids those. Try turning Avoid off.");
+  } else {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await fetch(url).catch(() => null);
+      data = res ? await res.json().catch(() => ({})) : {};
+      if (data.code === 'Ok') break;
+      await new Promise((r) => setTimeout(r, 800));
+    }
   }
   if (data.code !== 'Ok' || !data.routes?.length) throw new Error("Couldn't find a driving route there");
   const all = data.routes.slice(0, 3).map((r) => parseRoute(r, stops, destName));
