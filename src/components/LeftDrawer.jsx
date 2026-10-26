@@ -2,7 +2,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { SettingsSheet } from '@/components/SettingsList';
-import { X, Clock, Star, Route as RouteIcon, Radio, Trophy, Upload, User, Settings, Navigation, Flame, CalendarDays, Wrench, Users } from 'lucide-react';
+import { X, Clock, Star, Route as RouteIcon, Radio, Trophy, Upload, User, Settings, Navigation, Flame, CalendarDays, Wrench, Users, Lightbulb } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import InviteButton from '@/components/InviteButton';
 import { ThemePicker } from '@/components/MapLookSettings';
@@ -29,6 +29,7 @@ export default function LeftDrawer({ open, onClose }) {
     ...(scene ? [['/leaderboard', Trophy, 'Ranks', 'Leaderboards']] : []),
     ['/import', Upload, 'Import', 'From Google Maps & Waze'],
     ['/profile', User, 'Profile', 'Garage, badges, friends, driver profile'],
+    ['/ideas', Lightbulb, 'Ideas & help', 'Suggest features, vote, report a problem'],
   ];
   return createPortal(
     <div className="fixed inset-0 z-[1550] bg-black/40" onClick={onClose}>

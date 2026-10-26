@@ -1517,6 +1517,56 @@ async function handleApi(req, env, ctx, url) {
   }
 
   // --- road reports (police, crashes, hazards, traffic, closures) ---
+  // --- feature requests board (T29) and report-a-problem (T30) ---
+  if (path === "/requests" && method === "GET") {
+    const { results } = await db.prepare(
+      `SELECT r.id, r.text, r.status, r.created, r.user_id, u.display_name, u.username,
+        (SELECT COUNT(*) FROM request_votes v WHERE v.request_id = r.id) AS votes,
+        (SELECT 1 FROM request_votes v WHERE v.request_id = r.id AND v.user_id = ?) AS mine
+       FROM feature_requests r JOIN users u ON u.id = r.user_id ORDER BY votes DESC, r.created DESC LIMIT 100`).bind(me.id).all();
+    return json({ requests: results.map((r) => ({ id: r.id, text: r.text, status: r.status || null, votes: r.votes, voted: !!r.mine, by: r.display_name || r.username, own: r.user_id === me.id, at: r.created })), canMark: isCreator(me) });
+  }
+  if (path === "/requests" && method === "POST") {
+    const text = String(body.text || "").trim().slice(0, 280);
+    if (text.length < 4) throw new HttpError(400, "Say a bit more about the idea.");
+    const recent = await db.prepare("SELECT COUNT(*) AS n FROM feature_requests WHERE user_id = ? AND created > ?").bind(me.id, Date.now() - 86400000).first();
+    if (recent.n >= 10) throw new HttpError(429, "That's plenty of ideas for today. Thanks!");
+    const id = uid();
+    await db.batch([
+      db.prepare("INSERT INTO feature_requests (id, user_id, text, created) VALUES (?, ?, ?, ?)").bind(id, me.id, text, Date.now()),
+      db.prepare("INSERT INTO request_votes (request_id, user_id) VALUES (?, ?)").bind(id, me.id),
+    ]);
+    return json({ ok: true, id });
+  }
+  const rq = path.match(/^\/requests\/([a-f0-9]{24})\/(vote|status|delete)$/);
+  if (rq && method === "POST") {
+    const r = await db.prepare("SELECT * FROM feature_requests WHERE id = ?").bind(rq[1]).first();
+    if (!r) throw new HttpError(404, "That idea is gone.");
+    if (rq[2] === "vote") {
+      if (body.on) await db.prepare("INSERT OR IGNORE INTO request_votes (request_id, user_id) VALUES (?, ?)").bind(r.id, me.id).run();
+      else await db.prepare("DELETE FROM request_votes WHERE request_id = ? AND user_id = ?").bind(r.id, me.id).run();
+    } else if (rq[2] === "status") {
+      if (!isCreator(me)) throw new HttpError(403, "Only the creator can mark ideas.");
+      const st = ["planned", "building", "done"].includes(body.status) ? body.status : null;
+      await db.prepare("UPDATE feature_requests SET status = ? WHERE id = ?").bind(st, r.id).run();
+    } else {
+      if (r.user_id !== me.id && !isCreator(me)) throw new HttpError(403, "You can only delete your own ideas.");
+      await db.batch([db.prepare("DELETE FROM feature_requests WHERE id = ?").bind(r.id), db.prepare("DELETE FROM request_votes WHERE request_id = ?").bind(r.id)]);
+    }
+    return json({ ok: true });
+  }
+  if (path === "/problems" && method === "POST") {
+    const text = String(body.text || "").trim().slice(0, 1000);
+    if (text.length < 4) throw new HttpError(400, "Tell us what went wrong.");
+    await db.prepare("INSERT INTO problem_reports (id, user_id, text, info, created) VALUES (?, ?, ?, ?, ?)").bind(uid(), me.id, text, String(body.info || "").slice(0, 500), Date.now()).run();
+    return json({ ok: true });
+  }
+  if (path === "/problems" && method === "GET") {
+    if (!isCreator(me)) throw new HttpError(403, "Only the creator can read problem reports.");
+    const { results } = await db.prepare("SELECT p.id, p.text, p.info, p.created, u.display_name, u.username FROM problem_reports p JOIN users u ON u.id = p.user_id ORDER BY p.created DESC LIMIT 200").all();
+    return json({ problems: results.map((p) => ({ id: p.id, text: p.text, info: p.info, by: p.display_name || p.username, at: p.created })) });
+  }
+
   // --- road scores (T27): rate a road after a drive; scores along a route ---
   if (path === "/roads/rate" && method === "POST") {
     const pts = (Array.isArray(body.points) ? body.points : []).filter((p) => Array.isArray(p) && isFinite(p[0]) && isFinite(p[1])).slice(0, 30);

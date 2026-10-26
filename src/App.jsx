@@ -47,6 +47,7 @@ export default function App() {
                   <Route path="/routes" element={<Page.RoutesPage />} />
                   <Route path="/places" element={<Page.PlacesPage />} />
                   <Route path="/import" element={<Page.ImportPage />} />
+                  <Route path="/ideas" element={<Page.IdeasPage />} />
                 </Route>
               </Route>
               <Route path="*" element={<PageNotFound />} />
