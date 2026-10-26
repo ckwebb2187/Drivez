@@ -219,6 +219,18 @@ export default function TripDetailPage() {
                 <div className="text-[10px] text-muted-foreground">0–60</div>
               </div>
             </div>
+            {(trip.best_60_100 || trip.best_30_70) && (
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <div className="bg-secondary/50 rounded-xl p-2.5 text-center">
+                  <div className="text-lg font-bold speed-font text-foreground">{trip.best_30_70 ? `${trip.best_30_70}s` : '—'}</div>
+                  <div className="text-[10px] text-muted-foreground">30 roll (30–70)</div>
+                </div>
+                <div className="bg-secondary/50 rounded-xl p-2.5 text-center">
+                  <div className="text-lg font-bold speed-font text-foreground">{trip.best_60_100 ? `${trip.best_60_100}s` : '—'}</div>
+                  <div className="text-[10px] text-muted-foreground">60–100</div>
+                </div>
+              </div>
+            )}
             <p className="text-[10px] text-muted-foreground mt-2">
               {trip.hard_brakes || 0} hard brakes · {trip.hard_accels || 0} hard launches. These are only shown to you; drive safe and keep the fun for the track.
             </p>

@@ -22,3 +22,5 @@ One line per run: date · ticket · result · startup KB · note.
 2026-10-26 · T11 · done · startup 565 KB gz · FRIEND/GROUP tag when someone goes from 400 m+ to 150 m, not tappable
 2026-10-26 · T12 · already done · - · convoy members were already 'group' blips in MeetRadar (convoyDrivers in mapFriends)
 2026-10-26 · T13 · done · startup 565.4 KB gz (+0.8) · black animated wireframe turn card (themed looks) + smaller Groups button
+2026-10-26 · T10-T13 · deployed · live check ok 258 ms · -
+2026-10-26 · T14 · done · startup +0.2 KB · 30 roll (30-70) and 60-100 timed from GPS; on trip detail + profile Best times

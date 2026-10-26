@@ -179,6 +179,7 @@ export default function Profile() {
       <div className="px-5 space-y-3 pb-10">
         {/* Totals */}
         <StatsRow stats={stats} />
+        <BestTimes trips={trips} />
         <InviteButton />
 
         {/* Garage */}
@@ -220,6 +221,23 @@ export default function Profile() {
       </div>
 
       {editing && <EditProfileModal onClose={() => setEditing(false)} />}
+    </div>
+  );
+}
+
+// Showcase: best acceleration times across all your drives.
+function BestTimes({ trips = [] }) {
+  const best = (k) => trips.reduce((m, t) => (t[k] && (m == null || t[k] < m) ? t[k] : m), null);
+  const rows = [['0–60', best('best_0_60')], ['30 roll', best('best_30_70')], ['60–100', best('best_60_100')]];
+  if (!rows.some(([, v]) => v)) return null;
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {rows.map(([l, v]) => (
+        <div key={l} className="bg-card rounded-2xl border border-border p-2.5 text-center">
+          <div className="text-lg font-black speed-font text-foreground">{v ? `${v}s` : '—'}</div>
+          <div className="text-[10px] text-muted-foreground">Best {l}</div>
+        </div>
+      ))}
     </div>
   );
 }

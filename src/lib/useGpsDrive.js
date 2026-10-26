@@ -8,7 +8,7 @@ const G_MPH_PER_S = 21.94;    // 1 g of acceleration = 21.94 mph per second
 
 // Personal drive stats (no leaderboards, so they don't encourage racing):
 // peak g-force from the phone's motion sensor, best 0-60, hard brakes / launches, smoothness.
-function emptyStats() { return { maxG: 0, best060: null, hardBrakes: 0, hardAccels: 0 }; }
+function emptyStats() { return { maxG: 0, best060: null, best60100: null, best3070: null, hardBrakes: 0, hardAccels: 0 }; }
 export function smoothnessScore(st) {
   return Math.max(0, Math.min(100, Math.round(100 - st.hardBrakes * 8 - st.hardAccels * 5 - (st.maxG > 0.7 ? 10 : 0))));
 }
@@ -140,6 +140,21 @@ export function useGpsDrive(car) {
       if (secs > 2.5 && secs < 25) st.best060 = st.best060 == null ? secs : Math.min(st.best060, secs);
       k.stopAt = null;
     } else if (k.stopAt && now - k.stopAt > 30000) k.stopAt = null;
+    // Rolling pulls: 60-100 mph and a 30 mph roll (30-70). Timed from when you pass the start speed.
+    const cross = (v) => (k.lastMph != null && k.lastMph < v && mph >= v ? k.lastT + ((v - k.lastMph) / (mph - k.lastMph)) * (now - k.lastT) : null);
+    const roll = (key, from, to, maxS, stat) => {
+      const t0 = cross(from);
+      if (t0) k[key] = t0;
+      else if (k[key] && (mph < from - 3 || now - k[key] > maxS * 1000)) k[key] = null;
+      const t1 = k[key] && cross(to);
+      if (t1) {
+        const secs = (t1 - k[key]) / 1000;
+        if (secs > 1.5 && secs < maxS) st[stat] = st[stat] == null ? secs : Math.min(st[stat], secs);
+        k[key] = null;
+      }
+    };
+    roll('r60', 60, 100, 30, 'best60100');
+    roll('r30', 30, 70, 20, 'best3070');
     k.lastMph = mph; k.lastT = now;
     setStats({ ...st, maxG: Math.max(st.maxG, k.g) });
 

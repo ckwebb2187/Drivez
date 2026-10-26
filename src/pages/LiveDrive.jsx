@@ -468,6 +468,8 @@ export default function LiveDrive({ active = true, peek = false }) {
       route_points: route.filter((_, i) => i % step === 0 || i === route.length - 1),
       max_g: drive.stats.maxG || null,
       best_0_60: drive.stats.best060 ? Math.round(drive.stats.best060 * 10) / 10 : null,
+      best_60_100: drive.stats.best60100 ? Math.round(drive.stats.best60100 * 10) / 10 : null,
+      best_30_70: drive.stats.best3070 ? Math.round(drive.stats.best3070 * 10) / 10 : null,
       hard_brakes: drive.stats.hardBrakes,
       hard_accels: drive.stats.hardAccels,
       smoothness: drive.stats.smoothness,

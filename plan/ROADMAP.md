@@ -32,7 +32,7 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - [x] T13 · S · HUD style: animated black wireframe look for the route header and Groups tab; make the Groups button smaller.
 
 ## Phase 3: Driving skill
-- [ ] T14 · S · Acceleration times: add 60–100 mph and 30 mph roll times next to the existing 0-60 (drive stats code). Show on trip detail and profile showcase.
+- [x] T14 · S · Acceleration times: add 60–100 mph and 30 mph roll times next to the existing 0-60 (drive stats code). Show on trip detail and profile showcase.
 - [ ] T15 · M · Toge sections, part 1: data model (records entity `sector`) and a way to save a stretch of road from a past drive as a section.
 - [ ] T16 · M · Toge sections, part 2: score each pass: cornering smoothness, steady side g-force, clean entry/exit. No speed-based points.
 - [ ] T17 · M · Ghost runs, part 1: on a saved section, show your personal best as a ghost marker during the drive.
