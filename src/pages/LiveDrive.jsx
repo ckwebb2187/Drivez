@@ -75,18 +75,52 @@ export default function LiveDrive({ active = true, peek = false }) {
   const toggleVoice = () => { const v = !voiceOn; setVoiceOn(v); try { localStorage.setItem('dz_voice', v ? '1' : '0'); } catch { /* ignore */ } if (!v) window.speechSynthesis?.cancel(); };
 
   // Where you are before a drive starts (the map is the home screen now).
-  const [herePos, setHerePos] = useState(null);
+  // Opens at your last known spot right away, then a quick rough fix, then precise GPS.
+  const [herePos, setHerePosState] = useState(() => { try { const p = JSON.parse(localStorage.getItem('dz-last-pos') || 'null'); return Array.isArray(p) ? p : null; } catch { return null; } });
+  const hereSpeed = useRef({ fast: 0, moved: null });
+  const setHerePos = (p, speedMs = null) => {
+    setHerePosState(p);
+    try { localStorage.setItem('dz-last-pos', JSON.stringify(p)); } catch { /* ignore */ }
+    autoStartCheck(p, speedMs);
+  };
   const [locError, setLocError] = useState('');
   useEffect(() => {
     if (drive.status !== 'idle' || !active) return undefined;
     if (!('geolocation' in navigator)) { setLocError('Your browser can’t share your location.'); return undefined; }
-    const id = navigator.geolocation.watchPosition(
-      (p) => { setLocError(''); setHerePos([p.coords.latitude, p.coords.longitude]); },
-      (e) => { if (e.code === 1) setLocError('Turn on location for Kaido Maps to see where you are.'); },
-      { enableHighAccuracy: true, maximumAge: 5000 }
-    );
+    const ok = (p) => { setLocError(''); setHerePos([p.coords.latitude, p.coords.longitude], p.coords.speed); };
+    const bad = (e) => { if (e.code === 1) setLocError('Turn on location for Kaido Maps to see where you are.'); };
+    navigator.geolocation.getCurrentPosition(ok, bad, { enableHighAccuracy: false, maximumAge: 600000, timeout: 8000 });
+    const id = navigator.geolocation.watchPosition(ok, bad, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
     return () => navigator.geolocation.clearWatch(id);
-  }, [drive.status, active]);
+  }, [drive.status, active]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Always on: a drive starts by itself once you're moving (about 10 mph for a few seconds,
+  // or 250 m from where you were standing), and ends by itself after 4 minutes parked.
+  const autoRef = useRef({ status: 'idle', start: () => {} });
+  autoRef.current = { status: drive.status, start: () => drive.start() };
+  function autoStartCheck(p, speedMs) {
+    const a = hereSpeed.current, now = Date.now();
+    if (autoRef.current.status !== 'idle') { a.fast = 0; a.moved = null; return; }
+    if (!a.moved) a.moved = { p, at: now };
+    const mph = speedMs != null && speedMs >= 0 ? speedMs * 2.237 : 0;
+    a.fast = mph >= 10 ? (a.fast || now) : 0;
+    const far = distM(a.moved.p, p) > 250 && now - a.moved.at < 120000;
+    if (now - a.moved.at > 120000) a.moved = { p, at: now };
+    if ((a.fast && now - a.fast > 5000) || far) { a.fast = 0; a.moved = null; autoRef.current.start(); }
+  }
+  const parkedSince = useRef(0);
+  useEffect(() => {
+    if (drive.status !== 'driving') { parkedSince.current = 0; return; }
+    if ((drive.currentSpeed || 0) >= 3) { parkedSince.current = 0; return; }
+    if (!parkedSince.current) parkedSince.current = Date.now();
+  }, [drive.currentSpeed, drive.status]);
+  useEffect(() => {
+    if (drive.status !== 'driving') return undefined;
+    const t = setInterval(() => {
+      if (parkedSince.current && Date.now() - parkedSince.current > 4 * 60000 && !(nav.active && !nav.arrived)) { parkedSince.current = 0; drive.end(); }
+    }, 15000);
+    return () => clearInterval(t);
+  }, [drive.status, nav.active, nav.arrived]); // eslint-disable-line react-hooks/exhaustive-deps
   const roadReports = useReports(drive.currentPosition || herePos);
   const { look, key: themeKey } = useActiveLook();
   // Shared with the voice so it can follow your speed (speed-linked audio).
@@ -340,13 +374,20 @@ export default function LiveDrive({ active = true, peek = false }) {
   const onUserMove = () => {
     setFollow(false);
     clearTimeout(backTimer.current);
-    backTimer.current = setTimeout(() => setFollow(true), 12000);
+    backTimer.current = setTimeout(() => setFollow(true), 8000);
   };
   const recenter = () => { clearTimeout(backTimer.current); setFollow(true); };
   // Previewing a route: show the whole thing; clearing it snaps back to you.
   useEffect(() => { clearTimeout(backTimer.current); setFollow(!preview); }, [preview]);
   useEffect(() => { if (drive.status !== 'idle') setPreview(null); }, [drive.status]);
   useEffect(() => () => clearTimeout(backTimer.current), []);
+  // Coming back to the app (or this screen): always snap to where you are.
+  useEffect(() => {
+    const back = () => { if (!document.hidden && !preview) { clearTimeout(backTimer.current); setFollow(true); } };
+    document.addEventListener('visibilitychange', back);
+    if (active && !preview) back();
+    return () => document.removeEventListener('visibilitychange', back);
+  }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Remember where you parked when a drive ends; forget it when the next one starts.
   useEffect(() => {

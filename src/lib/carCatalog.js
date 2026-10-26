@@ -39,7 +39,7 @@ export const CATALOG = [
   C('Honda', 'Civic', [2001, 2025], 'sedan'),
   C('Honda', 'Integra', [1994, 2001], 'coupe'),
   C('Honda', 'S2000', [2000, 2009], 'coupe'),
-  C('Subaru', 'WRX', [2015, 2021], 'sedan', { scoop: true, wheelColor: '#3a3d42' }),
+  C('Subaru', 'WRX', [2015, 2021], 'sedan', { scoop: true, wheelColor: '#3a3d42', model3d: 'wrx-sti' }),
   C('Subaru', 'WRX STI', [2015, 2021], 'sedan', { scoop: true, wing: true, wheelColor: '#3a3d42', model3d: 'wrx-sti' }),
   C('Subaru', 'WRX STI (hatch)', [2008, 2014], 'hatch', { scoop: true, wing: true }),
   C('Subaru', 'WRX', [2022, 2025], 'sedan', { scoop: true }),

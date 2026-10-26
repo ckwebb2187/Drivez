@@ -109,7 +109,7 @@ export function AppProvider({ children }) {
       body: iconBody(look.shape),           // flat map icon
       color: activeVehicle.color || '#00BFFF',
       image: display === 'picture' || display === 'model' ? activeVehicle.image_url || null : null,
-      model3d: display === 'model' ? look.model3d : null,
+      model3d: look.model3d || null, // the drive map always uses the real 3D model when there is one
       paint: activeVehicle.paint || null,    // repaint for the detailed model (null = its own paint)
       lowered: !!activeVehicle.lowered,
     };

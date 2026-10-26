@@ -467,8 +467,10 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
               <button onClick={() => setSheetOpen(!sheetOpen)} className="text-xs text-primary font-medium flex items-center gap-1 px-1">
                 {sheetOpen ? 'Less' : 'More'} <ChevronUp className={`w-3.5 h-3.5 transition-transform ${sheetOpen ? 'rotate-180' : ''}`} />
               </button>
-              <button onClick={onStartDrive} className="h-10 px-4 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center gap-1.5 shadow-lg shadow-primary/30" aria-label="Start a drive without a destination">
-                <Play className="w-4 h-4 fill-primary-foreground" /> Drive
+              {/* Always on: drives start by themselves when you move. Tapping just starts one now. */}
+              <button onClick={onStartDrive} className="h-9 pl-2.5 pr-3 rounded-full bg-primary/15 border border-primary/40 text-primary text-[11px] font-bold flex items-center gap-1.5" aria-label="Auto-drive is on. Tap to start recording now">
+                <span className="relative flex w-2 h-2"><span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-70" /><span className="relative w-2 h-2 rounded-full bg-primary" /></span>
+                Auto-drive on
               </button>
             </div>
           </div>

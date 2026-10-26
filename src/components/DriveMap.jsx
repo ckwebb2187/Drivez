@@ -324,13 +324,14 @@ function DriveMapInner({
         const { car3dLayer, prepareCarPicture } = await import('@/lib/car3d'); // 3D engine loads only for driving
         // Built car: shape, wheels, paint and underglow from the garage.
         let colors = { body: car.color || '#1f5ad6', glow: car.glow || null, shape: car.shape, wheels: car.wheels, wheelColor: car.wheelColor, scoop: car.scoop, wing: car.wing, style: car.style || {} };
-        if (car.display !== 'build' && car.image) {
+        // The drive map is always 3D: a photo is never drawn flat (only used to tint a built car with no model).
+        if (car.display !== 'build' && car.image && !car.model3d) {
           try {
             const pic = await prepareCarPicture(car.image);
-            colors = car.display === 'picture' ? { ...pic, style: car.style || {}, glow: car.glow !== undefined ? car.glow : pic.glow } : { ...colors, picture: pic.picture, aspect: pic.aspect, glow: car.glow !== undefined ? car.glow : pic.glow };
+            colors = { ...colors, glow: car.glow !== undefined ? car.glow : pic.glow };
           } catch { /* keep the built car */ }
         }
-        const model = car.display === 'model' && car.model3d && CAR_MODELS[car.model3d];
+        const model = car.display !== 'build' && car.model3d && CAR_MODELS[car.model3d];
         if (model) colors = { ...colors, modelUrl: model.url, frontAxis: model.frontAxis, paintMaterials: model.paintMaterials, paint: car.paint || null, glow: colors.glow || null };
         if (cancelled || !readyRef.current) return;
         if (map.getLayer('dz-car3d')) map.removeLayer('dz-car3d');

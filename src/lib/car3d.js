@@ -427,7 +427,7 @@ export function buildPictureCar({ picture, aspect, glow = null, style = {} }) {
 }
 
 // MapLibre custom layer that draws the car at getPose() = { lngLat:[lng,lat], bearing } each frame.
-export function car3dLayer({ id = 'dz-car3d', colors, getPose, screenLength = 115, isActive = () => true, getDrive = null }) {
+export function car3dLayer({ id = 'dz-car3d', colors, getPose, screenLength = 78, isActive = () => true, getDrive = null }) {
   let renderer, scene, camera, map, car, pulseT = null;
   return {
     id,
@@ -465,7 +465,9 @@ export function car3dLayer({ id = 'dz-car3d', colors, getPose, screenLength = 11
       const merc = maplibregl.MercatorCoordinate.fromLngLat(pose.lngLat, 0);
       // Keep the car about `screenLength` px long whatever the zoom (like Waze).
       const mpp = (78271.517 * Math.cos((pose.lngLat[1] * Math.PI) / 180)) / 2 ** map.getZoom();
-      const exaggerate = Math.max(1, (screenLength * mpp) / LEN);
+      const z = map.getZoom();
+      const px = screenLength * Math.max(0.4, Math.min(1, (z - 9) / 6)); // shrinks when you zoom out
+      const exaggerate = Math.max(1, (px * mpp) / LEN);
       const s = merc.meterInMercatorCoordinateUnits() * exaggerate;
       const m = new THREE.Matrix4().fromArray(args.defaultProjectionData?.mainMatrix || args.modelViewProjectionMatrix);
       const l = new THREE.Matrix4()
