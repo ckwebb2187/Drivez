@@ -1,34 +1,57 @@
 :root { --bg:#0E1412; --bg2:#16201C; --ink:#EEF2EF; --ink2:#A9B6B0; --accent:#6DC2A4; --gold:#F0B43C; --glowA:rgba(109,194,164,.24); --glowG:rgba(240,180,60,.14);
+  --haloA:rgba(109,194,164,.45); --haloG:rgba(240,180,60,.38);
   --card:rgba(30,40,36,.72); --line:rgba(255,255,255,.08); --row:30vh;
   --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif; --f-body:"Atkinson Hyperlegible",Verdana,system-ui,sans-serif; --f-holiday:var(--f-display); --f-holiday-w:700; color-scheme:dark }
 html, body { margin:0; height:100%; overflow:hidden; cursor:none }
 body { background:radial-gradient(130vh 95vh at 8% -10%, var(--glowA), transparent 70%), radial-gradient(110vh 85vh at 100% 35%, var(--glowG), transparent 70%), linear-gradient(180deg, var(--bg2), var(--bg) 75%);
   background-color:var(--bg); color:var(--ink); font-family:var(--f-body); opacity:0; transition:opacity .5s ease }
 body.ready { opacity:1 }
+/* Slow glowing light drifting behind everything (big soft gradients moved with transforms, which the TV box handles easily). */
+#glow { position:fixed; inset:0; pointer-events:none; overflow:hidden }
+#glow i { position:absolute; border-radius:50%; will-change:transform; opacity:.9 }
+#glow .g1 { width:95vh; height:95vh; left:-20vh; top:-30vh; background:radial-gradient(closest-side, var(--glowA), transparent); animation:tv-drift1 70s ease-in-out infinite alternate }
+#glow .g2 { width:85vh; height:85vh; right:-18vh; top:18vh; background:radial-gradient(closest-side, var(--glowG), transparent); animation:tv-drift2 85s ease-in-out infinite alternate }
+#glow .g3 { width:70vh; height:70vh; left:38vw; bottom:-35vh; background:radial-gradient(closest-side, var(--glowA), transparent); opacity:.55; animation:tv-drift3 95s ease-in-out infinite alternate }
+@keyframes tv-drift1 { from { transform:translate(0,0) scale(1) } to { transform:translate(22vw,14vh) scale(1.18) } }
+@keyframes tv-drift2 { from { transform:translate(0,0) scale(1.1) } to { transform:translate(-26vw,-10vh) scale(.9) } }
+@keyframes tv-drift3 { from { transform:translate(0,0) } to { transform:translate(-18vw,-12vh) } }
 #pat { position:fixed; inset:0; background-image:var(--pat, none); background-size:48vh 48vh; opacity:.08; pointer-events:none }
 #fade { position:fixed; left:0; right:0; bottom:0; height:calc(var(--row) + 8vh); background:linear-gradient(180deg, transparent, rgba(0,0,0,.5)); pointer-events:none }
 body.saver #fade { display:none }
 #motes { position:fixed; inset:0; pointer-events:none; overflow:hidden }
-#motes i { position:absolute; bottom:-4vh; border-radius:50%; background:var(--c); box-shadow:0 0 1.4vh .5vh var(--c); opacity:.0;
+#motes i { position:absolute; bottom:-4vh; border-radius:50%; background:var(--c); box-shadow:0 0 1.4vh .5vh var(--c), 0 0 4vh 1.2vh var(--c); opacity:.0;
   animation-name:tv-rise, tv-sway; animation-timing-function:linear, ease-in-out; animation-iteration-count:infinite; animation-direction:normal, alternate }
-@keyframes tv-rise { 0% { transform:translateY(0); opacity:0 } 10% { opacity:.55 } 85% { opacity:.4 } 100% { transform:translateY(-110vh); opacity:0 } }
+@keyframes tv-rise { 0% { transform:translateY(0); opacity:0 } 10% { opacity:.6 } 85% { opacity:.45 } 100% { transform:translateY(-110vh); opacity:0 } }
 @keyframes tv-sway { from { margin-left:-1.5vw } to { margin-left:1.5vw } }
 #wrap { position:fixed; left:0; right:0; top:0; bottom:var(--row); padding:6.5vh 5.5vw 2vh; box-sizing:border-box; display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 0.92fr); gap:4vw; transition:transform 6s ease }
 body.saver #wrap { bottom:22vh; padding:9vh 7vw 2vh }
 .left { display:flex; flex-direction:column; min-width:0 }
-#clock { font:700 16vh/.9 var(--f-display); letter-spacing:-.035em; font-variant-numeric:tabular-nums; white-space:nowrap }
+#clock { font:700 16vh/.9 var(--f-display); letter-spacing:-.035em; font-variant-numeric:tabular-nums; white-space:nowrap; text-shadow:0 0 5vh var(--haloA), 0 0 1.2vh rgba(255,255,255,.12) }
 body.saver #clock { font-size:21vh }
-#clock .ap { font-size:.27em; margin-left:.35em; font-weight:600; letter-spacing:.06em; color:var(--ink2) }
-#date { font:var(--f-holiday-w) 4.6vh/1.15 var(--f-holiday); color:var(--accent); margin-top:2vh }
+#clock .ap { font-size:.27em; margin-left:.35em; font-weight:600; letter-spacing:.06em; color:var(--ink2); text-shadow:none }
+#date { font:var(--f-holiday-w) 4.6vh/1.15 var(--f-holiday); color:var(--accent); margin-top:2vh; text-shadow:0 0 3vh var(--haloA) }
 #wx { display:flex; align-items:center; gap:1.8vh; margin-top:3.4vh; color:var(--ink2); font-size:2.6vh; line-height:1.3 }
-#wx > svg { width:7vh; height:7vh; color:var(--gold); flex:none }
+#wx > svg { width:7vh; height:7vh; color:var(--gold); flex:none; filter:drop-shadow(0 0 1.6vh var(--haloG)) }
 #wx b { display:block; font:700 5.2vh/1 var(--f-display); color:var(--ink) }
-.right { min-width:0; align-self:start; background:var(--card); border:1px solid var(--line); border-radius:3vh; padding:3.2vh 3.4vh 2.4vh; box-shadow:0 2vh 6vh rgba(0,0,0,.25) }
+/* In the screensaver, with photos on the right, the next thing on the calendar moves under the weather. */
+#next { display:none; position:relative; margin-top:4.5vh; padding-left:2.4vh }
+#next::before { content:''; position:absolute; left:0; top:.4vh; bottom:.4vh; width:.7vh; border-radius:1vh; background:var(--c, var(--accent)); box-shadow:0 0 1.8vh .2vh var(--c, var(--accent)) }
+#next:empty { display:none !important }
+body.photos #next { display:block }
+#next .when { font-size:2.3vh; color:var(--gold); font-weight:700; font-variant-numeric:tabular-nums }
+#next .what { font:700 3.6vh/1.2 var(--f-display); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:.3vh }
+.right { position:relative; min-width:0; align-self:start; background:var(--card); border:1px solid var(--line); border-radius:3vh; padding:3.2vh 3.4vh 2.4vh;
+  box-shadow:0 2vh 6vh rgba(0,0,0,.25), 0 0 7vh -1vh var(--glowA), inset 0 1px 0 rgba(255,255,255,.06) }
+/* A thin glowing edge along the top of the card. */
+.right::before { content:''; position:absolute; left:8%; right:8%; top:-1px; height:2px; border-radius:2px; background:linear-gradient(90deg, transparent, var(--accent), var(--gold), transparent); opacity:.75; box-shadow:0 0 1.6vh var(--haloA) }
 .lbl { font-size:1.8vh; letter-spacing:.16em; text-transform:uppercase; color:var(--ink2); font-weight:700 }
 #up { margin-top:1vh }
 .ev { display:grid; grid-template-columns:.7vh minmax(0, 1fr); gap:1.8vh; padding:1.5vh 0; border-bottom:1px solid var(--line) }
 .ev:last-child { border-bottom:0 }
 .ev i { border-radius:1vh; background:var(--c) }
+.ev.first i { box-shadow:0 0 1.6vh .2vh var(--c) }
+.ev.now i { animation:tv-breathe 3.2s ease-in-out infinite }
+@keyframes tv-breathe { 50% { box-shadow:0 0 2.8vh .5vh var(--c) } }
 .ev .when { font-size:2.3vh; color:var(--gold); font-weight:700; font-variant-numeric:tabular-nums }
 .ev .what { font:700 3.2vh/1.2 var(--f-display); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:.3vh }
 .ev.first .what { font-size:4vh }
@@ -38,9 +61,22 @@ body.saver #clock { font-size:21vh }
 #dinner .dn { font:700 3.2vh/1.2 var(--f-display); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 #chores { color:var(--ink2) } #chores b { color:var(--ink) }
 .right > .lbl:first-child { display:block }
+/* Screensaver slideshow: takes the right side in place of Up next when there are photos. Each photo sits whole on a
+   blurred, darkened copy of itself, drifts in very slowly, and fades into the next. */
+#photo { display:none; position:relative; min-width:0; height:62vh; align-self:start; border-radius:3vh; overflow:hidden; background:#000;
+  box-shadow:0 2vh 6vh rgba(0,0,0,.45), 0 0 9vh -1vh var(--haloA), 0 0 0 1px rgba(255,255,255,.1) }
+body.photos .right { display:none }
+body.photos #photo { display:block }
+#photo .ph { position:absolute; inset:0; opacity:0; transition:opacity 2s ease }
+#photo .ph.show { opacity:1 }
+#photo .bk { position:absolute; inset:-6%; background-size:cover; background-position:center; filter:blur(4vh) brightness(.55) saturate(1.2) }
+#photo img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; transform:scale(1); transition:transform 18s linear }
+#photo .ph.show img { transform:scale(1.06) }
+#photo::after { content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; box-shadow:inset 0 0 0 1px rgba(255,255,255,.08), inset 0 -10vh 8vh -8vh rgba(0,0,0,.35) }
 #lane { position:fixed; left:5vw; width:42vw; bottom:calc(var(--row) - 1vh); height:22vh; pointer-events:none; z-index:2 }
 body.saver #lane { bottom:3vh; height:20vh; left:6vw; right:6vw }
 #lane .hero-pace { height:100%; bottom:0 }
 .hero-visit { z-index:3 }
-@media (prefers-reduced-motion: reduce) { #motes { display:none } #wrap { transition:none }
+@media (prefers-reduced-motion: reduce) { #motes { display:none } #wrap { transition:none } #glow i, .ev.now i { animation:none }
+  #photo img, #photo .ph.show img { transition:none; transform:none }
   .hero, .hero svg *, .hero-pace, .hero-pace .hv-turn, .stk-a { animation:none !important } .hero-visit { display:none } }

@@ -8,6 +8,9 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Color;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -50,9 +53,33 @@ final class Hb {
         return BRIDGE + "/w/" + code(c) + "/tv?mode=" + mode;
     }
 
-    private static String page;
-    /** Shows the background page that ships inside the app (instant, no download), reading its data from the bridge. */
+    /**
+     * Shows the background page. The newest copy comes from the bridge, so the screen can change without reinstalling
+     * the app; when the bridge has none or can't be reached, the copy that ships inside the app is used instead.
+     */
     static void loadPage(Context c, WebView w, String mode) {
+        final Context app = c.getApplicationContext();
+        final boolean[] fellBack = { false };
+        w.setWebViewClient(new WebViewClient() {
+            private void fallBack(WebView v) {
+                if (fellBack[0]) return;
+                fellBack[0] = true;
+                v.post(() -> loadBundled(app, v, mode));
+            }
+            @Override public void onReceivedError(WebView v, WebResourceRequest req, WebResourceError err) {
+                if (req.isForMainFrame()) fallBack(v);
+            }
+            @Override public void onReceivedHttpError(WebView v, WebResourceRequest req, WebResourceResponse res) {
+                if (req.isForMainFrame()) fallBack(v);
+            }
+        });
+        if (code(c).isEmpty() || code(c).equals("demo")) { fellBack[0] = true; loadBundled(c, w, mode); return; }
+        w.loadUrl(pageUrl(c, mode));
+    }
+
+    private static String page;
+    /** The page that ships inside the app (instant, no download), reading its data from the bridge. */
+    static void loadBundled(Context c, WebView w, String mode) {
         if (page == null) {
             try (InputStream in = c.getAssets().open("tv.html")) {
                 java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();

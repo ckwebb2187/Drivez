@@ -1,8 +1,8 @@
 """Builds the TV home page from pieces of Home Base for the Home Base TV app.
-Usage: python3 build_tv.py   (reads /home/claude/home-base.html, writes tv.html here and into the app's assets)"""
-import json, re, os
+Usage: python build_tv.py [path/to/home-base.html]   (default: $HB_WALL or /home/claude/home-base.html; writes tv.html here and into the app's assets)"""
+import json, re, os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
-WALL = open('/home/claude/home-base.html', encoding='utf-8').read()
+WALL = open(sys.argv[1] if len(sys.argv) > 1 else os.environ.get('HB_WALL', '/home/claude/home-base.html'), encoding='utf-8').read()
 
 def between(s, a, b):
     i = s.index(a); j = s.index(b, i); return s[i:j]
@@ -38,10 +38,11 @@ html = f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name
 <style>
 {css}
 </style></head><body>
-<div id="pat"></div><div id="motes"></div><div id="fade"></div>
+<div id="glow" aria-hidden="true"><i class="g1"></i><i class="g2"></i><i class="g3"></i></div><div id="pat"></div><div id="motes"></div><div id="fade"></div>
 <main id="wrap">
-  <section class="left"><div id="clock"></div><div id="date"></div><div id="wx"></div></section>
+  <section class="left"><div id="clock"></div><div id="date"></div><div id="wx"></div><div id="next"></div></section>
   <section class="right"><span class="lbl">Up next</span><div id="up"></div><div id="dinner"></div><div id="chores"></div></section>
+  <section id="photo" aria-hidden="true"></section>
 </main>
 <div id="lane" aria-hidden="true"></div>
 <script>
@@ -49,9 +50,9 @@ html = f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name
 {script}
 }})();
 </script></body></html>'''
-open(os.path.join(HERE, 'tv.html'), 'w', encoding='utf-8').write(html)
+open(os.path.join(HERE, 'tv.html'), 'w', encoding='utf-8', newline='\n').write(html)
 
 # The page ships inside the Home Base TV app (and a copy goes to the test server).
-for dest in ['/home/claude/hbtv/app/src/main/assets/tv.html']:
-    open(dest, 'w', encoding='utf-8').write(html)
+for dest in [os.path.join(HERE, '..', 'app', 'src', 'main', 'assets', 'tv.html')]:
+    open(dest, 'w', encoding='utf-8', newline='\n').write(html)
 print('tv.html', len(html), 'bytes')

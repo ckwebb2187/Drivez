@@ -1,5 +1,7 @@
 package app.homebase.tv;
 
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Intent;
@@ -11,6 +13,7 @@ import android.graphics.Outline;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -60,6 +63,9 @@ public class HomeActivity extends Activity {
     private TextView label;
     private int tileW, tileH;
     private String loadedFor = "";
+    /** The theme's colors, sent by the page, for the glow around the focused app. */
+    private int glow = Color.rgb(109, 194, 164), glow2 = Color.rgb(240, 180, 60);
+    private final List<Runnable> restyle = new ArrayList<>();
     private final Runnable idle = () -> startActivity(new Intent(this, SaverActivity.class));
 
     /** One tile: an app, the Home Base wall, or Settings. */
@@ -98,6 +104,9 @@ public class HomeActivity extends Activity {
         web.setFocusable(false);
         web.setFocusableInTouchMode(false);
         web.addJavascriptInterface(new Object() {
+            @JavascriptInterface public void look(String accent, String gold) {
+                try { final int a = Color.parseColor(accent), g = Color.parseColor(gold); ui.post(() -> { glow = a; glow2 = g; for (Runnable r : restyle) r.run(); label.setShadowLayer(18, 0, 0, Color.argb(200, Color.red(a), Color.green(a), Color.blue(a))); }); } catch (Exception e) { /* keep the last colors */ }
+            }
             @JavascriptInterface public void ready() { ui.post(() -> fallback.animate().alpha(0f).setDuration(400).withEndAction(() -> fallback.setVisibility(View.GONE)).start()); }
         }, "HomeBaseTVApp");
         root.addView(web, new FrameLayout.LayoutParams(-1, -1));
@@ -171,6 +180,7 @@ public class HomeActivity extends Activity {
         if (f != null && f.getTag() instanceof String) focusedKey = (String) f.getTag();
         List<Tile> tiles = tiles();
         row.removeAllViews();
+        restyle.clear();
         int gap = Math.round(tileW * 0.09f);
         View first = null, refocus = null;
         for (Tile t : tiles) {
@@ -257,19 +267,32 @@ public class HomeActivity extends Activity {
             np.bottomMargin = Math.round(tileH * 0.08f);
             v.addView(name, np);
         }
-        // Focus ring drawn on top.
-        View ring = new View(this);
-        GradientDrawable rd = new GradientDrawable();
+        // Focus glow drawn on top: a bright ring in the theme's color with a soft wash inside it, plus a colored
+        // shadow (Android 9 and up) so the tile seems to light up. It breathes gently while it's selected.
+        final View ring = new View(this);
+        final GradientDrawable rd = new GradientDrawable();
         rd.setCornerRadius(r);
-        rd.setStroke(Math.max(3, Math.round(tileH * 0.035f)), Color.WHITE);
-        rd.setColor(Color.TRANSPARENT);
         ring.setBackground(rd);
         ring.setVisibility(View.INVISIBLE);
         v.addView(ring, new FrameLayout.LayoutParams(-1, -1));
+        final int stroke = Math.max(3, Math.round(tileH * 0.035f));
+        Runnable style = () -> {
+            int edge = mix(glow, Color.WHITE, 0.45f);
+            rd.setStroke(stroke, edge);
+            rd.setColor(Color.argb(38, Color.red(glow), Color.green(glow), Color.blue(glow)));
+            if (Build.VERSION.SDK_INT >= 28) { v.setOutlineSpotShadowColor(glow); v.setOutlineAmbientShadowColor(glow2); }
+        };
+        style.run();
+        restyle.add(style);
+        final ObjectAnimator breathe = ObjectAnimator.ofFloat(ring, "alpha", 1f, 0.55f);
+        breathe.setDuration(1400);
+        breathe.setRepeatCount(ValueAnimator.INFINITE);
+        breathe.setRepeatMode(ValueAnimator.REVERSE);
 
         v.setOnFocusChangeListener((view, has) -> {
             ring.setVisibility(has ? View.VISIBLE : View.INVISIBLE);
-            view.animate().scaleX(has ? 1.12f : 1f).scaleY(has ? 1.12f : 1f).translationZ(has ? 24f : 0f).setDuration(140).start();
+            if (has) breathe.start(); else { breathe.cancel(); ring.setAlpha(1f); }
+            view.animate().scaleX(has ? 1.12f : 1f).scaleY(has ? 1.12f : 1f).translationZ(has ? 36f : 0f).setDuration(160).start();
             if (has) label.setText(t.name);
         });
         v.setOnClickListener(view -> t.open.run());
@@ -281,6 +304,10 @@ public class HomeActivity extends Activity {
             return true;
         });
         return v;
+    }
+
+    private static int mix(int a, int b, float t) {
+        return Color.rgb(Math.round(Color.red(a) + (Color.red(b) - Color.red(a)) * t), Math.round(Color.green(a) + (Color.green(b) - Color.green(a)) * t), Math.round(Color.blue(a) + (Color.blue(b) - Color.blue(a)) * t));
     }
 
     /** Hold OK on an app to move it right after Home Base. */

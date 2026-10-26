@@ -44,6 +44,9 @@ function applyLook(data) {
   root.setProperty('--ink', tk['--ink']); root.setProperty('--ink2', tk['--ink-2']);
   root.setProperty('--accent', tk['--accent']); root.setProperty('--gold', tk['--gold']);
   root.setProperty('--glowA', rgba(A, 0.24)); root.setProperty('--glowG', rgba(G, 0.14));
+  root.setProperty('--haloA', rgba(A, 0.45)); root.setProperty('--haloG', rgba(G, 0.38));
+  /* The app row's focus glow (drawn by the app, not the page) uses the same colors. */
+  try { if (HB_APP && typeof HB_APP.look === 'function') HB_APP.look(tk['--accent'], tk['--gold']); } catch (e) {}
   root.setProperty('--card', rgba(lerpC(B, [255, 255, 255], 0.06), 0.72)); root.setProperty('--line', rgba([255, 255, 255], 0.08));
   if (ht) {
     loadHolFonts([ht.font]);
@@ -105,14 +108,62 @@ function render() {
   let h = '';
   if (!d || !d.ok) h = `<p class="none">Open Home Base once and what's coming up will show here.</p>`;
   else if (!up.length) h = `<p class="none">Nothing else on the calendar for the next few days.</p>`;
-  else h = up.slice(0, max).map((e, i) => `<div class="ev${i ? '' : ' first'}" style="--c:${esc(e.c || 'var(--accent)')}"><i></i><div><div class="when">${esc(whenText(e, now))}</div><div class="what">${esc(e.t)}</div></div></div>`).join('');
+  else h = up.slice(0, max).map((e, i) => `<div class="ev${i ? '' : ' first'}${isNow(e, now) ? ' now' : ''}" style="--c:${esc(e.c || 'var(--accent)')}"><i></i><div><div class="when">${esc(whenText(e, now))}</div><div class="what">${esc(e.t)}</div></div></div>`).join('');
   $('#up').innerHTML = h;
+  const nx = up[0];
+  $('#next').innerHTML = nx ? `<div class="when">${esc(whenText(nx, now))}</div><div class="what">${esc(nx.t)}</div>` : '';
+  $('#next').style.setProperty('--c', nx && nx.c ? nx.c : 'var(--accent)');
+  syncPhotos();
   /* Tonight's dinner and chores still to do */
   const late = now.getHours() >= 20;
   const dinner = d && (late ? d.dinnerTomorrow : d.dinner);
   $('#dinner').innerHTML = dinner ? `<span class="lbl">${late ? 'Tomorrow night' : 'Tonight'}</span><span class="dn">${esc(dinner)}</span>` : '';
   const left = (d && d.chores || []).filter(c => c.left && c.left.length);
   $('#chores').innerHTML = d && d.chores && d.chores.length ? `<span class="lbl">Chores</span><span>${left.length ? left.map(c => `${esc(c.who)} <b>${c.left.length} left</b>`).join(' · ') : 'All done today ★'}</span>` : '';
+}
+
+function isNow(e, now) { if (e.ad) return false; const s = new Date(e.s); return s <= now; }
+
+/* ---------- screensaver slideshow ----------
+   In the screensaver the right side shows the wall's screensaver photos (Home Base sends small copies to the bridge;
+   tv.json lists them and p/ID serves each one). With no photos yet, Up next stays there instead. */
+const PH = { ids: [], order: [], i: 0, timer: 0, cur: null, on: false };
+const PHOTO_MS = 15000;
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function syncPhotos() {
+  const ids = MODE === 'saver' && D.data && Array.isArray(D.data.photos) ? D.data.photos.filter(x => /^[A-Za-z0-9_-]+$/.test(x)) : [];
+  if (ids.join() === PH.ids.join()) return;
+  PH.ids = ids; PH.order = shuffle(ids); PH.i = 0;
+  if (!ids.length) { PH.on = false; clearTimeout(PH.timer); document.body.classList.remove('photos'); $('#photo').innerHTML = ''; return; }
+  if (!PH.on) { PH.on = true; nextPhoto(); }
+}
+function nextPhoto() {
+  clearTimeout(PH.timer);
+  if (!PH.ids.length) return;
+  if (PH.i >= PH.order.length) { PH.order = shuffle(PH.ids); PH.i = 0; }
+  const id = PH.order[PH.i++], src = DEMO ? demoPhoto(id) : `p/${encodeURIComponent(id)}`;
+  const img = new Image();
+  img.onload = () => {
+    const box = $('#photo'), el = document.createElement('div');
+    el.className = 'ph';
+    el.innerHTML = `<div class="bk"></div>`;
+    el.firstChild.style.backgroundImage = `url("${src}")`;
+    img.alt = ''; el.appendChild(img); box.appendChild(el);
+    document.body.classList.add('photos');
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
+    const old = PH.cur; PH.cur = el;
+    if (old) { old.classList.remove('show'); setTimeout(() => old.remove(), 2200); }
+    PH.timer = setTimeout(nextPhoto, PHOTO_MS);
+  };
+  /* A photo that won't load is skipped (it may have just been removed on the wall). */
+  img.onerror = () => { PH.timer = setTimeout(nextPhoto, PH.cur ? 2000 : 500); };
+  img.src = src;
+}
+/* Sample pictures for the demo code: soft gradients, so the layout can be checked without real photos. */
+function demoPhoto(id) {
+  const h = holHash(id) % 360, w = 1280, ht = id.length % 2 ? 960 : 1600;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${ht}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="hsl(${h},70%,55%)"/><stop offset="1" stop-color="hsl(${(h + 60) % 360},70%,30%)"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="${w * .7}" cy="${ht * .3}" r="${ht * .12}" fill="rgba(255,255,255,.55)"/></svg>`;
+  return 'data:image/svg+xml,' + encodeURIComponent(svg);
 }
 
 /* "demo" as the code shows made-up sample data, to preview the screen before connecting. */
@@ -122,7 +173,7 @@ function demoData() {
   return { ok: true, dinner: 'Pizza night', dinnerTomorrow: 'Tacos', chores: [{ who: 'Liam', total: 3, left: ['Feed the dog', 'Trash'] }, { who: 'Cass', total: 1, left: [] }],
     up: [{ t: 'Soccer practice', s: at(0, 18, 30), e: at(0, 19, 30), ad: false, c: '#2E9B6A' }, { t: 'Work', s: at(1, 9), e: at(1, 17), ad: false, c: '#3F7FD9' },
       { t: 'Grocery run', s: at(1, 18), e: at(1, 19), ad: false, c: '#C98A12' }, { t: 'Pumpkin carving', s: ymd(addDays(t, 2)), e: '', ad: true, c: '#E8913A' }],
-    wx: { now: 72, ph: 'Mostly sunny', ic: 2, night: false, hi: 78, lo: 60, rain: 10 }, look: { th: 'moonlitwoods' } };
+    wx: { now: 72, ph: 'Mostly sunny', ic: 2, night: false, hi: 78, lo: 60, rain: 10 }, look: { th: 'moonlitwoods' }, photos: ['beach', 'porch', 'pumpkins', 'park'] };
 }
 async function load() {
   if (DEMO) { D.data = demoData(); applyLook(D.data); render(); return; }
