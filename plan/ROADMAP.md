@@ -21,8 +21,8 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - [x] T05 · M · Drag-to-reorder stops in `src/components/TripPlanner.jsx` (touch-friendly, no new library if possible), plus route preview after reorder.
 - [x] T06 · M · Elevation chart for a planned route. Free source: Open-Meteo elevation API (sample ~50 points). Lazy-load the chart.
 - [x] T07 · S · Home & Work map markers: soft pulsing beacon / light pillar at saved Home and Work. Respect battery saver (no animation).
-- [ ] T08 · M · Arrival animation: neon ring grows at the destination; camera eases from the low chase view up to a bird's-eye view as you stop.
-- [ ] T09 · M · Auto End Drive: when `nav.arrived` (`src/lib/useNavigation.js`) and speed ~0 for a few seconds inside the destination area,
+- [x] T08 · M · Arrival animation: neon ring grows at the destination; camera eases from the low chase view up to a bird's-eye view as you stop.
+- [x] T09 · M · Auto End Drive: when `nav.arrived` (`src/lib/useNavigation.js`) and speed ~0 for a few seconds inside the destination area,
   end the drive automatically, fade out the drive HUD, and show the summary card (distance, Flow Score, smoothness, acceleration times).
 
 ## Phase 2: Map life

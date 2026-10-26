@@ -15,3 +15,5 @@ One line per run: date · ticket · result · startup KB · note.
 2026-10-26 · T06 · done · startup 563.6 KB gz (+0.6) · elevation strip under a planned route, Open-Meteo 50 samples, plain SVG, lazy-loaded
 2026-10-26 · T04-T06 · deployed · live check ok (slow PC network, ipv4first) · -
 2026-10-26 · T07 · done · startup 564.1 KB gz (+0.5) · Home/Work beacon + light pillar, still dot in battery saver
+2026-10-26 · T08 · done · startup 564.6 KB gz · neon rings at destination, camera eases to bird's-eye on arrival
+2026-10-26 · T09 · done · startup 564.6 KB gz · arrived + stopped 8 s ends the drive; summary card (distance, time, flow, 0-60, max g)

@@ -122,6 +122,15 @@ export default function LiveDrive({ active = true, peek = false }) {
     }, 15000);
     return () => clearInterval(t);
   }, [drive.status, nav.active, nav.arrived]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Arrived and stopped for ~8 s: end the drive by itself and show the summary card.
+  const arrivedEnd = useRef(false);
+  useEffect(() => {
+    if (drive.status !== 'driving' || !nav.active || !nav.arrived) return undefined;
+    const t = setInterval(() => {
+      if (parkedSince.current && Date.now() - parkedSince.current > 8000) { parkedSince.current = 0; arrivedEnd.current = true; drive.end(); }
+    }, 2000);
+    return () => clearInterval(t);
+  }, [drive.status, nav.active, nav.arrived]); // eslint-disable-line react-hooks/exhaustive-deps
   const roadReports = useReports(drive.currentPosition || herePos);
   const { look, key: themeKey } = useActiveLook();
   // Shared with the voice so it can follow your speed (speed-linked audio).
@@ -460,7 +469,15 @@ export default function LiveDrive({ active = true, peek = false }) {
       } catch { trip.start_location = 'Start'; trip.end_location = ''; }
       try {
         const rec = await addTrip(trip);
-        setToast({ text: `Drive saved · ${dst(trip.distance)} ${distUnit()}${odoNote}`, id: rec.id });
+        const summary = arrivedEnd.current ? [
+          [`${dst(trip.distance)} ${distUnit()}`, 'distance'],
+          [formatEta(trip.duration), 'time'],
+          trip.smoothness != null && [`${Math.round(trip.smoothness)}`, 'flow'],
+          trip.best_0_60 && [`${trip.best_0_60}s`, '0-60'],
+          trip.max_g && [`${trip.max_g.toFixed(2)}g`, 'max g'],
+        ].filter(Boolean) : null;
+        arrivedEnd.current = false;
+        setToast({ text: summary ? 'You made it · drive saved' : `Drive saved · ${dst(trip.distance)} ${distUnit()}${odoNote}`, id: rec.id, summary });
         // Co-driver recap, spoken.
         const vs = getVoiceSettings();
         if (vs.narrate && voiceOn) {
@@ -535,6 +552,7 @@ export default function LiveDrive({ active = true, peek = false }) {
           pins={canMeets ? meetPins : []}
           callout={mapCallout}
           highway={nav.active ? nav.route.highway : null}
+          arrived={nav.active && nav.arrived}
           onPinTap={() => navigate('/meets')}
           onFriendTap={setOpenDriver}
           guide={guideRoute ? guideRoute.route : null}
@@ -946,6 +964,13 @@ export default function LiveDrive({ active = true, peek = false }) {
             {toast.id && <button onClick={() => { setToast(null); navigate(`/trip/${toast.id}`); }} className="h-9 px-3 rounded-full bg-white/20 text-xs font-bold">View</button>}
             <button onClick={() => setToast(null)} className="w-8 h-8 flex items-center justify-center" aria-label="Close"><X className="w-4 h-4" /></button>
           </div>
+          {toast.summary && (
+            <div className="mx-auto max-w-md mt-1.5 rounded-2xl bg-card/95 backdrop-blur border border-border shadow-2xl grid gap-1 px-2 py-2" style={{ gridTemplateColumns: `repeat(${toast.summary.length}, 1fr)` }}>
+              {toast.summary.map(([v, l]) => (
+                <div key={l} className="text-center"><div className="text-base font-black text-foreground leading-tight">{v}</div><div className="text-[10px] uppercase tracking-wide text-muted-foreground">{l}</div></div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
