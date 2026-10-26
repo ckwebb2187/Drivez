@@ -21,6 +21,7 @@ Follow these rules exactly. They keep each run small so usage limits last.
 0. Check first: `git log -5 --format='%cr | %s'`. Stop without changes (no log line) if the newest commit
    that isn't a ticket commit (`T<number>:` or `plan:`) is under 90 minutes old (someone is working),
    or if any of the last 5 commit messages contains "WIP" or "not deployed" (unfinished work on main).
+   Ignore commits whose message starts with `plan:` for the "WIP" / "not deployed" check (they are automation log commits).
 1. Pick the first ticket marked `- [ ]` in `plan/ROADMAP.md`. Skip tickets under "Needs a decision".
 2. Build it. Match existing code style. Comments short and plain.
 3. `npm ci` (only if `node_modules` is missing), then `npm run build`. Fix errors (max 2 tries).
@@ -30,9 +31,10 @@ Follow these rules exactly. They keep each run small so usage limits last.
    mark the ticket `- [!]` with a short reason, log it, and stop.
 6. Bump `version` patch in `package.json`. Commit to `main` as `<ticket-id>: <what changed>`
    (include `perf/` and `plan/` changes). Push.
-7. `npm run deploy`, then `node scripts/live-check.mjs <ticket-id>`.
-8. If the live check fails: run `npx wrangler rollback --message "<ticket-id> live check failed"`,
+7. `CLOUDFLARE_API_TOKEN=proxy-injected npm run deploy`, then `node scripts/live-check.mjs <ticket-id>`.
+8. If the live check fails: run `CLOUDFLARE_API_TOKEN=proxy-injected npx wrangler rollback --message "<ticket-id> live check failed"`,
    mark the ticket `- [!]`, log it, commit and push the log, stop.
+   (Prefix every wrangler command like this: the network proxy supplies the real credentials; the placeholder only gets wrangler past its login check.)
 9. Mark the ticket `- [x]`, add one line to `plan/LOG.md`, commit `plan/` and `perf/` as `plan: <ticket-id> done`, push.
    (Failed runs commit their log as `plan: <ticket-id> failed`.)
 
