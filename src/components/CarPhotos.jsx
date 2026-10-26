@@ -4,7 +4,7 @@ import { Camera, Loader2, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-re
 import { useApp } from '@/lib/AppContext';
 
 // Shrink a photo to at most 1600px on its long side, as JPEG (base64, no prefix).
-async function shrink(file) {
+export async function shrink(file) {
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });

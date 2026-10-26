@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { shrink } from '@/components/CarPhotos';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Plus, MapPin, Clock, Users, Navigation, Trash2, X, Wrench, Fuel, Phone, Globe, Search } from 'lucide-react';
+import { Loader2, Plus, MapPin, Clock, Users, Navigation, Trash2, X, Wrench, Fuel, Phone, Globe, Search, Camera } from 'lucide-react';
 import { api } from '@/api/base44Client';
 import { searchPlaces, distM } from '@/lib/nav';
 import { dst, distUnit } from '@/lib/units';
@@ -79,6 +80,7 @@ function Meets({ pos, driveTo }) {
             <button onClick={() => rsvp(m)} className={`flex-1 h-10 rounded-xl text-sm font-semibold ${m.imGoing ? 'bg-primary/15 text-primary' : 'bg-secondary text-foreground'}`}>{m.imGoing ? "✓ I'm going" : "I'm going"}</button>
             <button onClick={() => driveTo({ name: m.place || m.title, lat: m.lat, lng: m.lng })} className="flex-1 h-10 rounded-xl dz-go text-sm font-bold flex items-center justify-center gap-1.5"><Navigation className="w-4 h-4" />Drive there</button>
           </div>
+          <MeetPhotos meet={m} />
         </div>
       ))}
       {creating && <NewMeet pos={pos} onClose={() => setCreating(false)} onDone={() => { setCreating(false); load(); }} />}
@@ -172,6 +174,50 @@ function Shops({ pos, driveTo }) {
         </div>
       )}
       <p className="text-[10px] text-muted-foreground text-center">Shop data from OpenStreetMap.</p>
+    </div>
+  );
+}
+
+// Meet photographers: anyone going can drop photos; everyone who sees the meet sees them.
+function MeetPhotos({ meet }) {
+  const [open, setOpen] = useState(false);
+  const [photos, setPhotos] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [view, setView] = useState(null);
+  const input = useRef(null);
+  const load = () => api.get(`/meets/${meet.id}/photos`).then((d) => setPhotos(d.photos)).catch(() => setPhotos([]));
+  useEffect(() => { if (open && !photos) load(); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const add = async (files) => {
+    setBusy(true); setErr('');
+    try { for (const f of [...files].slice(0, 6)) await api.post(`/meets/${meet.id}/photos`, { mime: 'image/jpeg', data: await shrink(f) }); await load(); }
+    catch (e) { setErr(e.message || 'Could not add that photo.'); }
+    finally { setBusy(false); if (input.current) input.current.value = ''; }
+  };
+  const del = async (p) => { await api.del(`/meets/${meet.id}/photos/${p.id}`).catch(() => {}); setView(null); load(); };
+  if (!open) return <button onClick={() => setOpen(true)} className="mt-2 text-xs font-semibold text-primary flex items-center gap-1"><Camera className="w-3.5 h-3.5" />Photos</button>;
+  return (
+    <div className="mt-3">
+      <div className="flex gap-2 overflow-x-auto no-scrollbar">
+        {(meet.imGoing || meet.mine) && (
+          <button onClick={() => input.current?.click()} disabled={busy} className="w-20 h-20 shrink-0 rounded-xl border border-dashed border-primary/60 text-primary text-[11px] font-semibold flex flex-col items-center justify-center gap-1">
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}Add
+          </button>
+        )}
+        {!photos ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground m-6" /> : photos.map((p) => (
+          <button key={p.id} onClick={() => setView(p)} className="w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-secondary"><img src={p.url} alt="" loading="lazy" className="w-full h-full object-cover" /></button>
+        ))}
+        {photos && !photos.length && !(meet.imGoing || meet.mine) && <p className="text-xs text-muted-foreground py-2">No photos yet. Tap I'm going to add some.</p>}
+      </div>
+      <input ref={input} type="file" accept="image/*" multiple hidden onChange={(e) => e.target.files?.length && add(e.target.files)} />
+      {err && <p className="text-xs text-destructive mt-1">{err}</p>}
+      {view && (
+        <div className="fixed inset-0 z-[1600] bg-black/90 flex flex-col items-center justify-center p-4" onClick={() => setView(null)}>
+          <img src={view.url} alt="" className="max-w-full max-h-[80vh] rounded-xl" />
+          <div className="text-xs text-white/80 mt-2">by {view.by}</div>
+          {view.canDelete && <button onClick={(e) => { e.stopPropagation(); del(view); }} className="mt-3 h-9 px-4 rounded-full bg-white/15 text-white text-xs font-bold flex items-center gap-1.5"><Trash2 className="w-3.5 h-3.5" />Delete</button>}
+        </div>
+      )}
     </div>
   );
 }

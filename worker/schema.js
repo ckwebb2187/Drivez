@@ -55,6 +55,8 @@ export const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS reports_area ON reports(expires, lat, lng)`,
   `CREATE TABLE IF NOT EXISTS report_votes (report_id TEXT NOT NULL, user_id TEXT NOT NULL, still_there INTEGER NOT NULL, PRIMARY KEY (report_id, user_id))`,
   `CREATE TABLE IF NOT EXISTS car_images (vehicle_id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, mime TEXT NOT NULL, data BLOB NOT NULL, updated INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS meet_photos (id TEXT PRIMARY KEY, meet_id TEXT NOT NULL, owner_id TEXT NOT NULL, mime TEXT NOT NULL, data BLOB NOT NULL, created INTEGER NOT NULL)`,
+  `CREATE INDEX IF NOT EXISTS meet_photos_meet ON meet_photos(meet_id, created)`,
   `CREATE TABLE IF NOT EXISTS car_photos (id TEXT PRIMARY KEY, vehicle_id TEXT NOT NULL, owner_id TEXT NOT NULL, mime TEXT NOT NULL, data BLOB NOT NULL, created INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS convoys (id TEXT PRIMARY KEY, code TEXT UNIQUE NOT NULL, owner_id TEXT NOT NULL, name TEXT, dest TEXT NOT NULL, created INTEGER NOT NULL, expires INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS convoy_members (convoy_id TEXT NOT NULL, user_id TEXT NOT NULL, joined INTEGER NOT NULL, PRIMARY KEY (convoy_id, user_id))`,

@@ -655,6 +655,13 @@ async function handleApi(req, env, ctx, url) {
     return new Response(new Uint8Array(row.data), { headers: { "content-type": row.mime, "cache-control": "public, max-age=31536000, immutable" } });
   }
 
+  const mph = path.match(/^\/meet-photo\/([a-f0-9]{24})$/);
+  if (mph && method === "GET") {
+    const row = await db.prepare("SELECT mime, data FROM meet_photos WHERE id = ?").bind(mph[1]).first();
+    if (!row) throw new HttpError(404, "No photo");
+    return new Response(new Uint8Array(row.data), { headers: { "content-type": row.mime, "cache-control": "public, max-age=31536000, immutable" } });
+  }
+
   // --- everything below needs a signed-in user ---
   const me = await currentUser(req, db);
   if (!me) throw new HttpError(401, "Please log in.");
@@ -669,7 +676,7 @@ async function handleApi(req, env, ctx, url) {
   const kid = await kidRules(db, me.id);
   if (kid) {
     const block = (on, what) => { if (!on) throw new HttpError(403, `${what} turned off by your parent.`); };
-    if ((path === "/meets" && method === "POST") || /^\/meets\/[a-f0-9]{24}\/rsvp$/.test(path)) block(kid.meets, "Car meets are");
+    if ((path === "/meets" && method === "POST") || /^\/meets\/[a-f0-9]{24}\/(rsvp|photos)$/.test(path)) block(kid.meets, "Car meets are");
     if (/^\/feed\/.+\/like$/.test(path) || (/^\/convoys\/[a-f0-9]{8}\/(messages|voice)$/.test(path) && method === "POST")) block(kid.social, "Chat and social features are");
     if (path === "/feed" && method === "GET" && !kid.social) return json({ items: [] });
     if (path === "/spot" && method === "POST") block(kid.social, "Spotting is");
@@ -1406,13 +1413,40 @@ async function handleApi(req, env, ctx, url) {
     ]);
     return json({ ok: true, id });
   }
+  // Meet photographers (T26): people going to a meet drop photos on it; everyone who can see the meet sees them.
+  const mp = path.match(/^\/meets\/([a-f0-9]{24})\/photos(?:\/([a-f0-9]{24}))?$/);
+  if (mp) {
+    const m = await db.prepare("SELECT * FROM meets WHERE id = ?").bind(mp[1]).first();
+    if (!m) throw new HttpError(404, "That meet is gone.");
+    if (method === "GET") {
+      const { results } = await db.prepare("SELECT p.id, p.owner_id, p.created, u.display_name, u.username FROM meet_photos p JOIN users u ON u.id = p.owner_id WHERE p.meet_id = ? ORDER BY p.created DESC LIMIT 60").bind(m.id).all();
+      return json({ photos: results.map((p) => ({ id: p.id, url: `/api/meet-photo/${p.id}`, by: p.display_name || p.username, mine: p.owner_id === me.id, canDelete: p.owner_id === me.id || m.owner_id === me.id, at: p.created })) });
+    }
+    if (method === "POST" && !mp[2]) {
+      const going = await db.prepare("SELECT 1 FROM meet_rsvps WHERE meet_id = ? AND user_id = ?").bind(m.id, me.id).first();
+      if (!going) throw new HttpError(403, "Tap I'm going to add photos.");
+      const n = await db.prepare("SELECT COUNT(*) AS n FROM meet_photos WHERE meet_id = ?").bind(m.id).first();
+      if (n.n >= 200) throw new HttpError(400, "This meet has all the photos it can hold.");
+      if (!/^image\/(jpeg|png|webp)$/.test(String(body.mime || ""))) throw new HttpError(400, "Use a JPEG, PNG or WebP photo.");
+      let bytes;
+      try { bytes = Uint8Array.from(atob(String(body.data || "")), (c) => c.charCodeAt(0)); } catch { throw new HttpError(400, "That photo couldn't be read."); }
+      if (!bytes.length || bytes.length > 900 * 1024) throw new HttpError(413, "That photo is too big.");
+      const id = uid();
+      await db.prepare("INSERT INTO meet_photos (id, meet_id, owner_id, mime, data, created) VALUES (?, ?, ?, ?, ?, ?)").bind(id, m.id, me.id, body.mime, bytes, Date.now()).run();
+      return json({ ok: true, id });
+    }
+    if (method === "DELETE" && mp[2]) {
+      await db.prepare("DELETE FROM meet_photos WHERE id = ? AND meet_id = ? AND (owner_id = ? OR ? = ?)").bind(mp[2], m.id, me.id, m.owner_id, me.id).run();
+      return json({ ok: true });
+    }
+  }
   const mt = path.match(/^\/meets\/([a-f0-9]{24})\/(rsvp|delete)$/);
   if (mt && method === "POST") {
     const m = await db.prepare("SELECT * FROM meets WHERE id = ?").bind(mt[1]).first();
     if (!m) throw new HttpError(404, "That meet is gone.");
     if (mt[2] === "delete") {
       if (m.owner_id !== me.id) throw new HttpError(403, "Only the host can cancel it.");
-      await db.batch([db.prepare("DELETE FROM meets WHERE id = ?").bind(m.id), db.prepare("DELETE FROM meet_rsvps WHERE meet_id = ?").bind(m.id)]);
+      await db.batch([db.prepare("DELETE FROM meets WHERE id = ?").bind(m.id), db.prepare("DELETE FROM meet_rsvps WHERE meet_id = ?").bind(m.id), db.prepare("DELETE FROM meet_photos WHERE meet_id = ?").bind(m.id)]);
     } else if (body.going) await db.prepare("INSERT OR IGNORE INTO meet_rsvps (meet_id, user_id) VALUES (?, ?)").bind(m.id, me.id).run();
     else await db.prepare("DELETE FROM meet_rsvps WHERE meet_id = ? AND user_id = ?").bind(m.id, me.id).run();
     return json({ ok: true });

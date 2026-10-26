@@ -50,7 +50,7 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 
 ## Backlog
 - [x] T25 · S · Car builder: LED grille and front splitter options (`src/lib/car3d.js`, `src/components/CarBuilder.jsx`).
-- [ ] T26 · M · Meet photographers: photo drops onto a meet's page for attendees.
+- [x] T26 · M · Meet photographers: photo drops onto a meet's page for attendees.
 - [ ] T27 · M · Road scores: rate roads (twistiness, surface) from drives and reports.
 - [ ] T28 · M · Local legends map (Louisiana): curated famous roads and spots layer.
 - [ ] T29 · M · Feature requests board with upvotes.
