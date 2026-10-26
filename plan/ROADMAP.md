@@ -56,7 +56,7 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - [x] T28 · M · Local legends map (Louisiana): curated famous roads and spots layer.
 - [x] T29 · M · Feature requests board with upvotes.
 - [x] T30 · S · Report-a-problem form (goes to a records entity the owner can read).
-- [ ] T31 · S · Splash animation on app open (light-trail K logo). Must not slow startup: CSS only, under 2 KB.
+- [x] T31 · S · Splash animation on app open (light-trail K logo). Must not slow startup: CSS only, under 2 KB.
 
 ## Done before automation
 - [x] Family & parental controls (shared location, places, check-in, SOS, teen alerts, parent controls) (done before automation)

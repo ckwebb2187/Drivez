@@ -11,6 +11,16 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Splash (T31): light-trail K, CSS only; never blocks taps and fades by itself. -->
+    <div id="dz-splash" aria-hidden="true"><svg viewBox="0 0 100 100"><path d="M34 18v64M70 18L36 52l36 30"/></svg></div>
+    <style>
+      #dz-splash{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:#09090b;pointer-events:none;animation:dzs-out .45s ease 1.25s forwards}
+      #dz-splash svg{width:96px;height:96px;fill:none;stroke:#ff9f0a;stroke-width:7;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 6px #ff9f0a) drop-shadow(0 0 14px #ff5e3a)}
+      #dz-splash path{stroke-dasharray:180;stroke-dashoffset:180;animation:dzs-draw .9s cubic-bezier(.6,0,.3,1) forwards}
+      @keyframes dzs-draw{to{stroke-dashoffset:0}}
+      @keyframes dzs-out{to{opacity:0;visibility:hidden}}
+      @media (prefers-reduced-motion:reduce){#dz-splash{display:none}}
+    </style>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

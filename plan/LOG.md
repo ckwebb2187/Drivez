@@ -41,3 +41,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-10-26 · T28 · deployed · live check ok 187 ms · -
 2026-10-26 · T29 · done · startup +0.2 KB · feature_requests + request_votes tables; Ideas & help page (/ideas, lazy) with upvotes; creator can mark planned/building/done
 2026-10-26 · T30 · done · - · problem_reports table; Report a problem tab (sends phone info); creator-only inbox on the same page
+2026-10-26 · T31 · done · startup +0 KB JS (920 B inline in index.html) · light-trail K splash, fades at 1.25 s, never blocks taps, off with reduced motion
