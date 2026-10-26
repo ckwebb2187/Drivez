@@ -9,3 +9,5 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-10-26T14:36,sunday,live,,,31,195,pass
 2026-10-26T14:44,drive3d,build,562.2,940.6,,,pass
 2026-10-26T14:44,drive3d,live,,,361,726,FAIL
+2026-10-26T14:45,drive3d,live,,,382,696,FAIL
+2026-10-26T14:45,drive3d,live,,,118,286,pass
