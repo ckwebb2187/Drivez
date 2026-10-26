@@ -446,10 +446,12 @@ export function car3dLayer({ id = 'dz-car3d', colors, getPose, screenLength = 11
       scene.add(fill);
       if (colors?.modelUrl) {
         // Real 3D model: show the picture version until it has loaded.
-        if (colors.picture) { car = buildPictureCar(colors); scene.add(car); }
+        // Show the picture version (or the built car) until the model has loaded, and keep it if loading fails.
+        car = colors.picture ? buildPictureCar(colors) : buildCar(colors);
+        scene.add(car);
         buildModelCar({ url: colors.modelUrl, paint: colors.paint, glow: colors.glow, picture: colors.picture, frontAxis: colors.frontAxis, paintMaterials: colors.paintMaterials, style: colors.style || {} })
           .then((m) => { if (car) scene.remove(car); car = m; scene.add(m); map.triggerRepaint(); })
-          .catch((e) => console.warn('Car model failed to load', e));
+          .catch((e) => console.warn('Car model failed to load, keeping the built car', e));
       } else {
         car = colors?.picture && !colors?.shape ? buildPictureCar(colors) : buildCar(colors || {});
         scene.add(car);

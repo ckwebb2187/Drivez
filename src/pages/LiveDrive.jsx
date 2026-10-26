@@ -44,7 +44,7 @@ async function reverseGeocode(lat, lng) {
   return `${lat.toFixed(3)}, ${lng.toFixed(3)}`;
 }
 
-export default function LiveDrive({ active = true }) {
+export default function LiveDrive({ active = true, peek = false }) {
   const navigate = useNavigate();
   const { activeVehicle, vehicles, myCar, savedRoutes, addTrip, scene, btCar } = useApp();
   const drive = useGpsDrive(myCar);
@@ -455,9 +455,24 @@ export default function LiveDrive({ active = true }) {
     : 0;
 
   return (
-    <div className="fixed inset-0 overflow-hidden">
+    <div className={`fixed inset-0 overflow-hidden ${peek ? 'dz-peek' : ''}`}>
+      {/* Peek (another screen is open mid-drive): just speed and the next turn over the map */}
+      {peek && (
+        <div className="dz-peek-hud absolute left-3 right-3 top-[max(10px,env(safe-area-inset-top))] z-[600] flex items-start gap-2 pointer-events-none">
+          <div className="rounded-2xl bg-card/90 backdrop-blur border border-border px-3 py-1.5 text-center shadow-xl">
+            <div className="text-xl font-black leading-none speed-font text-foreground">{spd(Math.round(drive.currentSpeed))}</div>
+            <div className="text-[9px] font-bold text-muted-foreground">{speedUnit()}</div>
+          </div>
+          {nav.active && !nav.arrived && nav.step && (
+            <div className="flex-1 min-w-0 rounded-2xl bg-primary text-primary-foreground px-3 py-1.5 shadow-xl flex items-center gap-2">
+              <TurnIcon step={nav.step} className="w-6 h-6 shrink-0" />
+              <div className="min-w-0"><div className="text-sm font-black leading-none">{formatNavDistance(nav.distToStep)}</div><div className="text-[11px] font-semibold truncate">{nav.step.text}</div></div>
+            </div>
+          )}
+        </div>
+      )}
       {/* Map */}
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 dz-map-layer">
         <DriveMap
           pos={drive.currentPosition || herePos}
           heading={drive.heading}

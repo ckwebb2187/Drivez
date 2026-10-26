@@ -210,3 +210,8 @@ html[data-skin="standard"] .dz-report-icon { color: #f29900; filter: none; }
 .dz-ptt-ripple { position: absolute; inset: 0; border-radius: 9999px; border: 2px solid rgba(255,90,90,.8); animation: dz-ptt-ripple 1.2s ease-out infinite; pointer-events: none; }
 @keyframes dz-ptt-ripple { from { transform: scale(1); opacity: .9; } to { transform: scale(2.1); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .dz-ptt-idle, .dz-ptt-ripple { animation: none; } }
+
+/* Peek: mid-drive, another screen opened over the lower part. Only the map + a tiny HUD show up top. */
+.dz-peek > :not(.dz-map-layer):not(.dz-peek-hud) { display: none !important; }
+.dz-sheet-up { animation: dz-sheet-up .28s cubic-bezier(.2,.8,.2,1); }
+@keyframes dz-sheet-up { from { transform: translateY(40px); opacity: .4; } to { transform: none; opacity: 1; } }

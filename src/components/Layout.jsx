@@ -57,6 +57,8 @@ export default function Layout() {
     return () => window.removeEventListener('dz-drive-status', on);
   }, []);
   const driving = driveStatus === 'driving' || driveStatus === 'acquiring';
+  // Peek: you're driving and opened another screen. The map keeps running in the top part.
+  const peek = driving && !onDrive;
 
   // Joined through someone's invite link: make you friends, then say so.
   const { refreshData } = useApp();
@@ -72,16 +74,26 @@ export default function Layout() {
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
+      {/* Mid-drive, other screens open as a panel under the live map, so the map and your 3D car stay up. */}
       {!onDrive && (
-        <main className={`flex-1 overflow-y-auto no-scrollbar ${fullPage ? '' : 'pb-24'}`}>
+        <main className={peek
+          ? 'fixed left-0 right-0 bottom-0 top-[38vh] z-[45] overflow-y-auto no-scrollbar rounded-t-3xl bg-background border-t border-primary/40 shadow-[0_-12px_30px_rgba(0,0,0,.45)] pb-24 dz-sheet-up'
+          : `flex-1 overflow-y-auto no-scrollbar ${fullPage ? '' : 'pb-24'}`}>
+          {peek && (
+            <NavLink to="/" className="sticky top-0 z-20 flex flex-col items-center pt-2 pb-1 bg-background/95 backdrop-blur" aria-label="Back to the full map">
+              <span className="w-10 h-1.5 rounded-full bg-muted-foreground/40" />
+              <span className="text-[10px] font-semibold text-muted-foreground mt-1">Tap here or the map for the full drive view</span>
+            </NavLink>
+          )}
           <Suspense fallback={<div className="min-h-full bg-background" />}>
             <Outlet />
           </Suspense>
         </main>
       )}
       {driveOpened && (
-        <div style={{ display: onDrive ? 'block' : 'none' }}>
-          <LiveDrive active={onDrive} />
+        <div style={peek ? { position: 'fixed', top: 0, left: 0, right: 0, height: '40vh', transform: 'translateZ(0)', overflow: 'hidden', zIndex: 40 } : { display: onDrive ? 'block' : 'none' }}>
+          <LiveDrive active={onDrive || peek} peek={peek} />
+          {peek && <NavLink to="/" className="absolute inset-0 z-[900]" aria-label="Back to the full map" />}
         </div>
       )}
       {user && !user.appMode && <SetupModeModal />}
@@ -98,7 +110,7 @@ export default function Layout() {
           <span className="text-lg">👀</span><span className="flex-1">{spotToast.by.name} spotted your car{spotToast.note ? `: ${spotToast.note}` : '!'}</span><span className="text-xs opacity-80">Feed ›</span>
         </NavLink>
       )}
-      {!onDrive && driving && (
+      {!onDrive && driving && !peek && (
         <NavLink to="/" className={`fixed left-3 right-3 ${fullPage ? 'bottom-[max(16px,env(safe-area-inset-bottom))]' : 'bottom-[92px]'} z-[1400] rounded-2xl bg-[#188038] text-white shadow-2xl px-4 h-12 flex items-center gap-2 text-sm font-semibold`}>
           <span className="w-2 h-2 rounded-full bg-white animate-pulse" /> Drive in progress
           <span className="ml-auto flex items-center gap-1 text-xs opacity-90">Return to drive <ChevronRight className="w-4 h-4" /></span>

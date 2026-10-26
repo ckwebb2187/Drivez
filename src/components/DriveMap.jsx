@@ -36,6 +36,9 @@ function bearingBetween(a, b) {
 }
 const angleDiff = (a, b) => ((b - a + 540) % 360) - 180;
 
+// The car everyone drives until they add their own in the garage.
+const DEFAULT_CAR = { display: 'build', shape: 'sedan', body: 'sedan', color: '#1f5ad6', glow: null, wheels: 'stock', style: {} };
+
 function carElement(car) {
   const el = document.createElement('div');
   el.style.cssText = 'width:64px;height:64px;display:flex;align-items:center;justify-content:center;pointer-events:none;filter:drop-shadow(0 6px 6px rgba(0,0,0,.45))';
@@ -277,6 +280,9 @@ function DriveMapInner({
     };
     live.current.setPad = setPad;
     setPad();
+    // The map shrinks to the top of the screen when another screen opens mid-drive: keep the car in view.
+    map.on('resize', setPad);
+    return () => { map.off('resize', setPad); };
   }, [driving, follow]);
 
   // Route preview: fit the whole route on screen, flat and north-up (between the search bar and the route card).
@@ -299,8 +305,10 @@ function DriveMapInner({
     if (follow) anim.current.zoom = mapRef.current.getZoom();
   }, [follow]);
 
-  // The car / arrow marker.
+  // The car marker. No car in the garage yet? You still drive a 3D car (a default one).
+  const shownCar = car || DEFAULT_CAR;
   useEffect(() => {
+    const car = shownCar;
     const map = mapRef.current;
     carRef.current?.remove();
     carRef.current = new maplibregl.Marker({ element: carElement(car), rotationAlignment: 'map', pitchAlignment: 'map' })
@@ -350,15 +358,21 @@ function DriveMapInner({
         } catch { /* WebGL trouble: keep the flat car */ }
       };
       if (readyRef.current) add(); else map.once('load', add);
+      // Keep the 3D car up: if it ever goes missing (style reload, add failed, graphics hiccup), put it back.
+      live.current.carWatch = setInterval(() => {
+        if (cancelled || !readyRef.current || !live.current.active) return;
+        try { if (!map.getLayer('dz-car3d')) add(); } catch { /* try again next time */ }
+      }, 4000);
     }
     return () => {
       cancelled = true;
+      clearInterval(live.current.carWatch);
       try { carRef.current?.remove(); } catch { /* already gone */ }
       // Only touch the map if it still exists (leaving the screen removes it first).
       if (readyRef.current) { try { if (map.getLayer('dz-car3d')) map.removeLayer('dz-car3d'); } catch { /* already gone */ } }
       live.current.car3d = false;
     };
-  }, [car && JSON.stringify(car)]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(shownCar)]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // New GPS fix: start gliding from where the car is drawn now to the new spot.
   useEffect(() => {
