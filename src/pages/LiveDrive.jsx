@@ -499,6 +499,12 @@ export default function LiveDrive({ active = true, peek = false }) {
           trip.max_g && [`${trip.max_g.toFixed(2)}g`, 'max g'],
         ].filter(Boolean) : null;
         arrivedEnd.current = false;
+        // Tōge sections passed on this drive: score them in the background (loaded only if you have any).
+        import('@/lib/sections').then(({ scoreDrive }) => scoreDrive(route, rec.id)).then((runs) => {
+          if (!runs?.length) return;
+          const best = runs.reduce((x, y) => (y.score > x.score ? y : x));
+          setToast((t) => ({ ...(t || {}), text: `Tōge · ${best.sector_name}: ${best.score}${runs.length > 1 ? ` (+${runs.length - 1} more)` : ''}`, id: rec.id }));
+        }).catch(() => {});
         setToast({ text: summary ? 'You made it · drive saved' : `Drive saved · ${dst(trip.distance)} ${distUnit()}${odoNote}`, id: rec.id, summary });
         // Co-driver recap, spoken.
         const vs = getVoiceSettings();

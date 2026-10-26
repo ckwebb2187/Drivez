@@ -25,3 +25,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-10-26 · T10-T13 · deployed · live check ok 258 ms · -
 2026-10-26 · T14 · done · startup +0.2 KB · 30 roll (30-70) and 60-100 timed from GPS; on trip detail + profile Best times
 2026-10-26 · T15 · done · startup +0 KB · Sector records entity (owner-only); Save a Tōge section on trip detail with start/end sliders, orange preview
+2026-10-26 · T16 · done · startup +0.3 KB · passes found after each drive, scored on smoothness/steady side g/clean entry-exit (no speed); SectorRun records with a light trace; lazy-loaded
