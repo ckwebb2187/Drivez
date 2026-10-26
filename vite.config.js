@@ -20,6 +20,8 @@ export default defineConfig({
           // (Splitting React-based libraries into startup files makes them run before React is ready.)
           // React itself and Rollup's tiny helpers: a leaf file every other file can share safely.
           if (/node_modules\/(react|react-dom|scheduler)\//.test(id) || (id.startsWith('\0') && !/leaflet|qrcode|recharts|three|maplibre/.test(id))) return 'react';
+          // clsx is used at startup and by recharts: keep it out of the charts file.
+          if (/node_modules\/clsx\//.test(id)) return 'react';
           if (id.includes('leaflet')) return 'leaflet'; // incl. the maplibre-gl-leaflet plugin
           if (id.includes('maplibre-gl')) return 'maplibre';
           if (id.includes('/three/')) return 'three';
