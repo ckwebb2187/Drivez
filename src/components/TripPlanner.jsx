@@ -279,7 +279,8 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
 
         {/* Suggested drive */}
         {!showResults && !route && !routing && !routeErr && suggestion && dismissed !== suggKey && (
-          <div className="mt-2 bg-card/95 backdrop-blur rounded-2xl border border-border shadow-xl flex items-center gap-3 pl-3 pr-1.5 py-2 dz-pop-in">
+          <div className="mt-2 dz-pop-in"><div className="relative dz-glow bg-card/95 backdrop-blur rounded-2xl border border-primary/40 shadow-xl flex items-center gap-3 pl-3 pr-1.5 py-2">
+            <span className="dz-sweep" aria-hidden="true" />
             <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
               {suggestion.kind === 'home' ? <Home className="w-4 h-4 text-primary" /> : suggestion.kind === 'work' ? <Briefcase className="w-4 h-4 text-primary" /> : <Sparkles className="w-4 h-4 text-primary" />}
             </div>
@@ -291,7 +292,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
             </button>
             <button onClick={() => choose(suggestion)} className="h-9 px-4 rounded-full dz-go text-xs font-bold flex items-center gap-1"><Navigation className="w-3.5 h-3.5 fill-white" /> Go</button>
             <button onClick={dismissSuggestion} className="w-8 h-8 flex items-center justify-center" aria-label="Hide suggestion"><X className="w-4 h-4 text-muted-foreground" /></button>
-          </div>
+          </div></div>
         )}
 
         {/* Search results */}

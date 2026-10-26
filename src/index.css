@@ -221,3 +221,10 @@ html[data-skin="standard"] .dz-report-icon { color: #f29900; filter: none; }
 .dz-auto-chip::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, hsl(var(--primary) / 0.35) 50%, transparent 70%); transform: translateX(-100%); animation: dz-auto-sweep 3.6s ease-in-out infinite; pointer-events: none; }
 @keyframes dz-auto-sweep { 0%, 35% { transform: translateX(-100%); } 75%, 100% { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) { .dz-auto-chip, .dz-auto-chip::after { animation: none; } }
+
+/* Same glow + light sweep for any element: add .dz-glow, and a <span class="dz-sweep"> inside it */
+.dz-glow { animation: dz-ptt-breathe 2.8s ease-in-out infinite; }
+.dz-sweep { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
+.dz-sweep::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, hsl(var(--primary) / 0.3) 50%, transparent 70%); transform: translateX(-100%); animation: dz-auto-sweep 3.6s ease-in-out infinite; }
+.dz-sweep-light::after { background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%); }
+@media (prefers-reduced-motion: reduce) { .dz-glow, .dz-sweep::after { animation: none; } }

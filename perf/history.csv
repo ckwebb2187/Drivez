@@ -13,3 +13,4 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-10-26T14:45,drive3d,live,,,118,286,pass
 2026-10-26T14:52,autodrive,live,,,461,917,FAIL
 2026-10-26T14:53,autochip,live,,,40,177,pass
+2026-10-26T14:58,glow,live,,,57,205,pass

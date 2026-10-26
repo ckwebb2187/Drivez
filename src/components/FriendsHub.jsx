@@ -41,7 +41,8 @@ export default function FriendsHub({ live = [], convoy, openConvoys = [], here, 
   return (
     <>
       <button onClick={() => setOpen(true)} aria-label="Friends and group drives"
-        className={`relative h-11 pl-3 pr-3.5 rounded-full shadow-xl border flex items-center gap-1.5 text-xs font-bold pointer-events-auto ${convoy || invites.length ? 'bg-primary text-primary-foreground border-primary' : 'bg-card/95 backdrop-blur border-border text-foreground'} ${className}`}>
+        className={`relative dz-glow h-11 pl-3 pr-3.5 rounded-full shadow-xl border flex items-center gap-1.5 text-xs font-bold pointer-events-auto ${convoy || invites.length ? 'bg-primary text-primary-foreground border-primary' : 'bg-card/95 backdrop-blur border-primary/50 text-foreground'} ${className}`}>
+        <span className={`dz-sweep ${convoy || invites.length ? 'dz-sweep-light' : ''}`} aria-hidden="true" />
         <Users className="w-4 h-4" />{convoy ? 'Group' : 'Friends'}{badge ? <span className="opacity-80">· {badge}</span> : null}
         {invites.length > 0 && !convoy && <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#ff3b30] border-2 border-background" />}
       </button>
