@@ -95,7 +95,7 @@ export function WeatherButton({ className = '' }) {
             </div>
             <div className="mb-3">
               <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">World theme</div>
-              <ThemePicker compact />
+              <ThemePicker />
             </div>
             <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">Weather radar</div>
             <div className="space-y-1.5">

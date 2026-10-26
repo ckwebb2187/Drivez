@@ -198,3 +198,8 @@ html[data-skin="standard"] .dz-report-icon { color: #f29900; filter: none; }
 .dz-callout-arrow { color: hsl(var(--primary)); font-size: 18px; }
 .dz-callout-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dz-callout-stem { width: 3px; height: 16px; background: linear-gradient(hsl(var(--primary)), transparent); }
+
+/* Dark Rising Sun rays: very slow turn, off in battery saver (the overlay isn't drawn) and reduced motion */
+.dz-rays { animation: dz-rays 300s linear infinite; will-change: transform; }
+@keyframes dz-rays { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .dz-rays { animation: none; } }

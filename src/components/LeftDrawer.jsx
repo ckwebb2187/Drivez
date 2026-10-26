@@ -60,7 +60,7 @@ export default function LeftDrawer({ open, onClose }) {
           </div>
           <div>
             <div className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-2 px-1">World theme</div>
-            <ThemePicker compact />
+            <ThemePicker />
           </div>
           <div className="grid grid-cols-2 gap-2">
             {[['nav', Navigation, 'Just navigation'], ['scene', Flame, 'Car scene']].map(([m, Icon, label]) => (

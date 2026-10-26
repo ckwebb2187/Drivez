@@ -16,7 +16,7 @@ import MusicButton from '@/components/MusicButton';
 import { WeatherButton } from '@/components/Weather';
 import TripPlanner from '@/components/TripPlanner';
 import { useSpeedLimit } from '@/lib/speedLimit';
-import { useMapLook, speedStyle } from '@/lib/mapTheme';
+import { useActiveLook, speedStyle } from '@/lib/mapTheme';
 import DriverSheet from '@/components/DriverSheet';
 import { api } from '@/api/base44Client';
 import { mileageMode } from '@/lib/carBluetooth';
@@ -87,7 +87,7 @@ export default function LiveDrive({ active = true }) {
     return () => navigator.geolocation.clearWatch(id);
   }, [drive.status, active]);
   const roadReports = useReports(drive.currentPosition || herePos);
-  const [look] = useMapLook();
+  const { look, key: themeKey } = useActiveLook();
   // Shared with the voice so it can follow your speed (speed-linked audio).
   useEffect(() => { window.__dzSpeed = drive.status === 'driving' ? drive.currentSpeed : 0; }, [drive.currentSpeed, drive.status]);
   const speedLimit = useSpeedLimit(drive.status === 'driving' ? drive.currentPosition : null, drive.heading, drive.status === 'driving');
@@ -651,7 +651,7 @@ export default function LiveDrive({ active = true }) {
             {/* Tōge / Wangan run card */}
             {driveMode !== 'cruise' && (() => {
               const toge = driveMode === 'toge';
-              const st = speedStyle(look.theme);
+              const st = speedStyle(themeKey);
               const top = nav.active ? (turnsMin ? (reportAlert ? 'top-[152px]' : 'top-[80px]') : (reportAlert ? 'top-[222px]' : 'top-[150px]')) : reportAlert ? 'top-[84px]' : 'top-[max(12px,env(safe-area-inset-top))]';
               const cells = toge
                 ? [[cornerCount, 'corners'], [drive.stats.maxG ? drive.stats.maxG.toFixed(2) : '–', 'max G'], [formatDuration(drive.elapsedTime), 'run']]
@@ -675,7 +675,7 @@ export default function LiveDrive({ active = true }) {
 
             {/* Speed gauge (themed ring) + posted speed limit, bottom left */}
             {(() => {
-              const st = speedStyle(look.theme);
+              const st = speedStyle(themeKey);
               const mph = Math.round(drive.currentSpeed);
               const over = speedLimit?.mph && mph > speedLimit.mph + 5;
               const frac = Math.min(1, mph / 100);

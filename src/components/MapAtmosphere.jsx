@@ -33,7 +33,7 @@ export function weatherKind(code, cloud) {
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 
-export default function MapAtmosphere({ theme, pos, active = true, lite = false, weatherFx = true }) {
+export default function MapAtmosphere({ theme, pos, active = true, lite = false, weatherFx = true, night = false }) {
   const canvas = useRef(null);
   const wx = useLocalWeather(pos, weatherFx && !lite);
   const wk = weatherFx ? weatherKind(wx?.weather_code, wx?.cloud_cover) : null;
@@ -90,7 +90,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
           p.x += p.v; if (p.x - p.r > w) p.x = -p.r;
           const rg = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
           const a = wk === 'fog' ? 0.22 : 0.14;
-          rg.addColorStop(0, `rgba(${['kawaii', 'sakura', 'y2k', 'lavender', 'harajuku', 'zen', 'minimal'].includes(theme) ? '255,255,255' : '20,24,32'},${a})`); rg.addColorStop(1, 'rgba(0,0,0,0)');
+          rg.addColorStop(0, `rgba(${!night && ['kawaii', 'sakura', 'y2k', 'lavender', 'harajuku', 'zen', 'minimal'].includes(theme) ? '255,255,255' : '20,24,32'},${a})`); rg.addColorStop(1, 'rgba(0,0,0,0)');
           g.fillStyle = rg; g.fillRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
         } else if (p.t === 'petal') {
           p.y += p.v; p.x += Math.sin(frame / 25 + p.ph) * 0.8; p.rot += 0.03;
@@ -141,7 +141,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
       flashT = setTimeout(strike, rnd(3000, 8000));
     }
     return () => { cancelAnimationFrame(raf); clearTimeout(flashT); window.removeEventListener('resize', size); };
-  }, [run, theme, wk]);
+  }, [run, theme, wk, night]);
 
   if (lite) return null;
   return (
@@ -151,7 +151,8 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
       {theme === 'bayshore' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 60% at 50% 110%, rgba(255,154,60,0.18), transparent 60%), radial-gradient(80% 40% at 50% 100%, rgba(223,234,255,0.10), transparent 70%)' }} />}
       {theme === 'daikoku' && <div className="absolute inset-0" style={{ background: 'radial-gradient(100% 60% at 50% 105%, rgba(255,176,64,0.2), transparent 65%), linear-gradient(180deg, transparent 50%, rgba(255,59,48,0.06))' }} />}
       {theme === 'shuto' && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(255,179,71,0.10), transparent 25%), radial-gradient(100% 50% at 50% 110%, rgba(31,191,107,0.12), transparent 60%)' }} />}
-      {theme === 'tougedawn' && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(255,181,144,0.38), rgba(143,180,217,0.18) 35%, rgba(200,215,225,0.18) 70%, rgba(220,230,235,0.28))' }} />}
+      {theme === 'tougedawn' && night && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(20,40,90,0.35), rgba(10,20,50,0.1) 45%, rgba(255,181,144,0.10)), radial-gradient(110% 55% at 50% 112%, rgba(255,200,140,0.30), transparent 62%)' }} />}
+      {theme === 'tougedawn' && !night && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(255,181,144,0.38), rgba(143,180,217,0.18) 35%, rgba(200,215,225,0.18) 70%, rgba(220,230,235,0.28))' }} />}
       {theme === 'cyberpunk' && <div className="absolute inset-0 dz-scanlines" />}
       {theme === 'dystopian' && <>
         <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(120,120,110,0.35), rgba(60,60,55,0.05) 45%, rgba(40,40,38,0.25))' }} />
@@ -161,17 +162,18 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
       {theme === 'rose' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 70% at 50% 110%, rgba(255,79,163,0.22), transparent 60%), radial-gradient(90% 50% at 50% -10%, rgba(232,165,152,0.15), transparent 60%)' }} />}
       {theme === 'vapor' && <div className="absolute inset-0" style={{ background: 'linear-gradient(0deg, rgba(255,113,206,0.28), rgba(185,103,255,0.08) 35%, transparent 60%), radial-gradient(60% 40% at 50% -5%, rgba(1,205,254,0.18), transparent 70%)' }} />}
       {theme === 'galaxy' && <div className="absolute inset-0" style={{ background: 'radial-gradient(70% 45% at 20% 10%, rgba(124,77,255,0.25), transparent 70%), radial-gradient(60% 40% at 85% 25%, rgba(58,209,255,0.15), transparent 70%)' }} />}
-      {['sakura', 'lavender', 'y2k', 'harajuku'].includes(theme) && <div className="absolute inset-0" style={{ background: `radial-gradient(80% 50% at 50% -10%, ${{ sakura: 'rgba(255,182,206,0.35)', lavender: 'rgba(190,160,235,0.3)', y2k: 'rgba(255,95,200,0.3)', harajuku: 'rgba(255,225,77,0.3)' }[theme]}, transparent 70%)` }} />}
+      {['sakura', 'lavender', 'y2k', 'harajuku'].includes(theme) && <div className="absolute inset-0" style={{ background: night ? `radial-gradient(90% 50% at 50% -10%, ${{ sakura: 'rgba(120,150,255,0.22)', lavender: 'rgba(200,215,255,0.20)', y2k: 'rgba(255,47,179,0.22)', harajuku: 'rgba(255,92,138,0.22)' }[theme]}, transparent 70%), radial-gradient(100% 45% at 50% 112%, ${{ sakura: 'rgba(243,166,192,0.18)', lavender: 'rgba(165,139,217,0.2)', y2k: 'rgba(192,192,192,0.14)', harajuku: 'rgba(77,212,255,0.2)' }[theme]}, transparent 65%)` : `radial-gradient(80% 50% at 50% -10%, ${{ sakura: 'rgba(255,182,206,0.35)', lavender: 'rgba(190,160,235,0.3)', y2k: 'rgba(255,95,200,0.3)', harajuku: 'rgba(255,225,77,0.3)' }[theme]}, transparent 70%)` }} />}
       {theme === 'matrix' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 70% at 50% 110%, rgba(57,255,106,0.12), transparent 60%)' }} />}
-      {theme === 'zen' && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(235,240,225,0.45), rgba(235,240,225,0.05) 45%, transparent)' }} />}
+      {theme === 'zen' && <div className="absolute inset-0" style={{ background: night ? 'radial-gradient(90% 55% at 50% 108%, rgba(255,184,77,0.24), transparent 65%), linear-gradient(180deg, rgba(10,25,20,0.35), transparent 50%)' : 'linear-gradient(180deg, rgba(235,240,225,0.45), rgba(235,240,225,0.05) 45%, transparent)' }} />}
       {theme === 'risingsun' && <>
         <div className="absolute inset-0" style={{ background: 'radial-gradient(60% 35% at 50% 100%, rgba(192,23,43,0.28), transparent 70%)' }} />
+        <div className="absolute dz-rays" style={{ width: '220vmax', height: '220vmax', left: '50%', top: 'calc(114% - 35vmin)', marginLeft: '-110vmax', marginTop: '-110vmax', background: 'repeating-conic-gradient(rgba(150,10,28,0.20) 0 11.25deg, rgba(0,0,0,0.24) 11.25deg 22.5deg)', WebkitMaskImage: 'radial-gradient(circle 85vmax at 50% 50%, #000 12%, transparent 100%)', maskImage: 'radial-gradient(circle 85vmax at 50% 50%, #000 12%, transparent 100%)', animation: run ? undefined : 'none' }} />
         <div className="absolute" style={{ left: '50%', bottom: '-14%', width: '70vmin', height: '70vmin', transform: 'translateX(-50%)', borderRadius: '50%', background: 'radial-gradient(circle, rgba(170,16,34,0.55) 0 60%, rgba(150,12,28,0.22) 70%, transparent 100%)' }} />
       </>}
       {theme === 'samurai' && <div className="absolute inset-0" style={{ background: 'radial-gradient(90% 55% at 50% -10%, rgba(217,207,184,0.10), transparent 70%), radial-gradient(100% 50% at 50% 110%, rgba(179,32,44,0.14), transparent 60%)' }} />}
-      {theme === 'minimal' && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(215,216,214,0.5), rgba(215,216,214,0.05) 50%)' }} />}
+      {theme === 'minimal' && <div className="absolute inset-0" style={{ background: night ? 'radial-gradient(100% 45% at 50% 112%, rgba(242,155,48,0.16), transparent 65%)' : 'linear-gradient(180deg, rgba(215,216,214,0.5), rgba(215,216,214,0.05) 50%)' }} />}
       {theme === 'sakuranight' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 70% at 50% 110%, rgba(255,79,126,0.2), transparent 60%)' }} />}
-      {theme === 'kawaii' && <div className="absolute inset-0" style={{ background: 'radial-gradient(80% 50% at 50% -10%, rgba(255,182,220,0.35), transparent 70%)' }} />}
+      {theme === 'kawaii' && <div className="absolute inset-0" style={{ background: night ? 'radial-gradient(90% 50% at 50% -10%, rgba(185,163,255,0.22), transparent 70%), radial-gradient(100% 45% at 50% 112%, rgba(255,140,198,0.2), transparent 65%)' : 'radial-gradient(80% 50% at 50% -10%, rgba(255,182,220,0.35), transparent 70%)' }} />}
       {wk === 'fog' && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(200,205,215,0.55), rgba(200,205,215,0.15) 55%, rgba(200,205,215,0.3))' }} />}
       {run && <canvas ref={canvas} className="absolute inset-0 w-full h-full" />}
       {flash && <div className="absolute inset-0 bg-white/40" />}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { applyTheme, animateWater, themeBase, useMapLook, isLite, routeColors, themePalette } from '@/lib/mapTheme';
+import { applyTheme, animateWater, useActiveLook, isDaytime, isLite, routeColors, themePalette } from '@/lib/mapTheme';
 import { addCityLife } from '@/lib/cityLife';
 import MapAtmosphere from '@/components/MapAtmosphere';
 import maplibregl from 'maplibre-gl';
@@ -16,7 +16,6 @@ import { useLiveTraffic, trafficTileUrl } from '@/lib/traffic';
 // zoom that follows your speed, and the route ahead in blue (driven part greyed out).
 const STYLE_DAY = 'https://tiles.openfreemap.org/styles/liberty';
 const STYLE_NIGHT = 'https://tiles.openfreemap.org/styles/dark';
-export const isDaytime = (d = new Date()) => d.getHours() >= 7 && d.getHours() < 19;
 
 const EMPTY = { type: 'FeatureCollection', features: [] };
 const line = (coords) => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: {} });
@@ -67,17 +66,16 @@ function reportElement(type) {
 
 // Wrapper: picks the world theme, redraws the map when it changes, and adds weather / theme effects on top.
 export default function DriveMap(props) {
-  const [look] = useMapLook();
+  const { look, key, base, night } = useActiveLook();
   const lite = isLite(look);
-  const base = themeBase(look.theme, isDaytime());
   // Phones can wipe graphics memory when you switch apps mid-drive. The map library can't bring
   // back our 3D car and extra layers after that, so rebuild the whole map fresh instead.
   const [gen, setGen] = useState(0);
   const rebuild = useCallback(() => setGen((g) => g + 1), []);
   return (
     <>
-      <DriveMapInner key={`${look.theme}-${base}-${lite}-${gen}`} {...props} theme={look.theme} base={base} lite={lite} onGraphicsLost={rebuild} />
-      <MapAtmosphere theme={look.theme} pos={props.pos} active={props.active !== false} lite={lite} weatherFx={look.weatherFx} />
+      <DriveMapInner key={`${key}-${base}-${lite}-${gen}`} {...props} theme={key} base={base} lite={lite} onGraphicsLost={rebuild} />
+      <MapAtmosphere theme={look.theme} night={night} pos={props.pos} active={props.active !== false} lite={lite} weatherFx={look.weatherFx} />
     </>
   );
 }

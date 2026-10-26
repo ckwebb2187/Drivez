@@ -23,7 +23,7 @@ export const THEMES = [
   { key: 'lavender', label: 'Lavender Fields', jp: 'Rabendā ラベンダー', text: 'Calm lilac fields and drifting petals.', swatch: ['#f1ecfb', '#b9a6e0', '#5a3f8f'] },
   { key: 'matrix', label: 'Matrix', jp: 'Matorikkusu マトリックス', text: 'Green code rain, hacker city grid.', swatch: ['#010603', '#39ff6a', '#0d3a1c'] },
   { key: 'zen', label: 'Zen Town', jp: 'Zen no Machi 禅の町', text: 'Forest, wood and gold lanterns, misty river.', swatch: ['#efe8d6', '#4f6f45', '#b08a3e'] },
-  { key: 'risingsun', label: 'Dark Rising Sun', jp: 'Kurai Hinode 暗い日の出', text: 'Near-black world, crimson sun low on the horizon.', swatch: ['#060405', '#c0172b', '#5a0d16'] },
+  { key: 'risingsun', label: 'Dark Rising Sun', jp: 'Kurai Hinode 暗い日の出', text: 'Near-black world, crimson sun low on the horizon.', swatch: ['#060405', '#c0172b', '#5a0d16'], rays: true },
   { key: 'samurai', label: 'Samurai', jp: 'Samurai 侍', text: 'Ink-wash black, bone parchment, crimson and gold.', swatch: ['#0c0b0a', '#d9cfb8', '#b3202c'] },
   { key: 'minimal', label: 'Minimalism', jp: 'Minimarizumu ミニマリズム', text: 'Concrete grays with orange accents.', swatch: ['#d9dad8', '#555555', '#f29b30'] },
   { key: 'sakuranight', label: 'Sakura Night', jp: 'Sakura-michi no Machi 桜道の町', text: 'Navy night, pink neon and blossoms.', swatch: ['#0d0f19', '#ff4f7e', '#ffb3cf'] },
@@ -240,7 +240,7 @@ const lowEndPhone = () => (navigator.deviceMemory && navigator.deviceMemory <= 2
 const read = () => {
   let s = {};
   try { s = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { s = {}; }
-  return { theme: s.theme || 'kaido', saver: s.saver || 'auto', jpNames: !!s.jpNames, weatherFx: s.weatherFx !== false };
+  return { theme: s.theme || 'kaido', saver: s.saver || 'auto', mode: ['light', 'dark'].includes(s.mode) ? s.mode : 'auto', jpNames: !!s.jpNames, weatherFx: s.weatherFx !== false };
 };
 export const isLite = (prefs) => prefs.saver === 'on' || (prefs.saver === 'auto' && lowEndPhone());
 
@@ -379,4 +379,68 @@ export function applySkin(theme) {
   el.style.setProperty('--glass', hsl(k.card));
   if (k.font) { el.style.setProperty('--font-heading', k.font); }
 }
+// ---- Dark versions of the light themes: the same character after sunset ----
+const NIGHT_P = {
+  kawaii: { bg: '#1d1030', water: ['#1c2a5c', '#243670'], park: '#1d3340', wood: '#182d38', land: '#26143a', road: '#46305f', roadMajor: '#6a3f86', casing: '#12081f', bldg: '#34204f', bldgTop: '#4a2d6e', windows: ['#ffd1ea', '#9be8ff', '#d9ccff'], text: '#ffd9f0', halo: '#1d1030', glow: ['#ff8cc6', '#b9a3ff'] },
+  sakura: { bg: '#0f1530', water: ['#142450', '#1a2e62'], park: '#2a2040', wood: '#241a38', land: '#141a38', road: '#2e3556', roadMajor: '#4a3860', casing: '#0a0f24', bldg: '#1c2446', bldgTop: '#2b3560', windows: ['#ffc4d6', '#f3a6c0', '#ffe9a8'], text: '#ffd5e3', halo: '#0f1530', glow: ['#f3a6c0', '#8fb4ff'] },
+  y2k: { bg: '#08060c', water: ['#0a1a2a', '#102a40'], park: '#121a14', wood: '#0e150f', land: '#0e0a14', road: '#2a2630', roadMajor: '#4a2a46', casing: '#050407', bldg: '#1a1620', bldgTop: '#34303c', windows: ['#ff5fc8', '#c0c0c0', '#7af2ff'], text: '#ff9be0', halo: '#08060c', glow: ['#ff2fb3', '#c0c0c0'] },
+  lavender: { bg: '#14102a', water: ['#1b2650', '#233166'], park: '#231c42', wood: '#1d1838', land: '#18132f', road: '#352e58', roadMajor: '#52448a', casing: '#0d0a1e', bldg: '#241d44', bldgTop: '#352c62', windows: ['#e0d0ff', '#cdb8f5', '#fff3c4'], text: '#e4d8ff', halo: '#14102a', glow: ['#a58bd9', '#cdb8f5'] },
+  harajuku: { bg: '#0d0820', water: ['#0a2a4a', '#0e3a60'], park: '#0e3a2a', wood: '#0b3024', land: '#160d2c', road: '#2e2250', roadMajor: '#5a2a6a', casing: '#08041a', bldg: '#2a1648', bldgTop: '#44226e', windows: ['#ff5c8a', '#4dd4ff', '#ffe14d'], text: '#fff2a8', halo: '#0d0820', glow: ['#ff5c8a', '#4dd4ff'] },
+  zen: { bg: '#0c120d', water: ['#10242a', '#16323a'], park: '#16281a', wood: '#112014', land: '#121510', road: '#2e2a20', roadMajor: '#5a4824', casing: '#070a07', bldg: '#2a2216', bldgTop: '#3d3220', windows: ['#ffb84d', '#ffd27a', '#f2a03a'], text: '#f1e2b8', halo: '#0c120d', glow: ['#ffb84d', '#7fa86a'] },
+  minimal: { bg: '#1b1c1d', water: ['#232a2e', '#2b343a'], park: '#222522', wood: '#1e211e', land: '#202122', road: '#3c3d3f', roadMajor: '#55565a', casing: '#0e0e0f', bldg: '#2c2d2f', bldgTop: '#3b3c3f', windows: ['#ffb347', '#d8d8d8', '#7a7a7a'], text: '#ececec', halo: '#1b1c1d', glow: ['#f29b30', '#8a8a8a'] },
+  tougedawn: { bg: '#10192a', water: ['#1c3050', '#243c62'], park: '#1a2e2c', wood: '#14261f', land: '#141d2c', road: '#364258', roadMajor: '#556078', casing: '#0a0f1a', bldg: '#232d42', bldgTop: '#34405a', windows: ['#ffd9a8', '#ffb590', '#cfe0f0'], text: '#e8eefc', halo: '#10192a', glow: ['#ffb590', '#8fb4d9'] },
+};
+const NIGHT_SKIN = {
+  kawaii: { bg: '#170c26', card: '#24143a', sec: '#321c4e', border: '#4a2d6e', fg: '#ffe6f5', muted: '#b896d0', primary: '#ff8cc6', pfg: '#2a0f3a', accent: '#b9a3ff' },
+  sakura: { bg: '#0b1026', card: '#141b3a', sec: '#1d2750', border: '#2e3a68', fg: '#ffe4ec', muted: '#a8a0c4', primary: '#f58ab0', pfg: '#2a0a1a', accent: '#8fb4ff' },
+  y2k: { bg: '#060509', card: '#120f18', sec: '#1c1824', border: '#3a2a46', fg: '#f4eefa', muted: '#a08cb0', primary: '#ff2fb3', pfg: '#ffffff', accent: '#c0c0c0' },
+  lavender: { bg: '#100c24', card: '#1a1536', sec: '#251e48', border: '#3a3068', fg: '#eee6ff', muted: '#9f92c8', primary: '#a58bd9', pfg: '#14102a', accent: '#9ec4ff' },
+  harajuku: { bg: '#0a061a', card: '#150e2e', sec: '#201646', border: '#3a2a6a', fg: '#fff4d8', muted: '#a898d0', primary: '#ff5c8a', pfg: '#ffffff', accent: '#4dd4ff' },
+  zen: { bg: '#090e0a', card: '#131b14', sec: '#1c261d', border: '#33402f', fg: '#f1e6c8', muted: '#9aa585', primary: '#e0a23a', pfg: '#1a1000', accent: '#7fa86a', font: "'Iowan Old Style','Palatino Linotype',Georgia,serif" },
+  minimal: { bg: '#141415', card: '#1e1f20', sec: '#282a2c', border: '#3a3c3e', fg: '#ececec', muted: '#9a9b9d', primary: '#f29b30', pfg: '#1a0f00', accent: '#b0b0b0' },
+  tougedawn: { bg: '#0b1220', card: '#141e32', sec: '#1d2a44', border: '#2e3e5e', fg: '#eaf0ff', muted: '#97a6c4', primary: '#ff9a6c', pfg: '#2a1006', accent: '#8fb4d9' },
+};
+const NIGHT_ROUTE = {
+  kawaii: { casing: '#2a0f3a', core: ['#ff8cc6', '#b9a3ff'], glow: '#ff8cc6' },
+  sakura: { casing: '#2a0a1a', core: ['#f58ab0', '#ff6fa0'], glow: '#f3a6c0' },
+  y2k: { casing: '#2a0a22', core: ['#ff2fb3', '#e0e0e0'], glow: '#ff2fb3' },
+  lavender: { casing: '#1a1038', core: ['#a58bd9', '#e0d0ff'], glow: '#a58bd9' },
+  harajuku: { casing: '#1a0a3a', core: ['#ff5c8a', '#4dd4ff'], glow: '#ff5c8a' },
+  zen: { casing: '#3a2606', core: ['#ffb84d', '#ffd98a'], glow: '#ffb84d' },
+  minimal: { casing: '#3a2206', core: ['#f29b30', '#ffb85c'], glow: '#f29b30' },
+  tougedawn: { casing: '#3a1a10', core: ['#ff8a5c', '#ffc09a'], glow: '#ff8a5c' },
+};
+const NIGHT_SPEED = {
+  kawaii: { bg: '#24143a', text: '#ffd9f0', ring: '#ff8cc6', sub: '#b9a3ff', glow: '#ff8cc6' },
+  sakura: { bg: '#141b3a', text: '#ffd5e3', ring: '#f3a6c0', sub: '#8fb4ff' },
+  y2k: { bg: '#08060c', text: '#ff9be0', ring: '#c0c0c0', sub: '#ff5fc8', glow: '#ff2fb3' },
+  lavender: { bg: '#1a1536', text: '#e4d8ff', ring: '#a58bd9', sub: '#cdb8f5' },
+  harajuku: { bg: '#150e2e', text: '#fff2a8', ring: '#ff5c8a', sub: '#4dd4ff', glow: '#ff5c8a' },
+  zen: { bg: '#131b14', text: '#f1e2b8', ring: '#e0a23a', sub: '#7fa86a' },
+  minimal: { bg: '#1e1f20', text: '#ececec', ring: '#f29b30', sub: '#9a9b9d' },
+  tougedawn: { bg: '#10192a', text: '#e8eefc', ring: '#ffb590', sub: '#8fb4d9' },
+};
+// Night keys look like 'sakura@n'; every lookup (map, route, speed bubble, app skin) just works on the key.
+const addNight = (table, night, extra) => Object.keys(night).forEach((k) => { table[`${k}@n`] = { ...table[k], ...night[k], ...extra }; });
+addNight(P, NIGHT_P, { base: 'dark' });
+addNight(SKIN, NIGHT_SKIN, { light: false });
+addNight(ROUTE, NIGHT_ROUTE);
+addNight(SPEED, NIGHT_SPEED);
+export const hasNight = (theme) => !!NIGHT_P[theme];
+
+export const isDaytime = (d = new Date()) => d.getHours() >= 7 && d.getHours() < 19;
+// One answer to "which look is on screen": theme + Light/Dark/Auto (+ whether it's day) -> palette key and map base.
+export function resolveLook(theme, mode, day) {
+  const night = mode === 'dark' || (mode !== 'light' && !day);
+  const key = night && hasNight(theme) ? `${theme}@n` : theme;
+  return { key, base: themeBase(key, !night), night: P[key] ? P[key].base !== 'day' : night };
+}
+// Same, kept fresh: re-checks every minute so the map flips at sunrise / sunset.
+export function useActiveLook() {
+  const [look] = useMapLook();
+  const [day, setDay] = useState(isDaytime);
+  useEffect(() => { const t = setInterval(() => setDay(isDaytime()), 60000); return () => clearInterval(t); }, []);
+  return { look, ...resolveLook(look.theme, look.mode, day) };
+}
+
 export const routeColors = (theme, night = false) => (theme === 'standard' && night ? { ...ROUTE.standard, glow: '#4c8bf5' } : ROUTE[theme] || ROUTE.standard);

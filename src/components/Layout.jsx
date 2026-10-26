@@ -6,7 +6,7 @@ import LiveDrive from '@/pages/LiveDrive';
 import SetupModeModal from '@/components/SetupModeModal';
 import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
-import { useMapLook, featureName, applySkin } from '@/lib/mapTheme';
+import { useMapLook, useActiveLook, featureName, applySkin } from '@/lib/mapTheme';
 import { useUnits } from '@/lib/units';
 import { useFamilyPing, useFamilyBrief, EVENT_ICON } from '@/lib/family';
 
@@ -22,9 +22,10 @@ export default function Layout() {
   const { pathname } = useLocation();
   const { user, scene } = useApp();
   const [look] = useMapLook();
+  const { key: skinKey } = useActiveLook();
   useUnits(); // re-render everything when mph/km changes
   // The whole app takes on the world theme's colors.
-  useEffect(() => { applySkin(look.theme); }, [look.theme]);
+  useEffect(() => { applySkin(skinKey); }, [skinKey]);
   // Teen / kid accounts: tabs a parent turned off are hidden.
   const fam = useFamilyBrief();
   const offTab = (to) => (to === '/feed' && fam?.controls?.social === false) || (to === '/meets' && fam?.controls?.meets === false);
