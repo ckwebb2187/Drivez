@@ -102,8 +102,8 @@ export async function searchPlaces(q, near) {
 }
 
 // Driving directions from `from` to `to` ([lat, lng]), optionally through `stops`
-// (up to 10, each { lat, lng, name }). Each leg ends with an "arrive" step.
-export const MAX_STOPS = 10;
+// (up to 15, each { lat, lng, name }). Each leg ends with an "arrive" step.
+export const MAX_STOPS = 15;
 // How twisty a route is: degrees of turning per mile (big numbers = mountain roads).
 function twistiness(coords, distM) {
   let turn = 0;
