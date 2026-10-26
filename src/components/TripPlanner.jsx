@@ -407,6 +407,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
                         {traffic.delay > 60 ? `+${Math.round(traffic.delay / 60)} min because of traffic` : 'Traffic is light'}
                       </p>
                     )}
+                    <RoadScore route={route} />
                   </div>
                   <button onClick={toggleSave} className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0 -mt-1" aria-label={savedHere ? 'Remove from saved places' : 'Save this place'}>
                     <Star className={`w-4 h-4 ${savedHere ? 'text-amber-400 fill-amber-400' : 'text-muted-foreground'}`} />
@@ -603,4 +604,25 @@ function Stat({ value, label, color }) {
       <div className="text-[10px] text-muted-foreground leading-tight">{label}</div>
     </div>
   );
+}
+
+// Road score (T27b): drivers' ratings near this route, rough-road reports, and how twisty it is.
+function RoadScore({ route }) {
+  const [sc, setSc] = useState(null);
+  useEffect(() => {
+    const c = route?.coords;
+    if (!c?.length) return undefined;
+    let off = false;
+    const n = Math.min(30, c.length);
+    const points = Array.from({ length: n }, (_, i) => c[Math.round((i * (c.length - 1)) / Math.max(1, n - 1))]);
+    api.post('/roads/score', { points }).then((d) => !off && setSc(d)).catch(() => {});
+    return () => { off = true; };
+  }, [route?.coords]);
+  const parts = [];
+  if (sc?.fun) parts.push(`fun ${sc.fun}★`);
+  if (sc?.surface) parts.push(`surface ${sc.surface}★`);
+  if (sc?.rough) parts.push(`${sc.rough} rough spot${sc.rough > 1 ? 's' : ''}`);
+  if (route?.twisty > 60) parts.push('twisty');
+  if (!parts.length) return null;
+  return <p className="text-[11px] mt-0.5 text-muted-foreground">Road: {parts.join(' · ')}{sc?.ratings ? ` (${sc.ratings} rating${sc.ratings > 1 ? 's' : ''})` : ''}</p>;
 }

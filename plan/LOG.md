@@ -36,3 +36,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-10-26 · T26 · done · startup +0 KB · meet_photos table (IF NOT EXISTS); RSVP'd people add photos, host/owner can delete; Photos strip on meet cards
 2026-10-26 · T26 · deployed · live check ok 144 ms · meet-photo route live
 2026-10-26 · T27 · part 1 done · startup +0 KB · road_ratings table; Rate this road (surface/fun) on trip detail; /roads/score endpoint; split T27b for showing on routes
+2026-10-26 · T27b · done · startup +0.3 KB · 'Road: fun/surface stars · rough spots · twisty' line on planned routes

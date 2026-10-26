@@ -52,7 +52,7 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - [x] T25 · S · Car builder: LED grille and front splitter options (`src/lib/car3d.js`, `src/components/CarBuilder.jsx`).
 - [x] T26 · M · Meet photographers: photo drops onto a meet's page for attendees.
 - [x] T27 · M · Road scores: rate roads (twistiness, surface) from drives and reports.
-- [ ] T27b · S · Road scores, part 2: show the road score (fun, surface, rough spots, twistiness) on planned route choices (`POST /roads/score`).
+- [x] T27b · S · Road scores, part 2: show the road score (fun, surface, rough spots, twistiness) on planned route choices (`POST /roads/score`).
 - [ ] T28 · M · Local legends map (Louisiana): curated famous roads and spots layer.
 - [ ] T29 · M · Feature requests board with upvotes.
 - [ ] T30 · S · Report-a-problem form (goes to a records entity the owner can read).
