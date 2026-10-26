@@ -26,6 +26,9 @@
         <package android:name="deezer.android.app" />
         <package android:name="com.clearchannel.iheartradio.controller" />
         <package android:name="com.discord" />
+        <!-- Android Auto app: read whether the phone is connected to a car screen -->
+        <package android:name="com.google.android.projection.gearhead" />
+        <provider android:authorities="androidx.car.app.connection" />
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.APP_MUSIC" />

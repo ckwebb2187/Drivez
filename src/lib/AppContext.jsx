@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo } 
 import { base44, api } from '@/api/base44Client';
 import { useAuth } from './AuthContext';
 import { startOfWeek, subWeeks, format as formatDate } from 'date-fns';
-import { useCarBluetooth, connectedCar } from './carBluetooth';
+import { useCarBluetooth, useAndroidAuto, connectedCar } from './carBluetooth';
 import { carLook, displayMode, iconBody } from './carCatalog';
 
 const AppContext = createContext(null);
@@ -116,8 +116,10 @@ export function AppProvider({ children }) {
   }, [activeVehicle]);
 
   // Android app: when the phone connects to a car's Bluetooth, that car becomes the one you're driving.
+  // Same for Android Auto, for the car linked to it.
   const carBt = useCarBluetooth();
-  const btCar = useMemo(() => connectedCar(vehicles, carBt.status), [vehicles, carBt.status]);
+  const carAuto = useAndroidAuto();
+  const btCar = useMemo(() => connectedCar(vehicles, carBt.status, carAuto.status, activeVehicle), [vehicles, carBt.status, carAuto.status]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (btCar && activeVehicle && btCar.id !== activeVehicle.id) setPrimaryVehicle(btCar.id).catch(() => {});
   }, [btCar && btCar.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -288,7 +290,7 @@ export function AppProvider({ children }) {
 
   return (
     <AppContext.Provider value={{
-      user, scene, setAppMode, carBt, btCar, saveProfile, stats, weeklyStats, vehicles, trips, savedRoutes, loading, activeVehicle, myCar, setPrimaryVehicle,
+      user, scene, setAppMode, carBt, carAuto, btCar, saveProfile, stats, weeklyStats, vehicles, trips, savedRoutes, loading, activeVehicle, myCar, setPrimaryVehicle,
       toggleGhostMode, updateUser, addVehicle, updateTrip, deleteTrip, removeVehicle, setVehicleImage, addVehiclePhoto, removeVehiclePhoto, updateVehicle, addTrip,
       addRoute, deleteRoute, shareRouteWithFriends, places, addPlace, deletePlace, renamePlace, home, work, setHomeWork, refreshData: loadData
     }}>

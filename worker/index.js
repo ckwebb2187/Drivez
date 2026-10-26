@@ -907,7 +907,7 @@ async function handleApi(req, env, ctx, url) {
     await db.batch([
       "DELETE FROM records WHERE owner_id = ?", "DELETE FROM sessions WHERE user_id = ?", "DELETE FROM friends WHERE requester_id = ?1 OR addressee_id = ?1",
       "DELETE FROM live_pos WHERE user_id = ?", "DELETE FROM report_votes WHERE user_id = ?", "DELETE FROM reports WHERE user_id = ?",
-      "DELETE FROM avatars WHERE user_id = ?", "DELETE FROM car_images WHERE owner_id = ?", "DELETE FROM users WHERE id = ?",
+      "DELETE FROM avatars WHERE user_id = ?", "DELETE FROM car_images WHERE owner_id = ?", "DELETE FROM family_members WHERE user_id = ?", "DELETE FROM family_events WHERE user_id = ?", "DELETE FROM users WHERE id = ?",
     ].map((q) => db.prepare(q).bind(id)));
     return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json", "set-cookie": `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax` } });
   }

@@ -32,6 +32,7 @@ public class MainActivity extends Activity {
     private WebView web;
     private MediaWatcher media;
     private CarBluetooth bt;
+    private CarAuto auto;
     private String pendingGeoOrigin;
     private GeolocationPermissions.Callback pendingGeo;
     private ValueCallback<Uri[]> pendingFiles;
@@ -58,6 +59,9 @@ public class MainActivity extends Activity {
         bt = new CarBluetooth(this, json -> runOnUiThread(() ->
             web.evaluateJavascript("window.dispatchEvent(new CustomEvent('drivez-bt',{detail:" + json + "}))", null)));
         bt.start();
+        auto = new CarAuto(this, json -> runOnUiThread(() ->
+            web.evaluateJavascript("window.dispatchEvent(new CustomEvent('drivez-auto',{detail:" + json + "}))", null)));
+        auto.start();
         web.addJavascriptInterface(new Bridge(), "DrivezNative");
 
         web.setWebViewClient(new WebViewClient() {
@@ -198,6 +202,7 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         media.stop();
         bt.stop();
+        auto.stop();
         super.onDestroy();
     }
 
@@ -222,6 +227,7 @@ public class MainActivity extends Activity {
                 o.put("versionCode", BuildConfig.VERSION_CODE);
                 o.put("mediaAccess", media.hasAccess());
                 o.put("bluetooth", true);
+                o.put("androidAuto", true);
             } catch (Exception ignored) { }
             return o.toString();
         }
@@ -230,6 +236,9 @@ public class MainActivity extends Activity {
 
         // Car Bluetooth: which devices are paired / connected right now.
         @JavascriptInterface public String bluetoothStatus() { return bt.status(); }
+
+        // Android Auto: is the phone connected to a car screen right now?
+        @JavascriptInterface public String androidAutoStatus() { return auto.status(); }
 
         @JavascriptInterface public void requestBluetooth() {
             runOnUiThread(() -> {

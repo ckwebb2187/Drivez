@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, Trash2, Wrench, Gauge, Settings2, Loader2, Check, Sparkles, Bluetooth, Hand } from 'lucide-react';
+import { X, Plus, Trash2, Wrench, Gauge, Settings2, Loader2, Check, Sparkles, Bluetooth, Hand, Car } from 'lucide-react';
 import { mileageMode } from '@/lib/carBluetooth';
 import CarBuilder from '@/components/CarBuilder';
 import CarPhotos from '@/components/CarPhotos';
@@ -14,7 +14,7 @@ const pillText = { overdue: 'Overdue', soon: 'Due soon', ok: 'OK', unknown: 'Not
 
 // One car's page: odometer, service reminders + log, and mods list.
 export default function VehicleDetail({ vehicle: v0, onClose }) {
-  const { vehicles, trips, updateVehicle, scene, carBt } = useApp();
+  const { vehicles, trips, updateVehicle, scene, carBt, carAuto } = useApp();
   const [pickBt, setPickBt] = useState(false);
   const v = vehicles.find((x) => x.id === v0.id) || v0;
   const odo = odometer(v, trips);
@@ -111,8 +111,11 @@ export default function VehicleDetail({ vehicle: v0, onClose }) {
           ) : v.bt_device ? (
             <p className="text-[11px] text-muted-foreground">Miles only count while your phone is connected to <b className="text-foreground">{v.bt_device.name}</b>
               {carBt.status?.connected?.some((d) => d.address === v.bt_device.address) && <span className="text-accent font-semibold"> · connected now</span>}. Rides as a passenger and drives in other cars are left out.</p>
+          ) : v.aa_link ? (
+            <p className="text-[11px] text-muted-foreground">Miles only count while your phone is on <b className="text-foreground">Android Auto</b>
+              {carAuto?.status?.connected && <span className="text-accent font-semibold"> · connected now</span>}. Rides in other cars are left out.</p>
           ) : (
-            <p className="text-[11px] text-muted-foreground">Every drive with this car selected counts. Link the car's Bluetooth so only drives in this car count, even with passengers or several cars.</p>
+            <p className="text-[11px] text-muted-foreground">Every drive with this car selected counts. Link the car's Bluetooth or Android Auto so only drives in this car count, even with passengers or several cars.</p>
           )}
           <div className="flex flex-wrap gap-2 mt-3">
             {mileageMode(v) !== 'manual' && (carBt.supported ? (
@@ -122,6 +125,11 @@ export default function VehicleDetail({ vehicle: v0, onClose }) {
             ) : (
               <span className="text-[10px] text-muted-foreground">Bluetooth linking works in the Kaido Maps Android app.</span>
             ))}
+            {mileageMode(v) !== 'manual' && carAuto?.supported && (
+              <button onClick={() => save({ aa_link: !v.aa_link })} className={`h-9 px-3 rounded-full text-xs font-semibold flex items-center gap-1.5 ${v.aa_link ? 'bg-primary text-primary-foreground' : 'bg-primary/15 text-primary'}`}>
+                <Car className="w-3.5 h-3.5" />{v.aa_link ? 'Android Auto linked ✓' : 'Count on Android Auto'}
+              </button>
+            )}
             {v.bt_device && mileageMode(v) !== 'manual' && <button onClick={() => save({ bt_device: null })} className="h-9 px-3 rounded-full bg-secondary text-xs font-semibold text-foreground">Unlink</button>}
             <button onClick={() => save({ mileage_mode: mileageMode(v) === 'manual' ? null : 'manual' })} className="h-9 px-3 rounded-full bg-secondary text-xs font-semibold text-foreground flex items-center gap-1.5">
               <Hand className="w-3.5 h-3.5" />{mileageMode(v) === 'manual' ? 'Count drives automatically' : 'No Bluetooth: enter by hand'}
