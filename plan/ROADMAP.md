@@ -6,7 +6,7 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 "Kaido Maps - Driving Precision & Multiplayer Features" (Oct 25, 2026), plus the older roadmap note.
 
 ## Phase 0: Speed first
-- [x] T01 · S · Take the charts library off startup. `charts-*.js` (~88 KB gz) loads at startup.
+- [!] T01 (built+pushed, NOT deployed: wrangler not logged in) · S · Take the charts library off startup. `charts-*.js` (~88 KB gz) loads at startup.
   Find what statically imports recharts in the startup path (start at `src/components/StatsDashboard.jsx`,
   `src/pages/Profile.jsx`) and load it with `React.lazy`/`import()`. Done when `charts` is not in startup files in perf-check.
 - [ ] T02 · S · Check the startup path for other heavy imports (three.js, qrcode, leaflet) that could load later.
