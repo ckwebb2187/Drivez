@@ -28,3 +28,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-10-26 · T16 · done · startup +0.3 KB · passes found after each drive, scored on smoothness/steady side g/clean entry-exit (no speed); SectorRun records with a light trace; lazy-loaded
 2026-10-26 · T17 · done · startup +0.5 KB · entering a saved section shows your best run as a see-through ghost car (trace replayed by time)
 2026-10-26 · T18 · done · startup +0.2 KB · /convoys/:code/leader-run (members only) returns leader's best run on a section starting nearby; shown as 'Leader' ghost
+2026-10-26 · T14-T18 · deployed · live check ok 215 ms (first try 404 while Cloudflare updated) · -
