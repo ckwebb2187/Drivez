@@ -1,0 +1,31 @@
+# Packages the Android build tools from the GitHub runner so the Home Base TV app can be built and signed elsewhere.
+# Runs only on the home-base-tv branch; the result goes to a draft release (not public).
+name: Home Base TV toolchain
+on:
+  push:
+    branches: [home-base-tv]
+    paths: ['.github/workflows/home-base-tv-toolchain.yml']
+permissions:
+  contents: write
+jobs:
+  tools:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Package Android build tools
+        run: |
+          SDK="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          ls "$SDK/build-tools" "$SDK/platforms"
+          BT=$(ls -d "$SDK"/build-tools/35.0.0 2>/dev/null || ls -d "$SDK"/build-tools/* | sort -V | tail -1)
+          PL=$(ls -d "$SDK"/platforms/android-34 2>/dev/null || ls -d "$SDK"/platforms/* | sort -V | tail -1)
+          mkdir -p tc/build-tools tc/platform
+          cp -r "$BT"/. tc/build-tools/
+          cp "$PL/android.jar" tc/platform/
+          echo "$BT $PL" > tc/VERSION
+          tar czf android-toolchain.tgz -C tc .
+          ls -la android-toolchain.tgz
+      - name: Upload to a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view tv-toolchain --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create tv-toolchain --repo "$GITHUB_REPOSITORY" --draft --title "Home Base TV toolchain (temporary)" --notes "Temporary build tools for the Home Base TV app. Safe to delete."
+          gh release upload tv-toolchain android-toolchain.tgz --repo "$GITHUB_REPOSITORY" --clobber
