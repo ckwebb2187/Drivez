@@ -178,8 +178,9 @@ export default function LiveDrive({ active = true, peek = false }) {
   }, [drive.currentPosition, mapFriends]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!passing) return undefined; const t = setTimeout(() => setPassing(null), 4500); return () => clearTimeout(t); }, [passing]);
   // Ghost runs: entering one of your Tōge sections shows your best run there as a see-through car.
-  const [ghost, setGhost] = useState(null);
-  const ghostRef = useRef({ loaded: false, sections: [], best: {}, active: null });
+  // In a group drive, the leader's best run on their section shows too.
+  const [ghosts, setGhosts] = useState([]);
+  const ghostRef = useRef({ loaded: false, sections: [], best: {}, actives: [], askedAt: 0 });
   useEffect(() => {
     const g = ghostRef.current;
     if (drive.status !== 'driving' || g.loaded) return;
@@ -195,29 +196,35 @@ export default function LiveDrive({ active = true, peek = false }) {
     const g = ghostRef.current, me = drive.currentPosition;
     if (drive.status !== 'driving' || !me) return;
     const here = [me.lat, me.lng];
-    if (g.active) {
-      const pts = g.active.sector.points;
-      if (distM(here, pts[pts.length - 1]) < 50) { g.active = null; setGhost(null); }
-      return;
+    g.actives = g.actives.filter((a) => distM(here, a.end) >= 50); // reached the section end
+    if (!g.actives.some((a) => a.id === 'ghost')) {
+      for (const s of g.sections) {
+        const run = g.best[s.id];
+        if (run && s.points?.length > 1 && distM(here, s.points[0]) < 50) { g.actives.push({ id: 'ghost', label: 'PB', run, end: s.points[s.points.length - 1], t0: Date.now() }); break; }
+      }
     }
-    for (const s of g.sections) {
-      const run = g.best[s.id];
-      if (run && s.points?.length > 1 && distM(here, s.points[0]) < 50) { g.active = { sector: s, run, t0: Date.now() }; break; }
+    // Group drive: ask (at most every 15 s) whether the leader has a section starting here.
+    if (convoy && !convoy.isLeader && !g.actives.some((a) => a.id === 'ghost-leader') && Date.now() - g.askedAt > 15000) {
+      g.askedAt = Date.now();
+      api.get(`/convoys/${convoy.code}/leader-run?lat=${me.lat}&lng=${me.lng}`).then((r) => {
+        if (r?.run && !g.actives.some((a) => a.id === 'ghost-leader')) g.actives.push({ id: 'ghost-leader', label: 'Leader', run: r.run, end: r.run.end, t0: Date.now() });
+      }).catch(() => {});
     }
-  }, [drive.currentPosition, drive.status]);
+  }, [drive.currentPosition, drive.status]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (drive.status !== 'driving') { ghostRef.current.active = null; setGhost(null); return undefined; }
+    if (drive.status !== 'driving') { ghostRef.current.actives = []; setGhosts([]); return undefined; }
     const t = setInterval(() => {
-      const a = ghostRef.current.active;
-      if (!a) return;
-      const tr = a.run.trace, el = (Date.now() - a.t0) / 1000;
-      if (el > tr[tr.length - 1][0] + 20) { ghostRef.current.active = null; setGhost(null); return; }
-      let i = 1;
-      while (i < tr.length - 1 && tr[i][0] < el) i++;
-      const [t1, la1, ln1] = tr[i - 1], [t2, la2, ln2] = tr[i];
-      const f = Math.max(0, Math.min(1, t2 > t1 ? (el - t1) / (t2 - t1) : 1));
-      const heading = (Math.atan2(ln2 - ln1, la2 - la1) * 180) / Math.PI;
-      setGhost({ userId: 'ghost', ghost: true, name: `👻 PB ${a.run.score}`, lat: la1 + (la2 - la1) * f, lng: ln1 + (ln2 - ln1) * f, heading, car: myCar });
+      const g = ghostRef.current;
+      g.actives = g.actives.filter((a) => (Date.now() - a.t0) / 1000 < a.run.trace[a.run.trace.length - 1][0] + 20);
+      setGhosts(g.actives.map((a) => {
+        const tr = a.run.trace, el = (Date.now() - a.t0) / 1000;
+        let i = 1;
+        while (i < tr.length - 1 && tr[i][0] < el) i++;
+        const [t1, la1, ln1] = tr[i - 1], [t2, la2, ln2] = tr[i];
+        const f = Math.max(0, Math.min(1, t2 > t1 ? (el - t1) / (t2 - t1) : 1));
+        const heading = (Math.atan2(ln2 - ln1, la2 - la1) * 180) / Math.PI;
+        return { userId: a.id, ghost: true, name: `👻 ${a.label} ${a.run.score}`, lat: la1 + (la2 - la1) * f, lng: ln1 + (ln2 - ln1) * f, heading, car: myCar };
+      }));
     }, 500);
     return () => clearInterval(t);
   }, [drive.status]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -616,7 +623,7 @@ export default function LiveDrive({ active = true, peek = false }) {
           dest={navPlan ? navPlan.dest : preview ? preview.dest : null}
           stops={nav.active ? nav.stops.slice(nav.stopIdx) : preview ? preview.stops : []}
           fitCoords={drive.status === 'idle' && preview ? preview.route.coords : null}
-          friends={ghost ? [...mapFriends, ghost] : mapFriends}
+          friends={ghosts.length ? [...mapFriends, ...ghosts] : mapFriends}
           driveFx={{
             turn: nav.active && !nav.arrived && nav.distToStep < 160 && /left|right/.test(nav.step?.modifier || '') && nav.step?.type !== 'depart' ? (/left/.test(nav.step.modifier) ? 'left' : 'right') : null,
             alert: !!reportAlert,

@@ -36,7 +36,7 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - [x] T15 · M · Toge sections, part 1: data model (records entity `sector`) and a way to save a stretch of road from a past drive as a section.
 - [x] T16 · M · Toge sections, part 2: score each pass: cornering smoothness, steady side g-force, clean entry/exit. No speed-based points.
 - [x] T17 · M · Ghost runs, part 1: on a saved section, show your personal best as a ghost marker during the drive.
-- [ ] T18 · S · Ghost runs, part 2: compare against the convoy leader's run on the same section.
+- [x] T18 · S · Ghost runs, part 2: compare against the convoy leader's run on the same section.
 
 ## Phase 4: Group drives & voice
 - [ ] T19 · M · Discord voice: one-tap join from the drive screen (deep link to the group's Discord channel) and a mute/unmute button on the HUD.

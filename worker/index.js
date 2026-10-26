@@ -1271,12 +1271,24 @@ async function handleApi(req, env, ctx, url) {
     }
     return json({ convoys: out });
   }
-  const cvx = path.match(/^\/convoys\/([a-f0-9]{8})\/(invite|messages|settings|voice)(?:\/([a-f0-9]{24}))?$/);
+  const cvx = path.match(/^\/convoys\/([a-f0-9]{8})\/(invite|messages|settings|voice|leader-run)(?:\/([a-f0-9]{24}))?$/);
   if (cvx) {
     const c = await db.prepare("SELECT * FROM convoys WHERE code = ? AND expires > ?").bind(cvx[1], Date.now()).first();
     if (!c) throw new HttpError(404, "That group drive has ended.");
     const member = await db.prepare("SELECT 1 FROM convoy_members WHERE convoy_id = ? AND user_id = ?").bind(c.id, me.id).first();
     if (!member) throw new HttpError(403, "Join the group drive first.");
+    // Ghost runs: the leader's best run on a Tōge section that starts near lat/lng (group members only).
+    if (cvx[2] === "leader-run" && method === "GET") {
+      const lat = +url.searchParams.get("lat"), lng = +url.searchParams.get("lng");
+      if (c.owner_id === me.id || !Number.isFinite(lat) || !Number.isFinite(lng)) return json({ run: null });
+      const near = (p) => Math.hypot((p[0] - lat) * 111000, (p[1] - lng) * 111000 * Math.cos((lat * Math.PI) / 180)) < 60;
+      const { results: secs } = await db.prepare("SELECT id, data FROM records WHERE entity = 'Sector' AND owner_id = ? LIMIT 200").bind(c.owner_id).all();
+      const sec = secs.map((r) => ({ id: r.id, ...JSON.parse(r.data) })).find((s) => s.points?.length > 1 && near(s.points[0]));
+      if (!sec) return json({ run: null });
+      const { results: runs } = await db.prepare("SELECT data FROM records WHERE entity = 'SectorRun' AND owner_id = ? AND json_extract(data, '$.sector_id') = ? LIMIT 200").bind(c.owner_id, sec.id).all();
+      const best = runs.map((r) => JSON.parse(r.data)).filter((r) => r.trace?.length > 2).sort((a, b) => b.score - a.score)[0];
+      return json({ run: best ? { name: sec.name, score: best.score, trace: best.trace, end: sec.points[sec.points.length - 1] } : null });
+    }
     if (cvx[2] === "invite" && method === "POST") {
       const ids = await friendIds(db, me.id);
       const who = (Array.isArray(body.userIds) ? body.userIds : [body.userId]).map(String).filter((id) => ids.includes(id)).slice(0, 30);
