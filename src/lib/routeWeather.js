@@ -1,3 +1,4 @@
+import { isMetric } from '@/lib/units';
 // Weather along a route: the forecast for each part of the drive at the time
 // you'll be there (Open-Meteo, free, no key).
 import { distM } from './nav';
@@ -59,6 +60,6 @@ export async function weatherAlongRoute(route, departAt = new Date()) {
   let summary;
   if (!worst || worst.level === 0) summary = `${end.emoji} ${end.label} the whole way · ${end.temp}°F when you arrive`;
   else if (worst.frac === 0) summary = `${worst.emoji} ${worst.label} where you are now · ${end.label.toLowerCase()} at arrival (${end.temp}°F)`;
-  else summary = `${worst.emoji} ${worst.label} around mile ${Math.round(worst.miles)} (~${time(worst.eta)})`;
+  else summary = `${worst.emoji} ${worst.label} around ${isMetric() ? 'km' : 'mile'} ${Math.round(worst.miles * (isMetric() ? 1.609344 : 1))} (~${time(worst.eta)})`;
   return { points, worst, summary };
 }

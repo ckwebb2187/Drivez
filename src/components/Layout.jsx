@@ -7,6 +7,8 @@ import SetupModeModal from '@/components/SetupModeModal';
 import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
 import { useMapLook, featureName, applySkin } from '@/lib/mapTheme';
+import { useUnits } from '@/lib/units';
+import { useFamilyPing, useFamilyBrief, EVENT_ICON } from '@/lib/family';
 
 const tabs = [
   { to: '/history', icon: Clock, label: 'History' },
@@ -20,9 +22,15 @@ export default function Layout() {
   const { pathname } = useLocation();
   const { user, scene } = useApp();
   const [look] = useMapLook();
+  useUnits(); // re-render everything when mph/km changes
   // The whole app takes on the world theme's colors.
   useEffect(() => { applySkin(look.theme); }, [look.theme]);
-  const shownTabs = tabs.filter((t) => !t.scene || scene).map((t) => (t.to === '/' && look.jpNames ? { ...t, label: 'Chizu' } : t));
+  // Teen / kid accounts: tabs a parent turned off are hidden.
+  const fam = useFamilyBrief();
+  const offTab = (to) => (to === '/feed' && fam?.controls?.social === false) || (to === '/meets' && fam?.controls?.meets === false);
+  const [famToast, clearFamToast] = useFamilyPing();
+  useEffect(() => { if (!famToast || famToast.kind === 'sos') return undefined; const t = setTimeout(clearFamToast, 6000); return () => clearTimeout(t); }, [famToast?.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shownTabs = tabs.filter((t) => (!t.scene || scene) && !offTab(t.to)).map((t) => (t.to === '/' && look.jpNames ? { ...t, label: 'Chizu' } : t));
   const onDrive = pathname === '/' || pathname === '/drive'; // the drive map is the home screen
   // Detail pages (a saved drive, saved places, routes…) fill the screen without the tab bar.
   const fullPage = !onDrive && !['/history', '/profile', '/leaderboard', '/feed', '/meets'].includes(pathname);
@@ -68,6 +76,11 @@ export default function Layout() {
       {user && !user.appMode && <SetupModeModal />}
       {inviteMsg && (
         <div className="fixed left-3 right-3 top-[max(12px,env(safe-area-inset-top))] z-[1500] rounded-2xl bg-[#188038] text-white shadow-2xl px-4 py-3 text-sm font-semibold text-center dz-pop-in">🤝 {inviteMsg}</div>
+      )}
+      {famToast && (
+        <NavLink to="/family" onClick={clearFamToast} className={`fixed left-3 right-3 top-[max(12px,env(safe-area-inset-top))] z-[1600] rounded-2xl shadow-2xl px-4 py-3 text-sm font-semibold flex items-center gap-2 dz-pop-in ${famToast.kind === 'sos' ? 'bg-red-600 text-white animate-pulse' : 'bg-card text-foreground border border-primary/60'}`}>
+          <span className="text-lg">{EVENT_ICON[famToast.kind] || '👪'}</span><span className="flex-1">{famToast.text}</span><span className="text-xs opacity-80">Open ›</span>
+        </NavLink>
       )}
       {!onDrive && driving && (
         <NavLink to="/" className={`fixed left-3 right-3 ${fullPage ? 'bottom-[max(16px,env(safe-area-inset-bottom))]' : 'bottom-[92px]'} z-[1400] rounded-2xl bg-[#188038] text-white shadow-2xl px-4 h-12 flex items-center gap-2 text-sm font-semibold`}>

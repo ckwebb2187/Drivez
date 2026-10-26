@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2, MapPin, Users, Share2 } from 'lucide-react';
 import { api } from '@/api/base44Client';
 import { convoyUrl } from '@/lib/convoy';
 import { getInitials } from '@/lib/helpers';
+import { spd, speedUnit } from '@/lib/units';
 
 // Opened from a shared group-drive link: see who's going and join.
 export default function ConvoyPage() {
@@ -41,7 +42,7 @@ export default function ConvoyPage() {
                 {m.avatarUrl ? <img src={m.avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover" /> : <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ background: m.color || '#00BFFF' }}>{getInitials(m.name || m.username)}</div>}
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-foreground truncate">{m.name}{m.me ? ' (you)' : ''}</div>
-                  <div className="text-[11px] text-muted-foreground">{m.id === c.leaderId ? 'Leading · ' : ''}{m.live ? `driving · ${m.live.speed || 0} mph` : 'not on the road yet'}</div>
+                  <div className="text-[11px] text-muted-foreground">{m.id === c.leaderId ? 'Leading · ' : ''}{m.live ? `driving · ${spd(m.live.speed || 0)} ${speedUnit()}` : 'not on the road yet'}</div>
                 </div>
               </div>
             ))}

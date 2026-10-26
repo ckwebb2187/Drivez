@@ -8,6 +8,7 @@ const loaders = {
   Profile: () => import('@/pages/Profile'),
   FeedPage: () => import('@/pages/FeedPage'),
   MeetsPage: () => import('@/pages/MeetsPage'),
+  FamilyPage: () => import('@/pages/FamilyPage'),
   ConvoyPage: () => import('@/pages/ConvoyPage'),
   TripDetailPage: () => import('@/pages/TripDetailPage'),
   LiveMap: () => import('@/pages/LiveMap'),

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { TriangleAlert, X, Navigation, ChevronRight, Loader2 } from 'lucide-react';
 import { EVACUATE, pickEvacuationCity } from '@/lib/alerts';
 import { weatherAlongRoute } from '@/lib/routeWeather';
+import { dst, distUnit } from '@/lib/units';
 import { alertsAlongRoute } from '@/lib/alerts';
 
 export const colorFor = (a) => (/Warning|Emergency/.test(a.event) ? '#EA4335' : /Watch/.test(a.event) ? '#F9AB00' : '#FB8C00');
@@ -90,7 +91,7 @@ export function RouteConditions({ route, departAt }) {
                 <div key={i} className="shrink-0 w-[68px] rounded-xl bg-secondary/60 px-2 py-1.5 text-center">
                   <div className="text-lg leading-none">{p.emoji}</div>
                   <div className="text-xs font-bold text-foreground mt-1">{p.temp}°</div>
-                  <div className="text-[9px] text-muted-foreground">{i === 0 ? 'Now' : `mi ${Math.round(p.miles)}`}</div>
+                  <div className="text-[9px] text-muted-foreground">{i === 0 ? 'Now' : `${distUnit()} ${dst(p.miles, 0)}`}</div>
                   <div className="text-[9px] text-muted-foreground">{time(p.eta)}</div>
                   {p.rainChance != null && p.rainChance >= 20 && <div className="text-[9px] text-[#64b5f6]">{p.rainChance}% rain</div>}
                 </div>

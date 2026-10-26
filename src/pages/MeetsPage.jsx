@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2, Plus, MapPin, Clock, Users, Navigation, Trash2, X, Wrench, Fuel, Phone, Globe, Search } from 'lucide-react';
 import { api } from '@/api/base44Client';
 import { searchPlaces, distM } from '@/lib/nav';
+import { dst, distUnit } from '@/lib/units';
 
 const field = 'w-full bg-secondary rounded-xl px-3 py-2.5 text-sm text-foreground border border-border focus:border-primary outline-none';
 const SHOP_KINDS = [['all', 'All'], ['tuner', 'Tuners'], ['mechanic', 'Mechanics'], ['parts', 'Parts'], ['tires', 'Tires'], ['fuel', '93 / E0 gas']];
@@ -17,7 +18,7 @@ function useHere() {
   }, []);
   return [pos, err];
 }
-const miles = (pos, lat, lng) => (pos ? `${(distM(pos, [lat, lng]) / 1609.34).toFixed(1)} mi` : '');
+const miles = (pos, lat, lng) => (pos ? `${dst(distM(pos, [lat, lng]) / 1609.34)} ${distUnit()}` : '');
 const when = (iso) => new Date(iso).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
 // Car meets (post one, RSVP) and car shops near you (tuners, mechanics, parts, tires, good gas).

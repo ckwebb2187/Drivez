@@ -2,24 +2,30 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { SettingsSheet } from '@/components/SettingsList';
-import { X, Clock, Star, Route as RouteIcon, Radio, Trophy, Upload, User, Settings, Navigation, Flame, CalendarDays, Wrench } from 'lucide-react';
+import { X, Clock, Star, Route as RouteIcon, Radio, Trophy, Upload, User, Settings, Navigation, Flame, CalendarDays, Wrench, Users } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import InviteButton from '@/components/InviteButton';
 import { ThemePicker } from '@/components/MapLookSettings';
 import { getInitials } from '@/lib/helpers';
+import { fmtBig } from '@/lib/units';
+import { useFamilyBrief } from '@/lib/family';
 
 // Left pull-out drawer: everything that isn't driving lives here, so the map stays clean.
 export default function LeftDrawer({ open, onClose }) {
   const { user, scene, stats, setAppMode } = useApp();
   const [settings, setSettings] = useState(false);
+  const fam = useFamilyBrief();
+  const ctl = fam?.controls || {};
   if (settings) return <SettingsSheet onClose={() => { setSettings(false); onClose(); }} />;
   if (!open || !user) return null;
   const links = [
-    ['/history', Clock, 'Drive history', `${stats.totalDrives} drives · ${stats.lifetimeMiles.toLocaleString()} mi`],
+    ['/history', Clock, 'Drive history', `${stats.totalDrives} drives · ${fmtBig(stats.lifetimeMiles)}`],
     ['/places', Star, 'Saved places', 'Home, work and favorites'],
     ['/routes', RouteIcon, 'Routes & plans', 'Saved drives and multi-stop plans'],
+    ['/family', Users, 'Family', fam ? `${fam.name} · location shared` : 'Share location, places, check-ins, teen controls'],
     ['/live-map', Radio, 'Friends live', 'Who is driving right now'],
-    ...(scene ? [['/feed', Flame, 'Feed', "Friends' drives, builds and meets"], ['/meets', CalendarDays, 'Meets & shops', 'Car meets, tuners, parts, 93 gas']] : []),
+    ...(scene && ctl.social !== false ? [['/feed', Flame, 'Feed', "Friends' drives, builds and meets"]] : []),
+    ...(scene && ctl.meets !== false ? [['/meets', CalendarDays, 'Meets & shops', 'Car meets, tuners, parts, 93 gas']] : []),
     ...(scene ? [['/leaderboard', Trophy, 'Ranks', 'Leaderboards']] : []),
     ['/import', Upload, 'Import', 'From Google Maps & Waze'],
     ['/profile', User, 'Profile', 'Garage, badges, friends, driver profile'],

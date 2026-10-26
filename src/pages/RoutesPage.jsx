@@ -7,6 +7,7 @@ import SavedRouteCard from '@/components/SavedRouteCard';
 import ShareRouteModal from '@/components/ShareRouteModal';
 import RouteThumbnail from '@/components/RouteThumbnail';
 import { useApp } from '@/lib/AppContext';
+import { dst, distUnit } from '@/lib/units';
 
 
 async function geocode(query) {
@@ -150,7 +151,7 @@ export default function RoutesPage() {
                 <div className="p-3.5 flex items-center justify-between">
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-foreground truncate">{route.name}</div>
-                    <div className="text-[11px] text-muted-foreground">{route.distance} mi • shared by {route.created_by}</div>
+                    <div className="text-[11px] text-muted-foreground">{dst(route.distance)} {distUnit()} • shared by {route.created_by}</div>
                   </div>
                   <button
                     onClick={() => (route.dest ? navigate('/', { state: { plan: { dest: route.dest, stops: route.stops || [] } } }) : navigate(`/?route=${route.id}`))}
@@ -215,7 +216,7 @@ export default function RoutesPage() {
 
             {preview && (
               <div>
-                <div className="text-[11px] text-muted-foreground mb-2">Found route: {preview.distance} mi</div>
+                <div className="text-[11px] text-muted-foreground mb-2">Found route: {dst(preview.distance)} {distUnit()}</div>
                 <label className="text-xs text-muted-foreground mb-1 block">Route Name</label>
                 <input
                   value={routeName}

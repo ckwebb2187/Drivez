@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { applyTheme, animateWater, themeBase, useMapLook, isLite, routeColors } from '@/lib/mapTheme';
+import { applyTheme, animateWater, themeBase, useMapLook, isLite, routeColors, themePalette } from '@/lib/mapTheme';
+import { addCityLife } from '@/lib/cityLife';
 import MapAtmosphere from '@/components/MapAtmosphere';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -84,7 +85,7 @@ export default function DriveMap(props) {
 function DriveMapInner({
   pos, heading, speed = 0, car, driving, routeCoords, dest, stops = [], guide, trail, reports = [],
   follow = true, onUserMove, className = '', active = true, theme = 'standard', base = 'day', lite = false, fitCoords = null,
-  friends = [], onFriendTap, pins = [], onPinTap, onGraphicsLost, driveFx = null,
+  friends = [], onFriendTap, pins = [], onPinTap, onGraphicsLost, driveFx = null, callout = null, highway = null,
 }) {
   const fxRef = useRef(driveFx);
   fxRef.current = driveFx;
@@ -155,10 +156,13 @@ function DriveMapInner({
       // World theme colors + 3D buildings (themed windows), then gentle water motion.
       try { applyTheme(map, theme, { lite, beforeId: firstSymbol }); } catch { /* keep the plain style */ }
       if (!lite) live.current.stopWater = animateWater(map, theme, () => live.current.active);
+      // Trees, park props, houses, gas canopies and chain landmarks (not in battery saver).
+      if (!lite) { try { live.current.stopCity = addCityLife(map, theme, themePalette(theme), () => live.current.active, { beforeId: firstSymbol }); } catch { /* optional */ } }
       map.addSource('dz-guide', { type: 'geojson', data: EMPTY });
       map.addSource('dz-trail', { type: 'geojson', data: EMPTY });
       map.addSource('dz-behind', { type: 'geojson', data: EMPTY });
       map.addSource('dz-ahead', { type: 'geojson', data: EMPTY, lineMetrics: true });
+      map.addSource('dz-hwy', { type: 'geojson', data: EMPTY });
       const round = { 'line-join': 'round', 'line-cap': 'round' };
       map.addLayer({ id: 'dz-guide', type: 'line', source: 'dz-guide', layout: round, paint: { 'line-color': '#8a8ac0', 'line-width': 4, 'line-dasharray': [1.5, 2], 'line-opacity': 0.8 } }, firstSymbol);
       map.addLayer({ id: 'dz-trail', type: 'line', source: 'dz-trail', layout: round, paint: { 'line-color': '#00BFFF', 'line-width': 5, 'line-opacity': 0.85 } }, firstSymbol);
@@ -169,6 +173,13 @@ function DriveMapInner({
       map.addLayer({ id: 'dz-ahead-casing', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-color': rc.casing, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 8, 18, 22] } }, firstSymbol);
       if (rc.gap) map.addLayer({ id: 'dz-ahead-gap', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-color': rc.gap, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 6.5, 18, 18] } }, firstSymbol);
       map.addLayer({ id: 'dz-ahead', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-gradient': ['interpolate', ['linear'], ['line-progress'], 0, rc.core[0], 1, rc.core[1]], 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 5, 18, 15] } }, firstSymbol);
+      // Highway lane reflectors ("cat's eyes"): rows of little lights along both lane edges on motorway stretches.
+      for (const [id, side, color] of [['dz-reflect-l', -1, '#ffffff'], ['dz-reflect-r', 1, '#ffc93c']]) {
+        map.addLayer({ id, type: 'line', source: 'dz-hwy', minzoom: 13.5, layout: { 'line-cap': 'round', 'line-join': 'round' },
+          paint: { 'line-color': color, 'line-width': ['interpolate', ['linear'], ['zoom'], 14, 1.6, 18, 4], 'line-dasharray': [0.01, 5],
+            'line-offset': ['interpolate', ['linear'], ['zoom'], 14, side * 12, 18, side * 30], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 13.5, 0, 15, 0.95],
+            'line-blur': lite ? 0 : 0.6 } }, firstSymbol);
+      }
       if (!lite) {
         map.addLayer({ id: 'dz-ahead-flow', type: 'line', source: 'dz-ahead', layout: { 'line-join': 'round' }, paint: { 'line-color': rc.flow, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 2, 18, 5], 'line-dasharray': [0, 4, 3] } }, firstSymbol);
         try {
@@ -192,6 +203,7 @@ function DriveMapInner({
       }
       readyRef.current = true;
       live.current.refresh?.();
+      live.current.refreshHwy?.();
     });
 
     // Animation loop: glide the car between GPS fixes and keep the camera behind it.
@@ -242,6 +254,7 @@ function DriveMapInner({
       window.removeEventListener('touchend', up);
       live.current.stopWater?.();
       live.current.stopFlow?.();
+      live.current.stopCity?.();
       readyRef.current = false; // tell the other cleanups the map is gone
       try { map.remove(); } catch { /* already gone */ }
     };
@@ -429,6 +442,35 @@ function DriveMapInner({
     }
     for (const [id, m] of reportMarkers.current) if (!keep.has(id)) { m.remove(); reportMarkers.current.delete(id); }
   }, [reports]);
+
+  // Highway stretches of the route get lane reflectors.
+  useEffect(() => {
+    live.current.refreshHwy = () => {
+      const src = mapRef.current?.getSource?.('dz-hwy');
+      if (!src) return;
+      src.setData(highway?.length ? { type: 'FeatureCollection', features: highway.map((c) => ({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: c } })) } : EMPTY);
+    };
+    if (readyRef.current) live.current.refreshHwy();
+  }, [highway]);
+
+  // Next-turn callout: the street you'll turn onto, in big type on the map at the turn.
+  const calloutRef = useRef(null);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (!callout) { calloutRef.current?.remove(); calloutRef.current = null; return; }
+    if (!calloutRef.current) {
+      const el = document.createElement('div');
+      el.className = 'dz-callout';
+      el.innerHTML = '<div class="dz-callout-pill"><span class="dz-callout-arrow"></span><span class="dz-callout-text"></span></div><div class="dz-callout-stem"></div>';
+      calloutRef.current = new maplibregl.Marker({ element: el, anchor: 'bottom', pitchAlignment: 'viewport', rotationAlignment: 'viewport' }).setLngLat([callout.lng, callout.lat]).addTo(map);
+    }
+    const el = calloutRef.current.getElement();
+    el.querySelector('.dz-callout-text').textContent = callout.text;
+    el.querySelector('.dz-callout-arrow').textContent = callout.arrow || '';
+    calloutRef.current.setLngLat([callout.lng, callout.lat]);
+  }, [callout?.lat, callout?.lng, callout?.text]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => calloutRef.current?.remove(), []);
 
   // Extra pins (car meets): emoji badge with a short label. Tap to open.
   useEffect(() => {

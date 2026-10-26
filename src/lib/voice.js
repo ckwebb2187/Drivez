@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/api/base44Client';
 import { speak } from '@/lib/nav';
+import { dst, spd, distWord, isMetric } from '@/lib/units';
 
 const KEY = 'dz-voice';
 const DEFAULTS = { narrate: true, style: 'device', gemVoice: 'Puck', speedAudio: true };
@@ -128,8 +129,8 @@ export async function recordWav(maxSeconds = 12) {
 // A spoken recap of a drive: Gemini when set up, otherwise a simple summary.
 export function plainRecap(t) {
   const mins = Math.max(1, Math.round((t.minutes || 0)));
-  const bits = [`${t.miles} miles in ${mins} minute${mins === 1 ? '' : 's'}`];
-  if (t.avgMph) bits.push(`averaging ${t.avgMph}`);
+  const bits = [`${dst(t.miles)} ${distWord()} in ${mins} minute${mins === 1 ? '' : 's'}`];
+  if (t.avgMph) bits.push(`averaging ${spd(t.avgMph)}${isMetric() ? ' kilometers an hour' : ''}`);
   let s = `${t.justSaved ? 'Drive saved. ' : ''}${bits.join(', ')}.`;
   s = s.charAt(0).toUpperCase() + s.slice(1);
   if (t.mode === 'toge' && t.corners) s += ` ${t.corners} corners on the mountain.`;
@@ -152,5 +153,6 @@ export function tripFacts(t, car = '') {
     miles: t.distance || 0, minutes: (t.duration || 0) / 60, topMph: t.top_speed || 0, avgMph: t.avg_speed || 0,
     smoothness: t.smoothness ?? null, hardBrakes: t.hard_brakes ?? null, maxG: t.max_g ?? null, zeroToSixty: t.best_0_60 ?? null,
     mode: t.mode || null, corners: t.corners ?? null, convoy: !!t.convoy, car,
+    units: isMetric() ? 'metric (say kilometers and km/h; 1 mile = 1.609 km)' : 'miles and mph',
   };
 }

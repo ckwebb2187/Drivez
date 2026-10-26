@@ -1,5 +1,6 @@
 import { BarChart, Bar, LineChart, Line, XAxis, ResponsiveContainer, YAxis, Tooltip } from 'recharts';
 import { Milestone, Car, Gauge, Trophy } from 'lucide-react';
+import { spd, speedUnit, distUnit, fmtBig } from '@/lib/units';
 
 function StatCard({ icon: Icon, label, value, unit, color }) {
   return (
@@ -21,10 +22,10 @@ function StatCard({ icon: Icon, label, value, unit, color }) {
 // One compact row of your totals.
 export function StatsRow({ stats }) {
   const items = [
-    [stats.lifetimeMiles.toLocaleString(), 'miles', '#00BFFF'],
+    [fmtBig(stats.lifetimeMiles).split(' ')[0], distUnit() === 'km' ? 'km' : 'miles', '#00BFFF'],
     [stats.totalDrives.toLocaleString(), 'drives', '#39FF14'],
-    [stats.avgSpeed, 'avg mph', '#FF6B35'],
-    [stats.bestTopSpeed, 'top mph', '#FF4757'],
+    [spd(stats.avgSpeed), `avg ${speedUnit()}`, '#FF6B35'],
+    [spd(stats.bestTopSpeed), `top ${speedUnit()}`, '#FF4757'],
   ];
   return (
     <div className="bg-card rounded-2xl border border-border grid grid-cols-4 divide-x divide-border">
@@ -39,14 +40,14 @@ export function StatsRow({ stats }) {
 }
 
 export default function StatsDashboard({ stats, weekly = [], chartsOnly = false }) {
-  const chartData = weekly;
+  const chartData = weekly.map((w) => ({ ...w, avgSpeed: spd(w.avgSpeed) }));
   return (
     <div className="space-y-4">
       {!chartsOnly && <div className="grid grid-cols-2 gap-3">
-        <StatCard icon={Milestone} label="Lifetime Miles" value={stats.lifetimeMiles.toLocaleString()} unit="mi" color="#00BFFF" />
+        <StatCard icon={Milestone} label={distUnit() === 'km' ? 'Lifetime km' : 'Lifetime Miles'} value={fmtBig(stats.lifetimeMiles).split(' ')[0]} unit={distUnit()} color="#00BFFF" />
         <StatCard icon={Car} label="Total Drives" value={stats.totalDrives} color="#39FF14" />
-        <StatCard icon={Gauge} label="Average Speed" value={stats.avgSpeed} unit="mph" color="#FF6B35" />
-        <StatCard icon={Trophy} label="Best Top Speed" value={stats.bestTopSpeed} unit="mph" color="#FF4757" />
+        <StatCard icon={Gauge} label="Average Speed" value={spd(stats.avgSpeed)} unit={speedUnit()} color="#FF6B35" />
+        <StatCard icon={Trophy} label="Best Top Speed" value={spd(stats.bestTopSpeed)} unit={speedUnit()} color="#FF4757" />
       </div>}
 
       <div className="bg-card rounded-2xl p-4 border border-border">
@@ -71,7 +72,7 @@ export default function StatsDashboard({ stats, weekly = [], chartsOnly = false 
       <div className="bg-card rounded-2xl p-4 border border-border">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-semibold text-foreground">Speed Trend</span>
-          <span className="text-[10px] text-muted-foreground">Avg mph per week</span>
+          <span className="text-[10px] text-muted-foreground">Avg {speedUnit()} per week</span>
         </div>
         <ResponsiveContainer width="100%" height={120}>
           <LineChart data={chartData} margin={{ top: 5, right: 5, bottom: 0, left: -20 }}>

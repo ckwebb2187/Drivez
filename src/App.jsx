@@ -39,6 +39,7 @@ export default function App() {
                   <Route path="/profile" element={<Page.Profile />} />
                   <Route path="/feed" element={<Page.FeedPage />} />
                   <Route path="/meets" element={<Page.MeetsPage />} />
+                  <Route path="/family" element={<Page.FamilyPage />} />
                   <Route path="/convoy/:code" element={<Page.ConvoyPage />} />
                   {/* Full-screen pages: also inside Layout so a drive in progress keeps running. */}
                   <Route path="/trip/:id" element={<Page.TripDetailPage />} />

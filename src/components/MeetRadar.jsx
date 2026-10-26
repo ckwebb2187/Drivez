@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Radar, X, Navigation } from 'lucide-react';
 import { distM, formatNavDistance } from '@/lib/nav';
+import { spd, dst, speedUnit, distUnit } from '@/lib/units';
 
 const MAX_MI = 50; // edge of the radar
 const RINGS = [1, 5, 20];
@@ -30,7 +31,7 @@ export default function MeetRadar({ here, heading = null, meets = [], friends = 
     const out = [];
     for (const m of meets) out.push({ id: `m${m.id}`, kind: 'meet', label: m.title, sub: `${when(m.starts)} · ${m.place || 'meet'}`, lat: m.lat, lng: m.lng, soon: new Date(m.starts) - Date.now() < 3 * 3600000, raw: m });
     const group = new Set((convoy?.members || []).map((m) => m.id));
-    for (const f of friends) out.push({ id: `f${f.userId}`, kind: group.has(f.userId) ? 'group' : 'friend', label: f.name, sub: `${f.speed || 0} mph`, lat: f.lat, lng: f.lng, raw: f, color: f.color });
+    for (const f of friends) out.push({ id: `f${f.userId}`, kind: group.has(f.userId) ? 'group' : 'friend', label: f.name, sub: `${spd(f.speed || 0)} ${speedUnit()}`, lat: f.lat, lng: f.lng, raw: f, color: f.color });
     return out.map((b) => ({ ...b, mi: distM(here, [b.lat, b.lng]) / 1609.34, brg: bearing(here, [b.lat, b.lng]) })).sort((a, b) => a.mi - b.mi);
   }, [here, meets, friends, convoy]);
   const near = blips.filter((b) => b.mi <= MAX_MI);
@@ -50,7 +51,7 @@ export default function MeetRadar({ here, heading = null, meets = [], friends = 
         <div className="fixed inset-0 z-[1550] bg-black/60 flex items-end justify-center" onClick={() => setOpen(false)}>
           <div className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-card rounded-t-3xl border-t border-border pb-[max(16px,env(safe-area-inset-bottom))] dz-pop-in" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 pt-4">
-              <div><div className="text-base font-black text-foreground">Meet radar</div><div className="text-[11px] text-muted-foreground">Meets, friends driving and your group within {MAX_MI} mi{heading != null ? ' · your direction is up' : ' · north is up'}</div></div>
+              <div><div className="text-base font-black text-foreground">Meet radar</div><div className="text-[11px] text-muted-foreground">Meets, friends driving and your group within {dst(MAX_MI, 0)} {distUnit()}{heading != null ? ' · your direction is up' : ' · north is up'}</div></div>
               <button onClick={() => setOpen(false)} className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center" aria-label="Close"><X className="w-4 h-4" /></button>
             </div>
 
@@ -61,7 +62,7 @@ export default function MeetRadar({ here, heading = null, meets = [], friends = 
                   {RINGS.map((mi) => (
                     <g key={mi}>
                       <circle r={radius(mi, R)} fill="none" stroke="hsl(var(--primary) / 0.25)" strokeDasharray="3 4" />
-                      <text x="3" y={-radius(mi, R) - 3} fontSize="9" fill="hsl(var(--muted-foreground))">{mi} mi</text>
+                      <text x="3" y={-radius(mi, R) - 3} fontSize="9" fill="hsl(var(--muted-foreground))">{dst(mi, 0)} {distUnit()}</text>
                     </g>
                   ))}
                   <line x1={-R} x2={R} y1="0" y2="0" stroke="hsl(var(--primary) / 0.15)" />

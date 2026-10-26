@@ -1,6 +1,7 @@
 // Drivez API: accounts, sign-in (email, Google, Discord, Facebook), data, friends,
 // live locations, leaderboard and Discord sharing. Runs on Cloudflare Workers + D1.
 import { SCHEMA, MIGRATIONS } from "./schema.js";
+import { FAMILY_SCHEMA, handleFamily, kidRules, familyBrief } from "./family.js";
 import { FILES } from "./static/index.js";
 
 const ENTITIES = new Set(["Vehicle", "Trip", "Route", "Place"]);
@@ -578,6 +579,8 @@ async function handleApi(req, env, ctx, url) {
   if (pu && method === "GET") {
     const u = await db.prepare("SELECT * FROM users WHERE username = ?").bind(pu[1]).first();
     if (!u) throw new HttpError(404, "No driver with that name.");
+    const kidU = await kidRules(db, u.id);
+    if (kidU && !kidU.social) throw new HttpError(404, "No driver with that name.");
     // ?as=public shows the page the way a stranger sees it.
     const viewer = url.searchParams.get("as") === "public" ? null : await currentUser(req, db).catch(() => null);
     const isMe = viewer?.id === u.id;
@@ -631,8 +634,22 @@ async function handleApi(req, env, ctx, url) {
   const me = await currentUser(req, db);
   if (!me) throw new HttpError(401, "Please log in.");
 
+  // Family: shared locations, places, check-ins, parent controls.
+  const fam = await handleFamily({ path, method, body, me, db, url, json });
+  if (fam) return fam;
+  // Teen / kid accounts: what a parent turned off stays off (enforced here, not just hidden in the app).
+  const kid = await kidRules(db, me.id);
+  if (kid) {
+    const block = (on, what) => { if (!on) throw new HttpError(403, `${what} turned off by your parent.`); };
+    if ((path === "/meets" && method === "POST") || /^\/meets\/[a-f0-9]{24}\/rsvp$/.test(path)) block(kid.meets, "Car meets are");
+    if (/^\/feed\/.+\/like$/.test(path) || (/^\/convoys\/[a-f0-9]{8}\/messages$/.test(path) && method === "POST")) block(kid.social, "Chat and social features are");
+    if (path === "/feed" && method === "GET" && !kid.social) return json({ items: [] });
+    if (path === "/friends/request" || (path === "/friends/respond" && body.accept) || (path === "/convoys" && method === "POST") || /^\/convoys\/[a-f0-9]{8}\/(join|invite)$/.test(path)) block(kid.convoys, "Group drives and friend requests are");
+    if (path === "/auth/me" && method === "PATCH" && body.ghost_mode === false) block(kid.mapVisible, "Being visible on the map is");
+  }
+
   if (path === "/auth/me") {
-    if (method === "GET") return json(publicUser(me));
+    if (method === "GET") return json({ ...publicUser(me), family: await familyBrief(db, me.id) });
     if (method === "PATCH") {
       const sets = [], vals = [];
       const map = { display_name: 60, bio: 300, location: 80 };
@@ -653,7 +670,7 @@ async function handleApi(req, env, ctx, url) {
       if (body.app_mode != null) { sets.push("app_mode = ?"); vals.push(body.app_mode === "nav" ? "nav" : "scene"); }
       if (body.profile != null) { sets.push("profile = ?"); vals.push(JSON.stringify(cleanProfile(body.profile))); }
       if (sets.length) await db.prepare(`UPDATE users SET ${sets.join(", ")} WHERE id = ?`).bind(...vals, me.id).run();
-      return json(publicUser(await db.prepare("SELECT * FROM users WHERE id = ?").bind(me.id).first()));
+      return json({ ...publicUser(await db.prepare("SELECT * FROM users WHERE id = ?").bind(me.id).first()), family: await familyBrief(db, me.id) });
     }
   }
 
@@ -732,6 +749,7 @@ async function handleApi(req, env, ctx, url) {
       c.car ? `Car: ${String(c.car).slice(0, 60)}.` : "",
       c.mode && c.mode !== "cruise" ? `Drive mode: ${c.mode}.` : "",
       c.trip ? `This drive so far: ${String(c.trip).slice(0, 120)}.` : "",
+      c.units ? `The driver uses ${String(c.units).slice(0, 30)}; give speeds and distances in those units (speed above is in mph).` : "",
     ].filter(Boolean).join("\n");
     const history = (Array.isArray(body.history) ? body.history : []).slice(-6).map((h) => ({ role: h.role === "model" ? "model" : "user", parts: [{ text: String(h.text || "").slice(0, 600) }] }));
     const parts = [{ text: `[Situation]\n${ctxLines}\n\n[Driver]` }];
@@ -768,6 +786,7 @@ async function handleApi(req, env, ctx, url) {
       miles: +t.miles || 0, minutes: Math.round(+t.minutes || 0), topMph: Math.round(+t.topMph || 0), avgMph: Math.round(+t.avgMph || 0),
       smoothness: t.smoothness ?? null, hardBrakes: t.hardBrakes ?? null, maxG: t.maxG ?? null, zeroToSixty: t.zeroToSixty ?? null,
       mode: t.mode || null, corners: t.corners ?? null, convoy: !!t.convoy, car: String(t.car || "").slice(0, 60),
+      units: String(t.units || "miles and mph").slice(0, 80),
     };
     const out = await gemini(env, {
       systemInstruction: { parts: [{ text: "You are Kaido, a co-driver narrator for a car-enthusiast driving app. Write a short spoken recap of the drive: 3 to 4 sentences, vivid but grounded only in the facts given, no invented places or events, no markdown or emojis, about 20 seconds to read aloud. Celebrate smooth driving; never praise speeding." }] },
@@ -1524,7 +1543,7 @@ function serveStatic(url) {
 let schemaReady = false;
 async function ensureSchema(db) {
   if (schemaReady) return;
-  await db.batch(SCHEMA.map((s) => db.prepare(s)));
+  await db.batch([...SCHEMA, ...FAMILY_SCHEMA].map((s) => db.prepare(s)));
   for (const m of MIGRATIONS) { try { await db.prepare(m).run(); } catch { /* already applied */ } }
   schemaReady = true;
 }

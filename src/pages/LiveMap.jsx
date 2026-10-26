@@ -8,6 +8,7 @@ import { BaseLayer } from '@/components/DarkMap';
 import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
 import { formatTimeAgo } from '@/lib/helpers';
+import { spd, speedUnit } from '@/lib/units';
 
 const FALLBACK_CENTER = [39.8283, -98.5795];
 
@@ -58,10 +59,10 @@ export default function LiveMap() {
           <FollowMe pos={pos} follow={follow} onUserMove={() => setFollow(false)} />
           {fitPoints && <FitBounds points={fitPoints} padding={[60, 120]} paddingBottom={260} />}
           {drivers.map((d) => d.car ? (
-            <CarMarker key={d.userId} pos={[d.lat, d.lng]} car={d.car} heading={d.heading} label={`${d.name} · ${d.speed} mph`} />
+            <CarMarker key={d.userId} pos={[d.lat, d.lng]} car={d.car} heading={d.heading} label={`${d.name} · ${spd(d.speed)} ${speedUnit()}`} />
           ) : (
             <CircleMarker key={d.userId} center={[d.lat, d.lng]} radius={9} pathOptions={{ color: '#fff', weight: 2, fillColor: d.color || '#39FF14', fillOpacity: 1 }}>
-              <Tooltip permanent direction="top" offset={[0, -10]}>{d.name} · {d.speed} mph</Tooltip>
+              <Tooltip permanent direction="top" offset={[0, -10]}>{d.name} · {spd(d.speed)} {speedUnit()}</Tooltip>
             </CircleMarker>
           ))}
           <LocationMarker pos={pos} heading={heading} car={myCar} />
@@ -100,7 +101,7 @@ export default function LiveMap() {
               {drivers.map((d) => (
                 <div key={d.userId} className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-accent animate-pulse" />{d.name}</span>
-                  <span className="text-muted-foreground text-xs"><b className="text-foreground speed-font">{d.speed}</b> mph · {formatTimeAgo(d.updated)}</span>
+                  <span className="text-muted-foreground text-xs"><b className="text-foreground speed-font">{spd(d.speed)}</b> {speedUnit()} · {formatTimeAgo(d.updated)}</span>
                 </div>
               ))}
             </div>

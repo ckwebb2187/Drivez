@@ -255,7 +255,7 @@ function headBeams(front, tint = '255,246,214') {
   const c = document.createElement('canvas'); c.width = 128; c.height = 256;
   const g = c.getContext('2d');
   const grd = g.createLinearGradient(0, 256, 0, 0);
-  grd.addColorStop(0, `rgba(${tint},0.85)`); grd.addColorStop(0.5, `rgba(${tint},0.25)`); grd.addColorStop(1, `rgba(${tint},0)`);
+  grd.addColorStop(0, `rgba(${tint},0.7)`); grd.addColorStop(0.5, `rgba(${tint},0.2)`); grd.addColorStop(1, `rgba(${tint},0)`);
   g.fillStyle = grd;
   g.beginPath(); g.moveTo(56, 256); g.lineTo(72, 256); g.lineTo(128, 0); g.lineTo(0, 0); g.closePath(); g.fill();
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
@@ -591,7 +591,7 @@ export async function buildModelCar({ url, paint = null, glow = null, picture = 
 // ---------- Bloom (post-processing glow) for the garage scenes ----------
 // Bright things (underglow, neon, lights, screens) bleed light like a camera lens.
 // Returns { render(), setSize(w, h) } — falls back to a plain render if anything fails.
-export async function makeBloom(renderer, scene, camera, w, h, { strength = 0.85, radius = 0.45, threshold = 0.55 } = {}) {
+export async function makeBloom(renderer, scene, camera, w, h, { strength = 0.55, radius = 0.4, threshold = 0.65 } = {}) {
   try {
     const [{ EffectComposer }, { RenderPass }, { UnrealBloomPass }, { OutputPass }] = await Promise.all([
       import('three/examples/jsm/postprocessing/EffectComposer.js'),

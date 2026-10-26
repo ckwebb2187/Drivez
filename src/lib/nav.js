@@ -1,5 +1,6 @@
 // Search, directions and turn-by-turn helpers.
 // Place search: Photon (komoot, free). Directions: OSRM public server (free).
+import { isMetric } from '@/lib/units';
 
 const toRad = (d) => (d * Math.PI) / 180;
 
@@ -29,12 +30,21 @@ export function distToLineM(p, line) {
 }
 
 export function formatNavDistance(m) {
+  if (isMetric()) {
+    if (m < 950) return `${Math.max(50, Math.round(m / 50) * 50)} m`;
+    const km = m / 1000;
+    return `${km < 10 ? km.toFixed(1) : Math.round(km)} km`;
+  }
   const mi = m / 1609.34;
   if (mi < 0.1) return `${Math.max(50, Math.round((m * 3.281) / 50) * 50)} ft`;
   return `${mi < 10 ? mi.toFixed(1) : Math.round(mi)} mi`;
 }
 
 export function spokenDistance(m) {
+  if (isMetric()) {
+    if (m < 950) return `${Math.max(50, Math.round(m / 50) * 50)} meters`;
+    return `${(m / 1000).toFixed(1)} kilometers`;
+  }
   const mi = m / 1609.34;
   if (mi < 0.1) return `${Math.max(50, Math.round((m * 3.281) / 50) * 50)} feet`;
   if (mi < 0.3) return 'a quarter mile';
@@ -119,9 +129,14 @@ function parseRoute(r, stops, destName) {
       bearing: s.maneuver.bearing_after,
       exit: s.maneuver.exit,
       name: s.name || s.ref || '',
+      toward: s.destinations || s.exits || '',
       distance: s.distance,
       duration: s.duration,
       leg: legIdx,
+      // Turn lanes at this maneuver (when OpenStreetMap has them): [{ ind: ['left','straight'], ok: true }]
+      lanes: (s.intersections?.[0]?.lanes || []).map((l) => ({ ind: l.indications || [], ok: !!l.valid })),
+      hwy: (s.intersections || []).some((x) => (x.classes || []).includes('motorway')) || /\b(I|IH)[- ]?\d+\b|Interstate|Expressway|Expy|Freeway|Fwy|Turnpike|Tollway|Motorway|Autobahn|Autoroute|Autopista/i.test(`${s.name || ''} ${s.ref || ''}`),
+      geom: s.geometry?.coordinates,
     };
     step.text = stepText(step);
     if (step.type === 'arrive') {
@@ -136,7 +151,11 @@ function parseRoute(r, stops, destName) {
   const byName = {};
   for (const st of steps) if (st.name) byName[st.name] = (byName[st.name] || 0) + st.distance;
   const via = Object.entries(byName).sort((x, y) => y[1] - x[1])[0]?.[0] || '';
+  // Highway stretches (for the lane reflectors drawn on the map).
+  const highway = steps.filter((st) => st.hwy && st.geom?.length > 1 && st.distance > 150).map((st) => st.geom);
+  for (const st of steps) { delete st.geom; delete st.hwy; }
   return {
+    highway,
     coords,
     distanceM: r.distance,
     distance: Math.round((r.distance / 1609.34) * 10) / 10,

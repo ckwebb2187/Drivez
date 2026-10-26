@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useApp } from '@/lib/AppContext';
 import TripCard from '@/components/TripCard';
 import { Car, Loader2 } from 'lucide-react';
+import { fmtBig } from '@/lib/units';
 
 function groupByDate(trips) {
   const groups = {};
@@ -28,7 +29,7 @@ export default function History() {
   const sorted = [...trips].sort((a, b) => String(b.start_time).localeCompare(String(a.start_time))); // newest drive first
   const filtered = filter === 'all' ? sorted : sorted.filter(t => t.vehicleId === filter);
   const grouped = groupByDate(filtered.slice(0, shown));
-  const totalMiles = Math.round(trips.reduce((s, t) => s + (t.distance || 0), 0)).toLocaleString();
+  const totalMiles = trips.reduce((s, t) => s + (t.distance || 0), 0);
 
   if (loading) {
     return (
@@ -42,7 +43,7 @@ export default function History() {
     <div className="min-h-full">
       <div className="px-5 pt-12 pb-3">
         <h1 className="text-2xl font-bold text-foreground">History</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">{trips.length} drives • {totalMiles} total miles</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{trips.length} drives • {fmtBig(totalMiles)} total</p>
       </div>
 
       {/* Vehicle filter */}

@@ -26,6 +26,8 @@ import MeetRadar from '@/components/MeetRadar';
 import AskGemini from '@/components/AskGemini';
 import { say, getVoiceSettings, recapText, tripFacts } from '@/lib/voice';
 import { searchPlaces, getRoute } from '@/lib/nav';
+import { useTeenAlerts, useAllowed } from '@/lib/family';
+import { useUnits, spd, dst, speedUnit, distUnit, distWord, isMetric } from '@/lib/units';
 
 const MAX_POINTS = 400;
 
@@ -45,6 +47,7 @@ export default function LiveDrive({ active = true }) {
   const navigate = useNavigate();
   const { activeVehicle, vehicles, myCar, savedRoutes, addTrip, scene, btCar } = useApp();
   const drive = useGpsDrive(myCar);
+  useUnits();
   const location = useLocation();
   // This screen stays alive in the background while you visit other tabs, so the
   // route only changes when you tap Go, End route, or open a saved plan.
@@ -63,6 +66,11 @@ export default function LiveDrive({ active = true }) {
   }, [location.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const [voiceOn, setVoiceOn] = useState(() => { try { return localStorage.getItem('dz_voice') !== '0'; } catch { return true; } });
   const nav = useNavigation(navPlan, drive.currentPosition, voiceOn && drive.status === 'driving');
+  // Next turn: big street-name callout on the map, and turn lanes when the road data has them.
+  const turnAhead = nav.active && !nav.arrived && !nav.rerouting && nav.step && !['depart', 'arrive'].includes(nav.step.type) && nav.distToStep < 1600;
+  const calloutText = turnAhead ? (nav.step.name || (nav.step.toward ? String(nav.step.toward).split(/[,:]/).pop().trim() : '')) : '';
+  const mapCallout = calloutText ? { lat: nav.step.lat, lng: nav.step.lng, text: calloutText, arrow: turnArrow(nav.step) } : null;
+  const lanesAhead = turnAhead && nav.distToStep < 1200 && nav.step.lanes?.length > 1 && nav.step.lanes.some((l) => l.ok) && nav.step.lanes.some((l) => !l.ok) ? nav.step.lanes : null;
   const toggleVoice = () => { const v = !voiceOn; setVoiceOn(v); try { localStorage.setItem('dz_voice', v ? '1' : '0'); } catch { /* ignore */ } if (!v) window.speechSynthesis?.cancel(); };
 
   // Where you are before a drive starts (the map is the home screen now).
@@ -121,11 +129,11 @@ export default function LiveDrive({ active = true }) {
   useEffect(() => { if (drive.status !== 'driving') spoken.current = { miles: 0, corners: 0 }; }, [drive.status]);
   useEffect(() => {
     if (drive.status !== 'driving' || !voiceOn || !getVoiceSettings().narrate) return;
-    const m = Math.floor((drive.distance || 0) / 5) * 5;
+    const m = Math.floor(Number(dst(drive.distance || 0, 2)) / 5) * 5;
     if (m > spoken.current.miles) {
       spoken.current.miles = m;
-      const left = nav.active && !nav.arrived && nav.remainingM ? ` ${formatNavDistance(nav.remainingM).replace('mi', 'miles')} to go.` : '';
-      say(`${m} miles in.${left}`);
+      const left = nav.active && !nav.arrived && nav.remainingM ? ` ${formatNavDistance(nav.remainingM).replace(/ mi$/, ' miles').replace(/ km$/, ' kilometers')} to go.` : '';
+      say(`${m} ${distWord()} in.${left}`);
     }
   }, [drive.distance]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -137,7 +145,8 @@ export default function LiveDrive({ active = true }) {
     dest: navPlan?.dest?.name || '', etaMin: nav.active && remainingS ? remainingS / 60 : null,
     car: activeVehicle ? `${activeVehicle.year || ''} ${activeVehicle.make} ${activeVehicle.model}`.trim() : '',
     mode: driveMode,
-    trip: drive.status === 'driving' ? `${drive.distance} mi, ${Math.round(drive.elapsedTime / 60)} min` : '',
+    trip: drive.status === 'driving' ? `${dst(drive.distance)} ${distUnit()}, ${Math.round(drive.elapsedTime / 60)} min` : '',
+    units: isMetric() ? 'km and km/h' : 'miles and mph',
   });
   const onAskAction = async ({ name, args }) => {
     const here = drive.currentPosition || herePos;
@@ -180,11 +189,15 @@ export default function LiveDrive({ active = true }) {
     setRouteId(null);
     setNavPlan({ dest, stops: [], route: main });
   };
-  const radar = scene ? (
+  // Teen / kid accounts: parents get speeding, hard-braking and phone-use alerts; features they turned off are hidden.
+  useTeenAlerts({ driving: drive.status === 'driving', speed: drive.currentSpeed, limit: speedLimit?.mph || null, hardBrakes: drive.stats?.hardBrakes, pos: drive.currentPosition });
+  const canGroup = useAllowed('convoys');
+  const canMeets = useAllowed('meets');
+  const radar = scene && canMeets ? (
     <MeetRadar here={drive.currentPosition || herePos} heading={drive.status === 'driving' ? drive.heading : null}
       meets={meets} friends={mapFriends} convoy={convoy} onDrive={radarGo} onDriver={setOpenDriver} />
   ) : null;
-  const hub = (
+  const hub = canGroup && (
     <FriendsHub live={friends} convoy={convoy} openConvoys={openConvoys} here={drive.currentPosition || herePos}
       dest={navPlan?.dest || null} onJoin={onJoinConvoy} onLeave={leaveConvoy} onDriver={setOpenDriver} />
   );
@@ -390,7 +403,7 @@ export default function LiveDrive({ active = true }) {
       : '';
     drive.reset();
     navigate('/', { replace: true, state: null });
-    setToast({ text: `Saving drive · ${trip.distance} mi…` });
+    setToast({ text: `Saving drive · ${dst(trip.distance)} ${distUnit()}…` });
     (async () => {
       const first = route[0], last = route[route.length - 1];
       try {
@@ -399,7 +412,7 @@ export default function LiveDrive({ active = true }) {
       } catch { trip.start_location = 'Start'; trip.end_location = ''; }
       try {
         const rec = await addTrip(trip);
-        setToast({ text: `Drive saved · ${trip.distance} mi${odoNote}`, id: rec.id });
+        setToast({ text: `Drive saved · ${dst(trip.distance)} ${distUnit()}${odoNote}`, id: rec.id });
         // Co-driver recap, spoken.
         const vs = getVoiceSettings();
         if (vs.narrate && voiceOn) {
@@ -456,7 +469,9 @@ export default function LiveDrive({ active = true }) {
             turn: nav.active && !nav.arrived && nav.distToStep < 160 && /left|right/.test(nav.step?.modifier || '') && nav.step?.type !== 'depart' ? (/left/.test(nav.step.modifier) ? 'left' : 'right') : null,
             alert: !!reportAlert,
           }}
-          pins={meetPins}
+          pins={canMeets ? meetPins : []}
+          callout={mapCallout}
+          highway={nav.active ? nav.route.highway : null}
           onPinTap={() => navigate('/meets')}
           onFriendTap={setOpenDriver}
           guide={guideRoute ? guideRoute.route : null}
@@ -573,6 +588,11 @@ export default function LiveDrive({ active = true }) {
                       </button>
                       <button onClick={() => setMin(true)} className="w-10 h-10 rounded-full bg-black/20 flex items-center justify-center shrink-0" aria-label="Fold directions"><ChevronUp className="w-5 h-5" /></button>
                     </div>
+                    {lanesAhead && (
+                      <div className="flex justify-center gap-1 px-3 py-1.5 bg-black/25" aria-label="Lanes">
+                        {lanesAhead.map((l, i) => <LaneArrow key={i} lane={l} color={fg} />)}
+                      </div>
+                    )}
                     {!nav.arrived && nav.nextStep && nav.step.type !== 'arrive' && (
                       <button onClick={() => setStepsOpen(true)} className="w-full flex items-center gap-2 px-4 py-2 bg-black/20 text-xs font-medium opacity-90 text-left" style={{ color: fg }}>
                         Then <TurnIcon step={nav.nextStep} className="w-4 h-4" /><span className="truncate">{nav.nextStep.text}</span><span className="ml-auto opacity-80 shrink-0">All turns ›</span>
@@ -635,7 +655,7 @@ export default function LiveDrive({ active = true }) {
               const top = nav.active ? (turnsMin ? (reportAlert ? 'top-[152px]' : 'top-[80px]') : (reportAlert ? 'top-[222px]' : 'top-[150px]')) : reportAlert ? 'top-[84px]' : 'top-[max(12px,env(safe-area-inset-top))]';
               const cells = toge
                 ? [[cornerCount, 'corners'], [drive.stats.maxG ? drive.stats.maxG.toFixed(2) : '–', 'max G'], [formatDuration(drive.elapsedTime), 'run']]
-                : [[Math.round(drive.maxSpeed || 0), 'top mph'], [drive.stats.best060 ? `${drive.stats.best060.toFixed(1)}s` : '–', '0-60'], [drive.distance, 'mi']];
+                : [[spd(drive.maxSpeed || 0), `top ${speedUnit()}`], [drive.stats.best060 ? `${drive.stats.best060.toFixed(1)}s` : '–', '0-60'], [dst(drive.distance), distUnit()]];
               return (
                 <div className={`absolute left-3 ${top} pointer-events-none`}>
                   <div className="rounded-2xl shadow-2xl px-3 py-2 border" style={{ background: st.bg, borderColor: st.glow || st.ring, boxShadow: st.glow ? `0 0 14px ${st.glow}66` : undefined }}>
@@ -669,14 +689,23 @@ export default function LiveDrive({ active = true }) {
                       <circle cx="38" cy="38" r={R} fill="none" stroke={over ? '#fff' : st.glow || st.sub} strokeWidth="5" strokeLinecap="round"
                         strokeDasharray={`${C * 0.75 * frac} ${C}`} transform="rotate(135 38 38)" style={{ transition: 'stroke-dasharray .4s' }} />
                     </svg>
-                    <span className="relative text-[26px] leading-none font-bold speed-font" style={{ color: over ? '#fff' : st.text }}>{mph}</span>
-                    <span className="relative text-[10px] font-bold" style={{ color: over ? '#fff' : st.sub }}>mph</span>
+                    <span className="relative text-[26px] leading-none font-bold speed-font" style={{ color: over ? '#fff' : st.text }}>{spd(mph)}</span>
+                    <span className="relative text-[10px] font-bold" style={{ color: over ? '#fff' : st.sub }}>{speedUnit()}</span>
                   </div>
                   {speedLimit?.mph && (
                     (() => {
                       // Classic white sign on the standard map; themed colors everywhere else. Red edge when you're over.
                       const plain = look.theme === 'standard';
                       const edge = over ? '#ff3b30' : plain ? '#000' : (st.glow || st.ring);
+                      if (isMetric()) {
+                        // Round sign with a red ring, like metric countries use.
+                        return (
+                          <div className="w-[40px] h-[40px] rounded-full flex items-center justify-center"
+                            style={{ background: plain ? '#fff' : st.bg, border: `4px solid ${over ? '#ff3b30' : plain ? '#d93025' : (st.glow || '#d93025')}`, boxShadow: !plain && (st.glow || over) ? `0 0 10px ${edge}99, 0 6px 14px rgba(0,0,0,.35)` : '0 6px 14px rgba(0,0,0,.35)' }}>
+                            <span className="text-[14px] leading-none font-black speed-font" style={{ color: plain ? '#000' : st.text }}>{Math.round(spd(speedLimit.mph) / 5) * 5}</span>
+                          </div>
+                        );
+                      }
                       return (
                         <div className="w-[38px] rounded-md border-2 flex flex-col items-center py-0.5"
                           style={{ background: plain ? '#fff' : st.bg, borderColor: edge, boxShadow: !plain && (st.glow || over) ? `0 0 10px ${edge}99, 0 6px 14px rgba(0,0,0,.35)` : '0 6px 14px rgba(0,0,0,.35)' }}>
@@ -760,7 +789,7 @@ export default function LiveDrive({ active = true }) {
                     <div className="flex-1 min-w-0 flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
                       <span className="text-sm font-semibold text-foreground">{drive.gpsWaiting ? 'Waiting for GPS…' : nav.arrived ? 'Arrived' : 'Recording'}</span>
-                      <span className="text-sm text-muted-foreground speed-font">· {drive.distance} mi · {formatDuration(drive.elapsedTime)}</span>
+                      <span className="text-sm text-muted-foreground speed-font">· {dst(drive.distance)} {distUnit()} · {formatDuration(drive.elapsedTime)}</span>
                     </div>
                   )}
                   <ChevronUp className={`w-5 h-5 text-muted-foreground transition-transform ${barOpen ? '' : 'rotate-180'}`} />
@@ -814,7 +843,7 @@ export default function LiveDrive({ active = true }) {
       {resumable && drive.status === 'idle' && active && (
         <div className="absolute left-3 right-3 top-[calc(max(12px,env(safe-area-inset-top))+108px)] z-[700] pointer-events-auto dz-pop-in">
           <div className="mx-auto max-w-md rounded-2xl bg-card border border-primary shadow-2xl p-3">
-            <div className="text-sm font-bold text-foreground">Unfinished drive · {Math.round((resumable.snap.distance || 0) * 10) / 10} mi</div>
+            <div className="text-sm font-bold text-foreground">Unfinished drive · {dst(resumable.snap.distance || 0)} {distUnit()}</div>
             <div className="text-[11px] text-muted-foreground">Started {new Date(resumable.snap.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}{resumable.nav ? ` · to ${resumable.nav.dest?.name}` : ''}</div>
             <div className="flex gap-2 mt-2">
               <button onClick={() => { const r = resumable; setResumable(null); drive.start(r.snap); if (r.nav) setNavPlan(r.nav); }} className="flex-1 h-10 rounded-xl dz-go text-sm font-bold">Resume drive</button>
@@ -836,6 +865,38 @@ export default function LiveDrive({ active = true }) {
         </div>
       )}
     </div>
+  );
+}
+
+// Arrow for the map callout.
+function turnArrow(step) {
+  const m = step.modifier || '';
+  if (step.type === 'roundabout' || step.type === 'rotary') return '⟳';
+  if (/uturn/.test(m)) return '↶';
+  if (/sharp left|^left/.test(m)) return '←';
+  if (/slight left/.test(m)) return '↖';
+  if (/sharp right|^right/.test(m)) return '→';
+  if (/slight right/.test(m)) return '↗';
+  return '↑';
+}
+
+// One lane: arrows for each way the lane goes; lit when it's a lane you can use.
+const LANE_ANGLE = { 'sharp left': -135, left: -90, 'slight left': -45, straight: 0, 'slight right': 45, right: 90, 'sharp right': 135, uturn: -180 };
+function LaneArrow({ lane, color }) {
+  const ways = lane.ind.length && !lane.ind.includes('none') ? lane.ind : ['straight'];
+  return (
+    <svg viewBox="0 0 32 40" className="w-7 h-9" style={{ opacity: lane.ok ? 1 : 0.32 }} aria-label={`${ways.join(' or ')}${lane.ok ? ' (use this lane)' : ''}`}>
+      {ways.map((w) => {
+        const a = ((LANE_ANGLE[w] ?? 0) * Math.PI) / 180;
+        if (w === 'uturn') return <path key={w} d="M20 37 V18 a6 6 0 0 0 -12 0 V25 M4 21 l4 6 4 -6" fill="none" stroke={color} strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />;
+        // Shaft up from the bottom, then bend toward the lane's direction, with an arrowhead.
+        const ex = 16 + 13 * Math.sin(a), ey = 21 - 13 * Math.cos(a);
+        const h = (d) => [ex - 6 * Math.sin(a + d), ey + 6 * Math.cos(a + d)];
+        const [l1, l2] = [h(0.6), h(-0.6)];
+        return <path key={w} d={`M16 37 V21 L${ex} ${ey} M${l1[0]} ${l1[1]} L${ex} ${ey} L${l2[0]} ${l2[1]}`} fill="none" stroke={color} strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />;
+      })}
+      {lane.ok && <rect x="6" y="38.2" width="20" height="1.8" rx="0.9" fill={color} />}
+    </svg>
   );
 }
 

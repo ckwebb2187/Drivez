@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { spd, speedUnit } from '@/lib/units';
 
 export default function SpeedHUD({ speed, maxSpeed = 0 }) {
   const displaySpeed = Math.round(speed);
@@ -15,12 +16,12 @@ export default function SpeedHUD({ speed, maxSpeed = 0 }) {
         >
           {displaySpeed}
         </motion.span>
-        <span className="speed-font text-lg font-medium text-muted-foreground mb-2">mph</span>
+        <span className="speed-font text-lg font-medium text-muted-foreground mb-2">{speedUnit()}</span>
       </div>
       {maxSpeed > 0 && (
         <div className="flex items-center gap-1.5 mt-1">
           <div className="w-1 h-1 rounded-full bg-accent" />
-          <span className="text-xs text-muted-foreground">Peak {Math.round(maxSpeed)} mph</span>
+          <span className="text-xs text-muted-foreground">Peak {spd(maxSpeed)} {speedUnit()}</span>
         </div>
       )}
     </div>

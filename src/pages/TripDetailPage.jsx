@@ -9,6 +9,7 @@ import NarrateButton from '@/components/NarrateButton';
 import { useApp, mapTrip } from '@/lib/AppContext';
 import { base44 } from '@/api/base44Client';
 import { formatDuration, formatTimeAgo } from '@/lib/helpers';
+import { spd, dst, speedUnit, distUnit } from '@/lib/units';
 
 export default function TripDetailPage() {
   const { id } = useParams();
@@ -72,7 +73,7 @@ export default function TripDetailPage() {
   const visibleRoute = trip.route.slice(0, visibleCount);
   const currentPoint = trip.route[visibleCount - 1];
   const vehicle = vehicles.find(v => v.id === trip.vehicleId);
-  const speedData = trip.speeds.map((s, i) => ({ time: i, speed: s }));
+  const speedData = trip.speeds.map((s, i) => ({ time: i, speed: spd(s) }));
 
   const toggleReplay = () => {
     if (replayProgress >= 1) setReplayProgress(0);
@@ -142,8 +143,8 @@ export default function TripDetailPage() {
                 <span className="text-[10px] text-muted-foreground">Top Speed</span>
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold speed-font text-primary">{trip.topSpeed}</span>
-                <span className="text-[10px] text-muted-foreground">mph</span>
+                <span className="text-xl font-bold speed-font text-primary">{spd(trip.topSpeed)}</span>
+                <span className="text-[10px] text-muted-foreground">{speedUnit()}</span>
               </div>
             </div>
             <div className="bg-secondary/50 rounded-xl p-3">
@@ -152,8 +153,8 @@ export default function TripDetailPage() {
                 <span className="text-[10px] text-muted-foreground">Avg Speed</span>
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold speed-font text-accent">{trip.avgSpeed}</span>
-                <span className="text-[10px] text-muted-foreground">mph</span>
+                <span className="text-xl font-bold speed-font text-accent">{spd(trip.avgSpeed)}</span>
+                <span className="text-[10px] text-muted-foreground">{speedUnit()}</span>
               </div>
             </div>
             <div className="bg-secondary/50 rounded-xl p-3">
@@ -162,8 +163,8 @@ export default function TripDetailPage() {
                 <span className="text-[10px] text-muted-foreground">Distance</span>
               </div>
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold speed-font text-foreground">{trip.distance}</span>
-                <span className="text-[10px] text-muted-foreground">mi</span>
+                <span className="text-xl font-bold speed-font text-foreground">{dst(trip.distance)}</span>
+                <span className="text-[10px] text-muted-foreground">{distUnit()}</span>
               </div>
             </div>
             <div className="bg-secondary/50 rounded-xl p-3">
@@ -239,7 +240,7 @@ export default function TripDetailPage() {
           />
           <div className="flex items-center justify-between mt-1">
             <span className="text-[10px] text-muted-foreground">Start</span>
-            <span className="text-[10px] text-muted-foreground">{Math.round(replayProgress * 100)}%{trip.speeds?.length ? ` · ${trip.speeds[Math.min(trip.speeds.length - 1, visibleCount - 1)]} mph` : ''}</span>
+            <span className="text-[10px] text-muted-foreground">{Math.round(replayProgress * 100)}%{trip.speeds?.length ? ` · ${spd(trip.speeds[Math.min(trip.speeds.length - 1, visibleCount - 1)])} ${speedUnit()}` : ''}</span>
             <span className="text-[10px] text-muted-foreground">End</span>
           </div>
         </div>
@@ -248,7 +249,7 @@ export default function TripDetailPage() {
         <div className="bg-card rounded-2xl p-4 border border-border mt-3">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-semibold text-foreground">Speed Over Time</span>
-            <span className="text-[10px] text-muted-foreground">mph</span>
+            <span className="text-[10px] text-muted-foreground">{speedUnit()}</span>
           </div>
           <ResponsiveContainer width="100%" height={120}>
             <LineChart data={speedData} margin={{ top: 5, right: 5, bottom: 0, left: -25 }}>
@@ -257,7 +258,7 @@ export default function TripDetailPage() {
               <Tooltip
                 contentStyle={{ background: '#141420', border: '1px solid #1f1f2e', borderRadius: 8, fontSize: 12 }}
                 labelStyle={{ color: '#8b8b9f' }}
-                formatter={(v) => [`${v} mph`, 'Speed']}
+                formatter={(v) => [`${v} ${speedUnit()}`, 'Speed']}
               />
               <Line type="monotone" dataKey="speed" stroke={trip.userColor || '#00BFFF'} strokeWidth={2} dot={false} />
             </LineChart>

@@ -7,6 +7,7 @@ import { SOCIAL_LINKS } from '@/components/ProfileSharing';
 import CarPhotos from '@/components/CarPhotos';
 import { getInitials } from '@/lib/helpers';
 import UserTags from '@/components/UserTags';
+import { distUnit, fmtBig } from '@/lib/units';
 
 // What someone sees when they scan your QR sticker or open your link.
 export default function PublicProfile() {
@@ -59,7 +60,7 @@ export default function PublicProfile() {
 
         {p.stats && (
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-card rounded-2xl border border-border p-3"><Gauge className="w-4 h-4 text-primary mb-1" /><div className="text-lg font-bold text-foreground">{p.stats.miles.toLocaleString()}</div><div className="text-[11px] text-muted-foreground">miles logged</div></div>
+            <div className="bg-card rounded-2xl border border-border p-3"><Gauge className="w-4 h-4 text-primary mb-1" /><div className="text-lg font-bold text-foreground">{fmtBig(p.stats.miles).split(' ')[0]}</div><div className="text-[11px] text-muted-foreground">{distUnit() === 'km' ? 'km' : 'miles'} logged</div></div>
             <div className="bg-card rounded-2xl border border-border p-3"><RouteIcon className="w-4 h-4 text-primary mb-1" /><div className="text-lg font-bold text-foreground">{p.stats.drives.toLocaleString()}</div><div className="text-[11px] text-muted-foreground">drives</div></div>
           </div>
         )}

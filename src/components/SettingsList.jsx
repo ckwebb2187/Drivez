@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Eye, EyeOff, Palette, AudioLines, Flame, Navigation, MessageCircle, ShieldCheck, Smartphone, LogOut, Loader2, X } from 'lucide-react';
+import { Eye, EyeOff, Palette, AudioLines, Flame, Navigation, MessageCircle, ShieldCheck, Smartphone, LogOut, Loader2, X, Gauge } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import { useAuth } from '@/lib/AuthContext';
 import Collapsible from '@/components/Collapsible';
@@ -9,12 +9,18 @@ import VoiceSettings from '@/components/VoiceSettings';
 import DiscordSettings from '@/components/DiscordSettings';
 import PrivacySettings from '@/components/PrivacySettings';
 import AppUpdate from '@/components/AppUpdate';
+import { useUnits, setUnits } from '@/lib/units';
+import { useFamilyBrief } from '@/lib/family';
+import { api } from '@/api/base44Client';
+
+let unlockedFor = null; // family id unlocked with the parent PIN this session
 
 // All app settings in one list: used at the bottom of Profile and in the quick Settings sheet.
 export default function SettingsList() {
   const { user, scene, setAppMode, toggleGhostMode } = useApp();
   const { logout } = useAuth();
   const [modeBusy, setModeBusy] = useState(false);
+  const units = useUnits();
   const switchMode = async (m) => { if (m === user.appMode) return; setModeBusy(true); try { await setAppMode(m); } finally { setModeBusy(false); } };
   if (!user) return null;
   return (
@@ -23,12 +29,24 @@ export default function SettingsList() {
         {user.ghostMode ? <EyeOff className="w-4 h-4 text-muted-foreground" /> : <Eye className="w-4 h-4 text-primary" />}
         <div className="flex-1">
           <div className="text-sm font-semibold text-foreground">Ghost mode</div>
-          <div className="text-[11px] text-muted-foreground">{user.ghostMode ? 'Hidden from friends & rankings' : 'Friends can see you while you drive'}</div>
+          <div className="text-[11px] text-muted-foreground">{ghostLocked ? 'Kept on by your parent · only family sees you' : user.ghostMode ? 'Hidden from friends & rankings' : 'Friends can see you while you drive'}</div>
         </div>
         <span className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${user.ghostMode ? 'bg-primary' : 'bg-muted'}`}>
           <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${user.ghostMode ? 'left-[22px]' : 'left-0.5'}`} />
         </span>
       </button>
+      <div className="w-full bg-card rounded-2xl border border-border flex items-center gap-3 px-4 py-3">
+        <Gauge className="w-4 h-4 text-primary" />
+        <div className="flex-1">
+          <div className="text-sm font-semibold text-foreground">Units</div>
+          <div className="text-[11px] text-muted-foreground">Speeds and distances everywhere, and what the voice says</div>
+        </div>
+        <div className="flex rounded-full bg-secondary p-0.5 shrink-0">
+          {[['imperial', 'mph · mi'], ['metric', 'km/h · km']].map(([k, l]) => (
+            <button key={k} onClick={() => setUnits(k)} className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${units === k ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>{l}</button>
+          ))}
+        </div>
+      </div>
       <Collapsible id="look" icon={Palette} title="Map look" subtitle="World theme, battery saver, Japanese names">
         <MapLookSettings />
       </Collapsible>
@@ -75,5 +93,24 @@ export function SettingsSheet({ onClose }) {
       </div>
     </div>,
     document.body
+  );
+}
+
+// Teen / kid phones: settings open with the parent's PIN.
+function PinGate({ onOpen, onLogout }) {
+  const [pin, setPin] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const go = async () => { setBusy(true); setErr(''); try { await api.post('/family/unlock', { pin }); onOpen(); } catch (e) { setErr(e.message); } finally { setBusy(false); } };
+  return (
+    <div className="bg-card rounded-2xl border border-border p-4 space-y-3 text-center">
+      <ShieldCheck className="w-8 h-8 text-primary mx-auto" />
+      <div className="text-sm font-bold text-foreground">Settings are locked by a parent</div>
+      <p className="text-[11px] text-muted-foreground">Ask a parent to enter the family PIN. Your location is shared with your family.</p>
+      <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 8))} onKeyDown={(e) => e.key === 'Enter' && go()} inputMode="numeric" type="password" placeholder="Parent PIN" className="w-full bg-secondary rounded-xl px-3 py-2.5 text-center text-lg tracking-[0.4em] text-foreground" />
+      {err && <p className="text-xs text-destructive">{err}</p>}
+      <button disabled={pin.length < 4 || busy} onClick={go} className="w-full dz-go rounded-xl py-2.5 text-sm font-bold disabled:opacity-50">{busy ? 'Checking…' : 'Unlock'}</button>
+      <button onClick={onLogout} className="text-xs text-muted-foreground">Log out</button>
+    </div>
   );
 }

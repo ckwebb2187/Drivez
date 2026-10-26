@@ -6,6 +6,7 @@ import { getInitials } from '@/lib/helpers';
 import { distM, formatNavDistance } from '@/lib/nav';
 import { convoyUrl, startConvoy, inviteToConvoy, convoySettings, useConvoyChat } from '@/lib/convoy';
 import UserTags from '@/components/UserTags';
+import { spd, speedUnit } from '@/lib/units';
 
 const QUICK = ['On my way', 'Gas stop', 'Pull over ahead', 'Slow down a bit', '👍', '🔥'];
 const Avatar = ({ u, size = 36 }) => (u.avatarUrl
@@ -99,7 +100,7 @@ export default function FriendsHub({ live = [], convoy, openConvoys = [], here, 
                         <button onClick={() => d && onDriver?.(d)} className="relative"><Avatar u={f} />{d && <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-accent border-2 border-card" />}</button>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-semibold text-foreground truncate">{f.name}<UserTags creator={f.creator} founder={f.founder} className="ml-1" /></div>
-                          <div className="text-[11px] text-muted-foreground truncate">{d ? `Driving · ${d.speed || 0} mph${here ? ` · ${formatNavDistance(distM(here, [d.lat, d.lng]))} away` : ''}` : `@${f.username}`}</div>
+                          <div className="text-[11px] text-muted-foreground truncate">{d ? `Driving · ${spd(d.speed || 0)} ${speedUnit()}${here ? ` · ${formatNavDistance(distM(here, [d.lat, d.lng]))} away` : ''}` : `@${f.username}`}</div>
                         </div>
                         {convoy && !inGroup.has(f.userId) && (
                           <button disabled={invited[f.userId] || busy === `inv-${f.userId}`} onClick={() => invite(f)} className={`h-9 px-3 rounded-full text-xs font-bold flex items-center gap-1 ${invited[f.userId] ? 'bg-secondary text-muted-foreground' : 'dz-go'}`}>

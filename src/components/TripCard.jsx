@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RouteThumbnail from './RouteThumbnail';
 import { formatDuration } from '@/lib/helpers';
+import { spd, dst, speedUnit, distUnit } from '@/lib/units';
 
 // One compact row per drive: little route sketch, where, when, miles, time, top speed.
 function TripCard({ trip, vehicle }) {
@@ -19,12 +20,12 @@ function TripCard({ trip, vehicle }) {
       <div className="flex-1 min-w-0">
         <div className="text-sm font-semibold text-foreground truncate">{where || trip.title}</div>
         <div className="text-[11px] text-muted-foreground truncate">
-          {time} · {trip.distance} mi · {formatDuration(trip.duration)}{vehicle ? ` · ${vehicle.nickname || vehicle.model}` : ''}{trip.isFriendTrip ? ` · ${trip.userName}` : ''}
+          {time} · {dst(trip.distance)} {distUnit()} · {formatDuration(trip.duration)}{vehicle ? ` · ${vehicle.nickname || vehicle.model}` : ''}{trip.isFriendTrip ? ` · ${trip.userName}` : ''}
         </div>
       </div>
       <div className="text-right shrink-0">
-        <div className="text-sm font-bold text-primary leading-none">{trip.imported ? trip.avgSpeed : trip.topSpeed}</div>
-        <div className="text-[9px] text-muted-foreground">{trip.imported ? 'avg' : 'top'} mph</div>
+        <div className="text-sm font-bold text-primary leading-none">{spd(trip.imported ? trip.avgSpeed : trip.topSpeed)}</div>
+        <div className="text-[9px] text-muted-foreground">{trip.imported ? 'avg' : 'top'} {speedUnit()}</div>
       </div>
     </button>
   );

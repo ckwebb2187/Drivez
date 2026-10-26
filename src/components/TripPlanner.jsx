@@ -22,6 +22,7 @@ import { useTrafficEta } from '@/lib/traffic';
 import { getInitials } from '@/lib/helpers';
 import { startConvoy } from '@/lib/convoy';
 import { isLowered, countBumps } from '@/lib/bumps';
+import { spd, dst, speedUnit, distUnit } from '@/lib/units';
 
 const DRIVE_ERRORS = {
   denied: 'Location permission denied. Turn on location for Kaido Maps in your settings, then try again.',
@@ -362,7 +363,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2">
                       <span className={`text-2xl font-bold ${traffic && traffic.delay > 300 ? 'text-[#F9AB00]' : 'text-[#34A853]'}`}>{formatEta(routeSeconds)}</span>
-                      <span className="text-sm text-muted-foreground">({route.distance} mi)</span>
+                      <span className="text-sm text-muted-foreground">({dst(route.distance)} {distUnit()})</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
                       Arrive around {arrivalTime(routeSeconds)} · {stops.length ? `${stops.length + 1} stops` : dest.name}
@@ -402,7 +403,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
                         <span className={`w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center shrink-0 ${i === allStops.length - 1 ? 'bg-[#EA4335] text-white' : 'dz-go'}`}>{i === allStops.length - 1 ? <MapPin className="w-3.5 h-3.5" /> : i + 1}</span>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-semibold text-foreground truncate">{st.name}</div>
-                          {route.legs?.[i] && <div className="text-[10px] text-muted-foreground">{formatEta(route.legs[i].duration)} · {(route.legs[i].distance / 1609.34).toFixed(1)} mi</div>}
+                          {route.legs?.[i] && <div className="text-[10px] text-muted-foreground">{formatEta(route.legs[i].duration)} · {formatNavDistance(route.legs[i].distance)}</div>}
                         </div>
                         <button onClick={() => moveStop(i, -1)} disabled={i === 0} className="w-8 h-8 flex items-center justify-center disabled:opacity-25" aria-label="Move up"><ArrowUp className="w-4 h-4" /></button>
                         <button onClick={() => moveStop(i, 1)} disabled={i === allStops.length - 1} className="w-8 h-8 flex items-center justify-center disabled:opacity-25" aria-label="Move down"><ArrowDown className="w-4 h-4" /></button>
@@ -474,7 +475,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
           <div className="px-5 mt-3 grid grid-cols-3 gap-2">
             <Stat value={stats.thisWeekDrives} label="Drives this week" color="text-primary" />
             <Stat value={stats.thisWeekMiles} label="Miles this week" color="text-accent" />
-            <Stat value={stats.bestTopSpeed} label="Top mph" color="text-foreground" />
+            <Stat value={spd(stats.bestTopSpeed)} label={`Top ${speedUnit()}`} color="text-foreground" />
           </div>
           <div data-sheet-scroll className={`flex-1 overflow-y-auto no-scrollbar px-5 pt-4 pb-6 ${sheetOpen ? '' : 'pointer-events-none'}`}>
             {quickRoutes.length > 0 && (
@@ -485,7 +486,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
                     <button key={r.id} onClick={() => (r.dest ? navigate('/', { state: { plan: { dest: r.dest, stops: r.stops || [] } } }) : navigate(`/?route=${r.id}`))} className="w-full bg-secondary/60 rounded-2xl px-4 py-3 flex items-center gap-3 text-left">
                       <RouteIcon className="w-4 h-4 text-primary shrink-0" />
                       <span className="flex-1 text-sm font-semibold text-foreground truncate">{r.name}</span>
-                      <span className="text-xs text-muted-foreground">{r.distance} mi</span>
+                      <span className="text-xs text-muted-foreground">{dst(r.distance)} {distUnit()}</span>
                     </button>
                   ))}
                 </div>
@@ -510,7 +511,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
             <Bookmark className="w-4 h-4 text-primary shrink-0" />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold text-foreground truncate">{guideRoute.name}</div>
-              <div className="text-[11px] text-muted-foreground">{guideRoute.distance} mi · dashed guide line</div>
+              <div className="text-[11px] text-muted-foreground">{dst(guideRoute.distance)} {distUnit()} · dashed guide line</div>
             </div>
             <button onClick={onStartDrive} className="h-9 px-3 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center gap-1"><Play className="w-3.5 h-3.5 fill-primary-foreground" />Drive</button>
             <button onClick={onClearGuide} className="w-8 h-8 flex items-center justify-center" aria-label="Remove guide"><X className="w-4 h-4 text-muted-foreground" /></button>
@@ -525,7 +526,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
         <NamePlaceSheet
           title="Save drive plan"
           initialName={allStops.map((x) => x.name).slice(0, 3).join(' → ') + (allStops.length > 3 ? ' …' : '')}
-          address={`${allStops.length} stops · ${route.distance} mi`}
+          address={`${allStops.length} stops · ${dst(route.distance)} ${distUnit()}`}
           saveLabel="Save plan"
           onSave={(n) => addRoute({ name: n, route: route.coords.filter((_, i) => i % Math.ceil(route.coords.length / 400) === 0), distance: route.distance, stops, dest })}
           onClose={() => setSavingPlan(false)}

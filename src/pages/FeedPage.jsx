@@ -4,6 +4,7 @@ import { Loader2, Flame, MapPin, Clock, Gauge, Navigation } from 'lucide-react';
 import { api } from '@/api/base44Client';
 import { getInitials, formatDuration } from '@/lib/helpers';
 import UserTags from '@/components/UserTags';
+import { spd, dst, speedUnit, distUnit } from '@/lib/units';
 
 const ago = (iso) => {
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -68,9 +69,9 @@ export default function FeedPage() {
               {it.mode && <div className="text-xs font-black tracking-wide text-primary">{MODE[it.mode]}{it.corners ? ` · ${it.corners} corners` : ''}</div>}
               <PathArt path={it.path} />
               <div className="grid grid-cols-3 gap-2 text-center">
-                <div><div className="text-base font-bold speed-font text-foreground">{it.distance}</div><div className="text-[10px] text-muted-foreground">miles</div></div>
+                <div><div className="text-base font-bold speed-font text-foreground">{dst(it.distance)}</div><div className="text-[10px] text-muted-foreground">{distUnit() === 'km' ? 'km' : 'miles'}</div></div>
                 <div><div className="text-base font-bold speed-font text-foreground">{formatDuration(it.duration)}</div><div className="text-[10px] text-muted-foreground flex items-center justify-center gap-0.5"><Clock className="w-3 h-3" />time</div></div>
-                <div><div className="text-base font-bold speed-font text-foreground">{Math.round(it.topSpeed)}</div><div className="text-[10px] text-muted-foreground flex items-center justify-center gap-0.5"><Gauge className="w-3 h-3" />top mph</div></div>
+                <div><div className="text-base font-bold speed-font text-foreground">{spd(it.topSpeed)}</div><div className="text-[10px] text-muted-foreground flex items-center justify-center gap-0.5"><Gauge className="w-3 h-3" />top {speedUnit()}</div></div>
               </div>
               {it.end && <div className="text-[11px] text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" />Ended near {it.end}</div>}
             </>

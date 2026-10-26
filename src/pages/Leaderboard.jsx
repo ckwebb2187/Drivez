@@ -3,6 +3,7 @@ import { Crown, Trophy, Loader2 } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
 import { getInitials } from '@/lib/helpers';
+import { spd, speedUnit } from '@/lib/units';
 
 const SCOPES = [
   { key: 'everyone', label: 'Everyone' },
@@ -104,9 +105,9 @@ export default function Leaderboard() {
                       className={`mt-2 w-full rounded-t-xl flex flex-col items-center justify-start pt-3 ${isFirst ? 'h-24 bg-gradient-to-b from-yellow-400/20' : isSecond ? 'h-16 bg-gradient-to-b from-gray-400/15' : 'h-12 bg-gradient-to-b from-orange-600/15'}`}
                     >
                       <span className={`text-lg font-bold speed-font ${isFirst ? 'text-yellow-400' : isSecond ? 'text-gray-300' : 'text-orange-400'}`}>
-                        {entry.topSpeed}
+                        {spd(entry.topSpeed)}
                       </span>
-                      <span className="text-[9px] text-muted-foreground">mph</span>
+                      <span className="text-[9px] text-muted-foreground">{speedUnit()}</span>
                     </div>
                   </div>
                 );
@@ -128,8 +129,8 @@ export default function Leaderboard() {
                 </div>
                 <div className="text-right">
                   <div className="flex items-baseline gap-0.5">
-                    <span className="text-lg font-bold speed-font text-foreground">{entry.topSpeed}</span>
-                    <span className="text-[10px] text-muted-foreground">mph</span>
+                    <span className="text-lg font-bold speed-font text-foreground">{spd(entry.topSpeed)}</span>
+                    <span className="text-[10px] text-muted-foreground">{speedUnit()}</span>
                   </div>
                 </div>
               </div>
