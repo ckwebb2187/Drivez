@@ -22,7 +22,7 @@ export default function JoinPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'radial-gradient(120% 80% at 50% 20%, #18235a, #03051a)' }}>
       <div className="w-full max-w-sm text-center">
-        <img src="/icon-192.png" alt="" className="w-20 h-20 rounded-2xl mx-auto mb-6 shadow-2xl" />
+        <img src="/logo.png" alt="Kaido Maps" className="w-24 h-24 rounded-3xl mx-auto mb-6 shadow-2xl" />
         {error ? <p className="text-sm text-red-300">{error}</p> : !who ? <Loader2 className="w-6 h-6 animate-spin text-white/60 mx-auto" /> : (
           <>
             {who.avatarUrl
