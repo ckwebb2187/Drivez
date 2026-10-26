@@ -238,3 +238,13 @@ html[data-skin="standard"] .dz-report-icon { color: #f29900; filter: none; }
 @keyframes dz-anchor-breathe { 0%, 100% { opacity: .35; } 50% { opacity: .9; } }
 .dz-anchor-still .dz-anchor-ring, .dz-anchor-still .dz-anchor-pillar { display: none; }
 @media (prefers-reduced-motion: reduce) { .dz-anchor-ring, .dz-anchor-pillar { animation: none; } }
+
+/* Arrival ring at the destination (T08) */
+.dz-arrive { position: relative; width: 120px; height: 120px; pointer-events: none; }
+.dz-arrive i { position: absolute; inset: 0; border-radius: 50%; border: 3px solid hsl(var(--primary)); box-shadow: 0 0 18px hsl(var(--primary) / .8), inset 0 0 12px hsl(var(--primary) / .5); animation: dz-arrive 2.4s ease-out infinite; opacity: 0; }
+.dz-arrive i:nth-child(2) { animation-delay: .8s; }
+.dz-arrive i:nth-child(3) { animation-delay: 1.6s; }
+@keyframes dz-arrive { from { transform: scale(.15); opacity: 1; } to { transform: scale(1); opacity: 0; } }
+.dz-arrive-still i { animation: none; opacity: .8; transform: scale(.5); }
+.dz-arrive-still i + i { display: none; }
+@media (prefers-reduced-motion: reduce) { .dz-arrive i { animation: none; opacity: .8; transform: scale(.5); } }

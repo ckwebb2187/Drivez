@@ -87,7 +87,7 @@ export default function DriveMap(props) {
 function DriveMapInner({
   pos, heading, speed = 0, car, driving, routeCoords, dest, stops = [], guide, trail, reports = [],
   follow = true, onUserMove, className = '', active = true, theme = 'standard', base = 'day', lite = false, fitCoords = null,
-  friends = [], onFriendTap, pins = [], onPinTap, onGraphicsLost, driveFx = null, callout = null, highway = null,
+  friends = [], onFriendTap, pins = [], onPinTap, onGraphicsLost, driveFx = null, callout = null, highway = null, arrived = false,
 }) {
   const fxRef = useRef(driveFx);
   fxRef.current = driveFx;
@@ -108,7 +108,7 @@ function DriveMapInner({
   friendTap.current = onFriendTap;
   const anim = useRef({ from: null, to: null, t0: 0, dur: 1000, shown: null, brg: 0, brgTarget: 0, zoom: 16, lastFix: 0, lastPos: null });
   const live = useRef({});
-  live.current = { ...live.current, follow, driving, speed, onUserMove, active, previewing: !!fitCoords, hasRoute: !!(routeCoords && routeCoords.length > 1) };
+  live.current = { ...live.current, follow, driving, speed, onUserMove, active, previewing: !!fitCoords, arrived, hasRoute: !!(routeCoords && routeCoords.length > 1) };
   const routeIdx = useRef(0);
   const wx = useWeatherTiles();
   const liveTraffic = useLiveTraffic();
@@ -226,12 +226,13 @@ function DriveMapInner({
         }
         const { follow: f, driving: d, speed: s } = live.current;
         if (f && readyRef.current && !live.current.held && live.current.active && !live.current.previewing) {
-          const targetZoom = d ? zoomForSpeed(s) : 16.5;
+          const arr = live.current.arrived; // arrived: ease up from the chase view to a bird's-eye view
+          const targetZoom = arr ? 17.2 : d ? zoomForSpeed(s) : 16.5;
           a.zoom += (targetZoom - a.zoom) * 0.03;
           const c = map.getCenter();
           const ll = toLngLat(p);
-          const bearing = d ? a.brg : map.getBearing() + angleDiff(map.getBearing(), 0) * 0.08;
-          const pitch = d ? Math.min(58, map.getPitch() + 1.5) : Math.max(0, map.getPitch() - 2);
+          const bearing = arr ? map.getBearing() : d ? a.brg : map.getBearing() + angleDiff(map.getBearing(), 0) * 0.08;
+          const pitch = arr ? map.getPitch() + (38 - map.getPitch()) * 0.04 : d ? Math.min(58, map.getPitch() + 1.5) : Math.max(0, map.getPitch() - 2);
           // Only move the camera when something visibly changes; a still map costs nothing.
           const still = Math.abs(c.lng - ll[0]) < 2e-7 && Math.abs(c.lat - ll[1]) < 2e-7
             && Math.abs(map.getZoom() - a.zoom) < 0.002 && Math.abs(angleDiff(map.getBearing(), bearing)) < 0.05
@@ -507,6 +508,17 @@ function DriveMapInner({
     }
     for (const [id, m] of pinMarkers.current) if (!keep.has(id)) { m.remove(); pinMarkers.current.delete(id); }
   }, [pins.map((p) => p.id).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Arrival: a neon ring grows out of the destination. Battery saver = one still ring.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !arrived || dest?.lat == null) return undefined;
+    const el = document.createElement('div');
+    el.className = `dz-arrive${lite ? ' dz-arrive-still' : ''}`;
+    el.innerHTML = '<i></i><i></i><i></i>';
+    const m = new maplibregl.Marker({ element: el, pitchAlignment: 'map', rotationAlignment: 'map' }).setLngLat([dest.lng, dest.lat]).addTo(map);
+    return () => m.remove();
+  }, [arrived, dest?.lat, dest?.lng, lite]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Home & Work: a soft breathing beacon with a light pillar. Battery saver = plain still dot.
   const { home, work } = useApp();
