@@ -215,3 +215,9 @@ html[data-skin="standard"] .dz-report-icon { color: #f29900; filter: none; }
 .dz-peek > :not(.dz-map-layer):not(.dz-peek-hud) { display: none !important; }
 .dz-sheet-up { animation: dz-sheet-up .28s cubic-bezier(.2,.8,.2,1); }
 @keyframes dz-sheet-up { from { transform: translateY(40px); opacity: .4; } to { transform: none; opacity: 1; } }
+
+/* Auto-drive chip: the same slow breathing glow as push-to-talk, plus a light sweep across it */
+.dz-auto-chip { animation: dz-ptt-breathe 2.8s ease-in-out infinite; }
+.dz-auto-chip::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, hsl(var(--primary) / 0.35) 50%, transparent 70%); transform: translateX(-100%); animation: dz-auto-sweep 3.6s ease-in-out infinite; pointer-events: none; }
+@keyframes dz-auto-sweep { 0%, 35% { transform: translateX(-100%); } 75%, 100% { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .dz-auto-chip, .dz-auto-chip::after { animation: none; } }
