@@ -185,7 +185,7 @@ function NativeMusicButton({ size }) {
       {open && createPortal(
         <div className="fixed inset-0 z-[1500]" onClick={() => setOpen(false)}>
           <div onClick={(e) => e.stopPropagation()}
-            className="absolute left-3 right-3 bottom-[96px] mx-auto max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden dz-pop-in"
+            className="absolute left-3 right-3 bottom-[calc(16px+env(safe-area-inset-bottom))] mx-auto max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden dz-pop-in"
             style={{ background: 'linear-gradient(135deg, rgba(36,30,58,0.97), rgba(20,20,32,0.97))', backdropFilter: 'blur(16px)' }}>
             <div className="flex items-center gap-3 p-3">
               <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#7cc8ff,#c39bff,#ff8fd0)' }}>
@@ -303,7 +303,7 @@ function WebMusicButton({ size }) {
           <div
             ref={cardRef}
             onClick={(e) => e.stopPropagation()}
-            className="absolute left-3 right-3 bottom-[96px] mx-auto max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden dz-pop-in"
+            className="absolute left-3 right-3 bottom-[calc(16px+env(safe-area-inset-bottom))] mx-auto max-w-md rounded-2xl border border-white/10 shadow-2xl overflow-hidden dz-pop-in"
             style={{ background: 'linear-gradient(135deg, rgba(36,30,58,0.97), rgba(20,20,32,0.97))', backdropFilter: 'blur(16px)' }}
           >
             <div className="flex items-center gap-3 p-3">

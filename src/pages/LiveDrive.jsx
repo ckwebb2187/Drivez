@@ -744,7 +744,7 @@ export default function LiveDrive({ active = true, peek = false }) {
               const frac = Math.min(1, mph / 100);
               const R = 30, C = 2 * Math.PI * R;
               return (
-                <div className={`absolute left-3 ${!nav.active ? 'bottom-[96px]' : barOpen ? 'bottom-[214px]' : 'bottom-[156px]'} transition-all pointer-events-none flex items-end gap-2`}>
+                <div className={`absolute left-3 ${!nav.active ? 'bottom-[calc(16px+env(safe-area-inset-bottom))]' : barOpen ? 'bottom-[calc(134px+env(safe-area-inset-bottom))]' : 'bottom-[calc(76px+env(safe-area-inset-bottom))]'} transition-all pointer-events-none flex items-end gap-2`}>
                   <div className="relative w-[76px] h-[76px] rounded-full shadow-2xl flex flex-col items-center justify-center"
                     style={{ background: over ? '#d93025' : st.bg, boxShadow: st.glow && !over ? `0 0 18px ${st.glow}88, 0 8px 20px rgba(0,0,0,.4)` : '0 8px 20px rgba(0,0,0,.4)' }}>
                     <svg className="absolute inset-0" viewBox="0 0 76 76" aria-hidden="true">
@@ -784,14 +784,14 @@ export default function LiveDrive({ active = true, peek = false }) {
 
             {/* Road you're on (like the design: a pill at the bottom) */}
             {speedLimit?.name && !nav.active && (
-              <div className="absolute bottom-[100px] left-[150px] right-[72px] flex justify-center pointer-events-none">
+              <div className="absolute bottom-[calc(20px+env(safe-area-inset-bottom))] left-[150px] right-[72px] flex justify-center pointer-events-none">
                 <div className="max-w-full truncate rounded-full bg-primary text-primary-foreground text-sm font-bold px-4 py-2 shadow-xl">{speedLimit.name}</div>
               </div>
             )}
 
             {/* Re-center (shows after you move the map) */}
             {!follow && (
-              <div className={`absolute left-1/2 -translate-x-1/2 ${!nav.active ? 'bottom-[96px]' : barOpen ? 'bottom-[160px]' : 'bottom-[156px]'} pointer-events-auto`}>
+              <div className={`absolute left-1/2 -translate-x-1/2 ${!nav.active ? 'bottom-[calc(16px+env(safe-area-inset-bottom))]' : barOpen ? 'bottom-[calc(80px+env(safe-area-inset-bottom))]' : 'bottom-[calc(76px+env(safe-area-inset-bottom))]'} pointer-events-auto`}>
                 <button onClick={recenter} className="h-11 px-5 rounded-full bg-card/95 backdrop-blur border border-border shadow-2xl text-sm font-bold text-[#8ab4f8] flex items-center gap-2">
                   <Navigation2 className="w-4 h-4 fill-[#8ab4f8]" /> Re-center
                 </button>
@@ -799,7 +799,7 @@ export default function LiveDrive({ active = true, peek = false }) {
             )}
 
             {/* Music + report shortcuts */}
-            <div className={`absolute right-3 ${!nav.active ? 'bottom-[96px]' : barOpen ? 'bottom-[214px]' : 'bottom-[156px]'} transition-all pointer-events-auto flex flex-col gap-3`}>
+            <div className={`absolute right-3 ${!nav.active ? 'bottom-[calc(16px+env(safe-area-inset-bottom))]' : barOpen ? 'bottom-[calc(134px+env(safe-area-inset-bottom))]' : 'bottom-[calc(76px+env(safe-area-inset-bottom))]'} transition-all pointer-events-auto flex flex-col gap-3`}>
               <AskGemini size={50} context={askContext} onAction={onAskAction} />
               <button onClick={cycleMode} aria-label="Drive mode"
                 className={`w-[50px] h-[50px] rounded-full shadow-xl border flex flex-col items-center justify-center leading-none ${driveMode === 'cruise' ? 'bg-card border-border text-muted-foreground' : 'bg-primary border-primary text-primary-foreground'}`}>
@@ -821,7 +821,7 @@ export default function LiveDrive({ active = true, peek = false }) {
             {/* Slim bottom bar while following a route: ETA, then Skip stop / End route / End drive */}
             {/* Folded: a small glowing pill with the time left and arrival time. Tap to open. */}
             {nav.active && barMin && (
-              <div className="absolute left-0 right-0 bottom-[88px] flex justify-center pointer-events-none">
+              <div className="absolute left-0 right-0 bottom-[calc(8px+env(safe-area-inset-bottom))] flex justify-center pointer-events-none">
                 <button onClick={() => setBarMinSaved(false)} className="pointer-events-auto h-11 pl-4 pr-2 rounded-full bg-card/95 backdrop-blur border border-border shadow-2xl flex items-center gap-2 dz-eta-ring" aria-label="Show trip details">
                   {nav.arrived ? <span className="text-sm font-bold text-foreground">Arrived</span> : <>
                     <span className="text-base font-black dz-eta-glow">{formatEta(remainingS)}</span>
@@ -831,7 +831,7 @@ export default function LiveDrive({ active = true, peek = false }) {
                 </button>
               </div>
             )}
-            {nav.active && !barMin && <div className="absolute left-0 right-0 bottom-[84px] px-3 pointer-events-auto">
+            {nav.active && !barMin && <div className="absolute left-0 right-0 bottom-[calc(4px+env(safe-area-inset-bottom))] px-3 pointer-events-auto">
               <div className="bg-card/95 backdrop-blur rounded-2xl border border-border shadow-2xl overflow-hidden dz-eta-ring">
                 <div className="w-full flex items-center gap-2 pr-2">
                 <button onClick={() => setBarOpen((o) => !o)} className="flex-1 min-w-0 flex items-center gap-3 pl-4 h-[60px] text-left">

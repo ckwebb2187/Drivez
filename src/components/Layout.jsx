@@ -10,13 +10,6 @@ import { useMapLook, useActiveLook, featureName, applySkin } from '@/lib/mapThem
 import { useUnits } from '@/lib/units';
 import { useFamilyPing, useFamilyBrief, EVENT_ICON } from '@/lib/family';
 
-const tabs = [
-  { to: '/history', icon: Clock, label: 'History' },
-  { to: '/feed', icon: Flame, label: 'Feed', scene: true },
-  { to: '/', icon: Gauge, label: 'Drive', center: true },
-  { to: '/meets', icon: CalendarDays, label: 'Meets', scene: true },
-  { to: '/profile', icon: User, label: 'Profile' }
-];
 
 export default function Layout() {
   const { pathname } = useLocation();
@@ -26,9 +19,7 @@ export default function Layout() {
   useUnits(); // re-render everything when mph/km changes
   // The whole app takes on the world theme's colors.
   useEffect(() => { applySkin(skinKey); }, [skinKey]);
-  // Teen / kid accounts: tabs a parent turned off are hidden.
   const fam = useFamilyBrief();
-  const offTab = (to) => (to === '/feed' && fam?.controls?.social === false) || (to === '/meets' && fam?.controls?.meets === false);
   const [famToast, clearFamToast] = useFamilyPing();
   // Someone spotted your car: a quick heads-up (checked every 2 minutes).
   const [spotToast, setSpotToast] = useState(null);
@@ -41,7 +32,6 @@ export default function Layout() {
   }, [user?.id, scene]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!spotToast) return undefined; const t = setTimeout(() => setSpotToast(null), 7000); return () => clearTimeout(t); }, [spotToast?.id]);
   useEffect(() => { if (!famToast || famToast.kind === 'sos') return undefined; const t = setTimeout(clearFamToast, 6000); return () => clearTimeout(t); }, [famToast?.key]); // eslint-disable-line react-hooks/exhaustive-deps
-  const shownTabs = tabs.filter((t) => (!t.scene || scene) && !offTab(t.to)).map((t) => (t.to === '/' && look.jpNames ? { ...t, label: 'Chizu' } : t));
   const onDrive = pathname === '/' || pathname === '/drive'; // the drive map is the home screen
   // Detail pages (a saved drive, saved places, routes…) fill the screen without the tab bar.
   const fullPage = !onDrive && !['/history', '/profile', '/leaderboard', '/feed', '/meets'].includes(pathname);
@@ -77,7 +67,7 @@ export default function Layout() {
       {/* Mid-drive, other screens open as a panel under the live map, so the map and your 3D car stay up. */}
       {!onDrive && (
         <main className={peek
-          ? 'fixed left-0 right-0 bottom-0 top-[38vh] z-[45] overflow-y-auto no-scrollbar rounded-t-3xl bg-background border-t border-primary/40 shadow-[0_-12px_30px_rgba(0,0,0,.45)] pb-24 dz-sheet-up'
+          ? 'fixed left-0 right-0 bottom-0 top-[38vh] z-[45] overflow-y-auto no-scrollbar rounded-t-3xl bg-background border-t border-primary/40 shadow-[0_-12px_30px_rgba(0,0,0,.45)] pb-[calc(16px+env(safe-area-inset-bottom))] dz-sheet-up'
           : `flex-1 overflow-y-auto no-scrollbar ${fullPage ? '' : 'pb-24'}`}>
           {peek && (
             <NavLink to="/" className="sticky top-0 z-20 flex flex-col items-center pt-2 pb-1 bg-background/95 backdrop-blur" aria-label="Back to the full map">
@@ -116,45 +106,12 @@ export default function Layout() {
           <span className="ml-auto flex items-center gap-1 text-xs opacity-90">Return to drive <ChevronRight className="w-4 h-4" /></span>
         </NavLink>
       )}
-      {!fullPage && <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border">
-        <div className="flex items-center justify-around max-w-md mx-auto px-2 h-20">
-          {shownTabs.map((tab) => {
-            const Icon = tab.icon;
-            if (tab.center) {
-              return (
-                <NavLink key={tab.to} to={tab.to} end className="flex flex-col items-center -mt-6">
-                  {({ isActive }) => (
-                    <>
-                      <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 shadow-lg ${
-                        isActive
-                          ? 'bg-primary text-primary-foreground scale-110 shadow-primary/30'
-                          : 'bg-secondary text-foreground'
-                      }`}>
-                        <Icon className="w-6 h-6" strokeWidth={2.5} />
-                      </div>
-                      <span className={`text-[10px] mt-1 font-medium ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
-                        {tab.label}
-                      </span>
-                    </>
-                  )}
-                </NavLink>
-              );
-            }
-            return (
-              <NavLink key={tab.to} to={tab.to} className="flex flex-col items-center gap-1 py-2 px-2">
-                {({ isActive }) => (
-                  <>
-                    <Icon className={`w-5 h-5 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`} strokeWidth={2.2} />
-                    <span className={`text-[10px] font-medium transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
-                      {tab.label}
-                    </span>
-                  </>
-                )}
-              </NavLink>
-            );
-          })}
-        </div>
-      </nav>}
+      {/* No tab bar: everything lives in the menu (top left of the map). Other screens get a glowing way back. */}
+      {!onDrive && !peek && !fullPage && (
+        <NavLink to="/" className="fixed left-1/2 -translate-x-1/2 bottom-[calc(16px+env(safe-area-inset-bottom))] z-50 dz-glow h-12 pl-4 pr-5 rounded-full bg-card/95 backdrop-blur border border-primary/50 text-primary text-sm font-bold flex items-center gap-2 shadow-2xl" aria-label="Back to the map">
+          <span className="dz-sweep" aria-hidden="true" /><Gauge className="w-5 h-5" />Map
+        </NavLink>
+      )}
     </div>
   );
 }

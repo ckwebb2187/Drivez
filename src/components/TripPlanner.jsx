@@ -335,7 +335,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
       )}
 
       {/* Floating buttons */}
-      <div className={`absolute right-3 z-10 flex flex-col items-end gap-3 transition-all pointer-events-auto ${route || routing || routeErr ? 'bottom-[290px]' : 'bottom-[180px]'} ${sheetOpen && !route && !routing && !routeErr ? 'opacity-0 pointer-events-none' : ''}`}>
+      <div className={`absolute right-3 z-10 flex flex-col items-end gap-3 transition-all pointer-events-auto ${route || routing || routeErr ? 'bottom-[calc(210px+env(safe-area-inset-bottom))]' : 'bottom-[calc(100px+env(safe-area-inset-bottom))]'} ${sheetOpen && !route && !routing && !routeErr ? 'opacity-0 pointer-events-none' : ''}`}>
         <WeatherTimeBadge />
         <WeatherButton />
         <MusicButton />
@@ -349,7 +349,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
 
       {/* Route preview card */}
       {(route || routing || routeErr) ? (
-        <div className="absolute inset-x-0 bottom-20 z-10 px-3 pb-3 pointer-events-auto">
+        <div className="absolute inset-x-0 bottom-[env(safe-area-inset-bottom)] z-10 px-3 pb-3 pointer-events-auto">
           <div className="bg-card rounded-3xl border border-border shadow-2xl p-5">
             {routing ? (
               <div className="flex items-center gap-3 text-sm text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin" /> Finding the best route…</div>
@@ -448,7 +448,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
       ) : (
         /* Bottom sheet */
         <div
-          className={`absolute inset-x-0 bottom-20 z-10 pointer-events-auto bg-card rounded-t-3xl border-t border-border shadow-[0_-8px_30px_rgba(0,0,0,0.5)] transition-[height] duration-300 flex flex-col overflow-hidden ${sheetOpen ? 'h-[62vh]' : 'h-[84px]'}`}
+          className={`absolute inset-x-0 bottom-[env(safe-area-inset-bottom)] z-10 pointer-events-auto bg-card rounded-t-3xl border-t border-border shadow-[0_-8px_30px_rgba(0,0,0,0.5)] transition-[height] duration-300 flex flex-col overflow-hidden ${sheetOpen ? 'h-[62vh]' : 'h-[84px]'}`}
           onTouchStart={(e) => { touchY.current = e.touches[0].clientY; }}
           onTouchEnd={(e) => {
             const dy = e.changedTouches[0].clientY - touchY.current;
@@ -509,7 +509,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
         </div>
       )}
       {guideRoute && !route && !routing && !routeErr && (
-        <div className={`absolute inset-x-3 z-10 pointer-events-auto transition-all ${sheetOpen ? 'opacity-0 pointer-events-none' : ''}`} style={{ bottom: 176 }}>
+        <div className={`absolute inset-x-3 z-10 pointer-events-auto transition-all ${sheetOpen ? 'opacity-0 pointer-events-none' : ''}`} style={{ bottom: 'calc(96px + env(safe-area-inset-bottom))' }}>
           <div className="bg-card/95 backdrop-blur rounded-2xl border border-border shadow-xl flex items-center gap-3 pl-3 pr-1.5 py-2 mr-16">
             <Bookmark className="w-4 h-4 text-primary shrink-0" />
             <div className="flex-1 min-w-0">
