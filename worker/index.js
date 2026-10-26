@@ -2,6 +2,7 @@
 // live locations, leaderboard and Discord sharing. Runs on Cloudflare Workers + D1.
 import { SCHEMA, MIGRATIONS } from "./schema.js";
 import { FAMILY_SCHEMA, handleFamily, kidRules, familyBrief } from "./family.js";
+import { SPOT_SCHEMA, handleSpot, recordTrail, findCrossings, feedItems } from "./spotting.js";
 import { FILES } from "./static/index.js";
 
 const ENTITIES = new Set(["Vehicle", "Trip", "Route", "Place"]);
@@ -187,6 +188,30 @@ function providerReady(env, p) {
 function parseRecord(r) {
   const data = JSON.parse(r.data || "{}");
   return { ...data, id: r.id, created_by_id: r.owner_id, created_by: r.owner_email, created_date: r.created_date, updated_date: r.updated_date };
+}
+
+// Group drive progress, worked out from each member's live position: on the way, halfway, arrived.
+// Each step is posted once into the group chat (everyone's app shows and can speak it).
+async function convoyProgress(db, me, lat, lng, speed) {
+  const m = await db.prepare("SELECT m.*, c.dest, c.id AS cid FROM convoy_members m JOIN convoys c ON c.id = m.convoy_id WHERE m.user_id = ? AND c.expires > ? LIMIT 1").bind(me.id, Date.now()).first();
+  if (!m) return;
+  let dest; try { dest = JSON.parse(m.dest); } catch { return; }
+  const d = metersBetween([lat, lng], [dest.lat, dest.lng]);
+  if (m.start_lat == null) {
+    await db.prepare("UPDATE convoy_members SET start_lat = ?, start_lng = ?, total_m = ? WHERE convoy_id = ? AND user_id = ?").bind(lat, lng, d, m.cid, me.id).run();
+    return;
+  }
+  const name = me.display_name || me.username || "Someone";
+  const total = m.total_m || d;
+  let stage = m.stage || 0, text = null;
+  if (stage < 3 && d < 150) { stage = 3; text = `🏁 ${name} arrived`; }
+  else if (stage < 2 && total > 2000 && d < total / 2) { stage = 2; text = `🛣️ ${name} is halfway there`; }
+  else if (stage < 1 && speed > 5 && metersBetween([lat, lng], [m.start_lat, m.start_lng]) > 400) { stage = 1; text = `🚗 ${name} is on the way`; }
+  if (!text) return;
+  await db.batch([
+    db.prepare("UPDATE convoy_members SET stage = ? WHERE convoy_id = ? AND user_id = ?").bind(stage, m.cid, me.id),
+    db.prepare("INSERT INTO convoy_messages (id, convoy_id, user_id, text, created, kind) VALUES (?, ?, ?, ?, ?, 'system')").bind(uid(), m.cid, me.id, text, Date.now()),
+  ]);
 }
 
 async function friendIds(db, userId) {
@@ -637,13 +662,17 @@ async function handleApi(req, env, ctx, url) {
   // Family: shared locations, places, check-ins, parent controls.
   const fam = await handleFamily({ path, method, body, me, db, url, json });
   if (fam) return fam;
+  // Spotted mode ("I saw your car!").
+  const spot = await handleSpot({ path, method, body, me, db, url, json, HttpError, card, kidRules });
+  if (spot) return spot;
   // Teen / kid accounts: what a parent turned off stays off (enforced here, not just hidden in the app).
   const kid = await kidRules(db, me.id);
   if (kid) {
     const block = (on, what) => { if (!on) throw new HttpError(403, `${what} turned off by your parent.`); };
     if ((path === "/meets" && method === "POST") || /^\/meets\/[a-f0-9]{24}\/rsvp$/.test(path)) block(kid.meets, "Car meets are");
-    if (/^\/feed\/.+\/like$/.test(path) || (/^\/convoys\/[a-f0-9]{8}\/messages$/.test(path) && method === "POST")) block(kid.social, "Chat and social features are");
+    if (/^\/feed\/.+\/like$/.test(path) || (/^\/convoys\/[a-f0-9]{8}\/(messages|voice)$/.test(path) && method === "POST")) block(kid.social, "Chat and social features are");
     if (path === "/feed" && method === "GET" && !kid.social) return json({ items: [] });
+    if (path === "/spot" && method === "POST") block(kid.social, "Spotting is");
     if (path === "/friends/request" || (path === "/friends/respond" && body.accept) || (path === "/convoys" && method === "POST") || /^\/convoys\/[a-f0-9]{8}\/(join|invite)$/.test(path)) block(kid.convoys, "Group drives and friend requests are");
     if (path === "/auth/me" && method === "PATCH" && body.ghost_mode === false) block(kid.mapVisible, "Being visible on the map is");
   }
@@ -907,7 +936,7 @@ async function handleApi(req, env, ctx, url) {
     await db.batch([
       "DELETE FROM records WHERE owner_id = ?", "DELETE FROM sessions WHERE user_id = ?", "DELETE FROM friends WHERE requester_id = ?1 OR addressee_id = ?1",
       "DELETE FROM live_pos WHERE user_id = ?", "DELETE FROM report_votes WHERE user_id = ?", "DELETE FROM reports WHERE user_id = ?",
-      "DELETE FROM avatars WHERE user_id = ?", "DELETE FROM car_images WHERE owner_id = ?", "DELETE FROM family_members WHERE user_id = ?", "DELETE FROM family_events WHERE user_id = ?", "DELETE FROM users WHERE id = ?",
+      "DELETE FROM avatars WHERE user_id = ?", "DELETE FROM car_images WHERE owner_id = ?", "DELETE FROM family_members WHERE user_id = ?", "DELETE FROM family_events WHERE user_id = ?", "DELETE FROM spot_settings WHERE user_id = ?", "DELETE FROM spot_trail WHERE user_id = ?", "DELETE FROM spots WHERE spotter_id = ?1 OR spotted_id = ?1", "DELETE FROM crossings WHERE a_id = ?1 OR b_id = ?1", "DELETE FROM users WHERE id = ?",
     ].map((q) => db.prepare(q).bind(id)));
     return new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json", "set-cookie": `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax` } });
   }
@@ -1076,6 +1105,7 @@ async function handleApi(req, env, ctx, url) {
         ctx.waitUntil(postTripToDiscord(me.discord_webhook, me, data, vehicle ? JSON.parse(vehicle.data) : null, url.origin).catch(() => {}));
       }
       await db.prepare("DELETE FROM live_pos WHERE user_id = ?").bind(me.id).run();
+      if (name === "Trip") ctx.waitUntil(friendIds(db, me.id).then((ids) => findCrossings(db, me, rid, data, ids)).catch(() => {}));
       return json({ ...data, id: rid, created_by_id: me.id, created_by: me.email, created_date: t, updated_date: t });
     }
     const row = id ? await db.prepare("SELECT * FROM records WHERE id = ? AND entity = ? AND owner_id = ?").bind(id, name, me.id).first() : null;
@@ -1155,6 +1185,10 @@ async function handleApi(req, env, ctx, url) {
 
   // --- live locations ---
   if (path === "/live" && method === "POST") {
+    if (isFinite(+body.lat) && isFinite(+body.lng)) {
+      await convoyProgress(db, me, +body.lat, +body.lng, +body.speed || 0).catch(() => {});
+      await recordTrail(db, me, +body.lat, +body.lng, { hidden: !!me.ghost_mode }).catch(() => {});
+    }
     if (me.ghost_mode) return json({ ok: true, hidden: true });
     const lat = +body.lat, lng = +body.lng;
     if (!isFinite(lat) || !isFinite(lng)) throw new HttpError(400, "Bad position");
@@ -1237,7 +1271,7 @@ async function handleApi(req, env, ctx, url) {
     }
     return json({ convoys: out });
   }
-  const cvx = path.match(/^\/convoys\/([a-f0-9]{8})\/(invite|messages|settings)$/);
+  const cvx = path.match(/^\/convoys\/([a-f0-9]{8})\/(invite|messages|settings|voice)(?:\/([a-f0-9]{24}))?$/);
   if (cvx) {
     const c = await db.prepare("SELECT * FROM convoys WHERE code = ? AND expires > ?").bind(cvx[1], Date.now()).first();
     if (!c) throw new HttpError(404, "That group drive has ended.");
@@ -1253,10 +1287,10 @@ async function handleApi(req, env, ctx, url) {
     if (cvx[2] === "messages" && method === "GET") {
       const after = +url.searchParams.get("after") || 0;
       const { results } = await db.prepare(
-        `SELECT m.id, m.text, m.created, u.id AS uid, u.display_name, u.username, u.avatar_url, u.color FROM convoy_messages m JOIN users u ON u.id = m.user_id
+        `SELECT m.id, m.text, m.created, m.kind, m.secs, u.id AS uid, u.display_name, u.username, u.avatar_url, u.color FROM convoy_messages m JOIN users u ON u.id = m.user_id
          WHERE m.convoy_id = ? AND m.created > ? ORDER BY m.created DESC LIMIT 60`
       ).bind(c.id, after).all();
-      return json({ messages: results.reverse().map((r) => ({ id: r.id, text: r.text, at: r.created, mine: r.uid === me.id, user: card({ id: r.uid, display_name: r.display_name, username: r.username, avatar_url: r.avatar_url, color: r.color }) })) });
+      return json({ messages: results.reverse().map((r) => ({ id: r.id, text: r.text, at: r.created, kind: r.kind || "text", secs: r.secs || null, mine: r.uid === me.id, user: card({ id: r.uid, display_name: r.display_name, username: r.username, avatar_url: r.avatar_url, color: r.color }) })) });
     }
     if (cvx[2] === "messages" && method === "POST") {
       const text = String(body.text || "").trim().slice(0, 300);
@@ -1272,6 +1306,25 @@ async function handleApi(req, env, ctx, url) {
         }
       }
       return json({ ok: true, id, at: t });
+    }
+    // Push-to-talk: short voice clips for the group (kept a few hours).
+    if (cvx[2] === "voice" && method === "POST") {
+      const mime = String(body.mime || "");
+      if (!/^audio\/(wav|webm|ogg|mp4|mpeg|aac)/.test(mime)) throw new HttpError(400, "Unsupported audio.");
+      const data = String(body.data || "");
+      if (!data || data.length > 900000) throw new HttpError(413, "Keep voice messages under 15 seconds.");
+      const secs = Math.max(0.3, Math.min(15, +body.secs || 0));
+      const bytes = Uint8Array.from(atob(data), (ch) => ch.charCodeAt(0));
+      const id = uid(), t = Date.now();
+      await db.prepare("INSERT INTO convoy_messages (id, convoy_id, user_id, text, created, kind, audio, mime, secs) VALUES (?, ?, ?, ?, ?, 'voice', ?, ?, ?)")
+        .bind(id, c.id, me.id, `🎙️ Voice message (${Math.round(secs)} s)`, t, bytes, mime.split(";")[0], secs).run();
+      ctx.waitUntil(db.prepare("UPDATE convoy_messages SET audio = NULL WHERE audio IS NOT NULL AND created < ?").bind(t - 6 * 3600000).run().catch(() => {}));
+      return json({ ok: true, id, at: t });
+    }
+    if (cvx[2] === "voice" && method === "GET" && cvx[3]) {
+      const r = await db.prepare("SELECT audio, mime FROM convoy_messages WHERE id = ? AND convoy_id = ?").bind(cvx[3], c.id).first();
+      if (!r?.audio) throw new HttpError(404, "That voice message expired.");
+      return new Response(new Uint8Array(r.audio), { headers: { "content-type": r.mime || "audio/wav", "cache-control": "private, max-age=21600" } });
     }
     if (cvx[2] === "settings" && method === "PATCH") {
       if (c.owner_id !== me.id) throw new HttpError(403, "Only the leader can change this.");
@@ -1400,6 +1453,7 @@ async function handleApi(req, env, ctx, url) {
     }
     const { results: mts } = await db.prepare(`SELECT * FROM meets WHERE owner_id IN (${qs}) AND starts > ? AND (visibility = 'public' OR visibility = 'friends') ORDER BY created DESC LIMIT 20`).bind(...people, Date.now()).all();
     for (const m of mts) items.push({ id: `m_${m.id}`, kind: "meet", at: new Date(m.created).toISOString(), user: card(byId[m.owner_id]), meetId: m.id, title: m.title, place: m.place || "", starts: new Date(m.starts).toISOString(), lat: m.lat, lng: m.lng });
+    items.push(...(await feedItems(db, me, people, card).catch(() => [])));
     items.sort((a, b) => String(b.at).localeCompare(String(a.at)));
     const top = items.slice(0, 60);
     if (top.length) {
@@ -1543,7 +1597,7 @@ function serveStatic(url) {
 let schemaReady = false;
 async function ensureSchema(db) {
   if (schemaReady) return;
-  await db.batch([...SCHEMA, ...FAMILY_SCHEMA].map((s) => db.prepare(s)));
+  await db.batch([...SCHEMA, ...FAMILY_SCHEMA, ...SPOT_SCHEMA].map((s) => db.prepare(s)));
   for (const m of MIGRATIONS) { try { await db.prepare(m).run(); } catch { /* already applied */ } }
   schemaReady = true;
 }

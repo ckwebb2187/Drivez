@@ -79,4 +79,12 @@ export const MIGRATIONS = [
   `CREATE UNIQUE INDEX IF NOT EXISTS users_invite ON users(invite_code)`,
   `ALTER TABLE convoys ADD COLUMN discord TEXT`,
   `ALTER TABLE convoys ADD COLUMN discord_mirror INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE convoy_messages ADD COLUMN kind TEXT`,
+  `ALTER TABLE convoy_messages ADD COLUMN audio BLOB`,
+  `ALTER TABLE convoy_messages ADD COLUMN mime TEXT`,
+  `ALTER TABLE convoy_messages ADD COLUMN secs REAL`,
+  `ALTER TABLE convoy_members ADD COLUMN stage INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE convoy_members ADD COLUMN start_lat REAL`,
+  `ALTER TABLE convoy_members ADD COLUMN start_lng REAL`,
+  `ALTER TABLE convoy_members ADD COLUMN total_m REAL`,
 ];

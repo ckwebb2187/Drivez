@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Loader2, Flame, MapPin, Clock, Gauge, Navigation } from 'lucide-react';
+import { Loader2, Flame, MapPin, Clock, Gauge, Navigation, Eye } from 'lucide-react';
+import SpotSheet from '@/components/SpotSheet';
 import { api } from '@/api/base44Client';
 import { getInitials, formatDuration } from '@/lib/helpers';
 import UserTags from '@/components/UserTags';
@@ -39,6 +40,7 @@ export default function FeedPage() {
   const [items, setItemsState] = useState(lastFeed);
   const setItems = (v) => setItemsState((prev) => { const next = typeof v === 'function' ? v(prev) : v; lastFeed = next; return next; });
   const [error, setError] = useState('');
+  const [spotting, setSpotting] = useState(false);
   const navigate = useNavigate();
   useEffect(() => { api.get('/feed').then((d) => setItems(d.items)).catch((e) => setError(e.message || 'Could not load the feed.')); }, []);
   const like = async (it) => {
@@ -48,7 +50,11 @@ export default function FeedPage() {
 
   return (
     <div className="px-4 pt-[max(16px,env(safe-area-inset-top))] pb-6 space-y-3">
-      <h1 className="text-2xl font-black text-foreground">Feed</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-black text-foreground">Feed</h1>
+        <button onClick={() => setSpotting(true)} className="h-9 px-3 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center gap-1.5"><Eye className="w-4 h-4" />Spot a car</button>
+      </div>
+      {spotting && <SpotSheet onClose={() => { setSpotting(false); api.get('/feed').then((d) => setItems(d.items)).catch(() => {}); }} />}
       {error && <p className="text-xs text-destructive">{error}</p>}
       {!items && !error ? <Loader2 className="w-5 h-5 animate-spin text-muted-foreground mx-auto mt-10" /> : items && !items.length ? (
         <p className="text-sm text-muted-foreground text-center py-10">Nothing yet. Add friends (Profile → Friends) and their drives, build photos and meets show up here.</p>
@@ -59,7 +65,7 @@ export default function FeedPage() {
               {it.user.avatarUrl ? <img src={it.user.avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover" /> : <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ background: it.user.color || '#00BFFF' }}>{getInitials(it.user.name || it.user.username)}</div>}
             </Link>
             <div className="flex-1 min-w-0">
-              <div className="text-sm text-foreground truncate"><span className="font-bold">{it.user.name}</span><UserTags creator={it.user.creator} founder={it.user.founder} className="ml-1" /> <span className="text-muted-foreground">{it.kind === 'drive' ? (it.convoy ? 'went on a group drive' : 'went for a drive') : it.kind === 'photo' ? `added a photo of the ${it.car}` : 'is hosting a meet'}</span></div>
+              <div className="text-sm text-foreground truncate"><span className="font-bold">{it.user.name}</span><UserTags creator={it.user.creator} founder={it.user.founder} className="ml-1" /> <span className="text-muted-foreground">{it.kind === 'drive' ? (it.convoy ? 'went on a group drive' : 'went for a drive') : it.kind === 'photo' ? `added a photo of the ${it.car}` : it.kind === 'spot' ? <>spotted <b className="text-foreground">{it.spotted.name}</b> 👀</> : it.kind === 'crossed' ? <>crossed paths with <b className="text-foreground">{it.other.name}</b></> : 'is hosting a meet'}</span></div>
               <div className="text-[11px] text-muted-foreground">{ago(it.at)} ago{it.kind === 'drive' && it.car ? ` · ${it.car}` : ''}</div>
             </div>
           </header>
@@ -75,6 +81,20 @@ export default function FeedPage() {
               </div>
               {it.end && <div className="text-[11px] text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3" />Ended near {it.end}</div>}
             </>
+          )}
+          {it.kind === 'spot' && (
+            <div className="rounded-xl bg-secondary/60 p-3 text-sm text-foreground flex items-center gap-2">
+              <span className="text-2xl">👀</span><span className="flex-1">{it.note || 'Spotted on the road'}{it.mine && <span className="block text-[11px] text-primary font-semibold">That's your car!</span>}</span>
+            </div>
+          )}
+          {it.kind === 'crossed' && (
+            <div className="rounded-xl bg-secondary/60 p-3 space-y-2">
+              <div className="text-sm text-foreground">🔀 Within a block of each other at {new Date(it.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} on {new Date(it.at).toLocaleDateString([], { weekday: 'long' })}.</div>
+              <div className="flex gap-2">
+                {(it.aTrip || it.bTrip) && <button onClick={() => navigate(`/trip/${it.aTrip || it.bTrip}`)} className="flex-1 h-9 rounded-xl bg-card text-xs font-semibold text-foreground">My drive</button>}
+                <a href={`https://www.google.com/maps?q=${it.lat},${it.lng}`} target="_blank" rel="noreferrer" className="flex-1 h-9 rounded-xl bg-card text-xs font-semibold text-foreground flex items-center justify-center gap-1"><MapPin className="w-3.5 h-3.5" />Where</a>
+              </div>
+            </div>
           )}
           {it.kind === 'photo' && (
             <>

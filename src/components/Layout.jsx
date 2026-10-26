@@ -30,6 +30,16 @@ export default function Layout() {
   const fam = useFamilyBrief();
   const offTab = (to) => (to === '/feed' && fam?.controls?.social === false) || (to === '/meets' && fam?.controls?.meets === false);
   const [famToast, clearFamToast] = useFamilyPing();
+  // Someone spotted your car: a quick heads-up (checked every 2 minutes).
+  const [spotToast, setSpotToast] = useState(null);
+  useEffect(() => {
+    if (!user || !scene) return undefined;
+    let since = Date.now(), t;
+    const tick = () => api.get(`/spot/inbox?since=${since}`).then((d) => { since = d.now || Date.now(); if (d.spots?.length) setSpotToast(d.spots[0]); }).catch(() => {}).finally(() => { t = setTimeout(tick, 120000); });
+    t = setTimeout(tick, 15000);
+    return () => clearTimeout(t);
+  }, [user?.id, scene]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!spotToast) return undefined; const t = setTimeout(() => setSpotToast(null), 7000); return () => clearTimeout(t); }, [spotToast?.id]);
   useEffect(() => { if (!famToast || famToast.kind === 'sos') return undefined; const t = setTimeout(clearFamToast, 6000); return () => clearTimeout(t); }, [famToast?.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const shownTabs = tabs.filter((t) => (!t.scene || scene) && !offTab(t.to)).map((t) => (t.to === '/' && look.jpNames ? { ...t, label: 'Chizu' } : t));
   const onDrive = pathname === '/' || pathname === '/drive'; // the drive map is the home screen
@@ -81,6 +91,11 @@ export default function Layout() {
       {famToast && (
         <NavLink to="/family" onClick={clearFamToast} className={`fixed left-3 right-3 top-[max(12px,env(safe-area-inset-top))] z-[1600] rounded-2xl shadow-2xl px-4 py-3 text-sm font-semibold flex items-center gap-2 dz-pop-in ${famToast.kind === 'sos' ? 'bg-red-600 text-white animate-pulse' : 'bg-card text-foreground border border-primary/60'}`}>
           <span className="text-lg">{EVENT_ICON[famToast.kind] || '👪'}</span><span className="flex-1">{famToast.text}</span><span className="text-xs opacity-80">Open ›</span>
+        </NavLink>
+      )}
+      {spotToast && !famToast && (
+        <NavLink to="/feed" onClick={() => setSpotToast(null)} className="fixed left-3 right-3 top-[max(12px,env(safe-area-inset-top))] z-[1600] rounded-2xl shadow-2xl px-4 py-3 text-sm font-semibold flex items-center gap-2 dz-pop-in bg-card text-foreground border border-primary/60">
+          <span className="text-lg">👀</span><span className="flex-1">{spotToast.by.name} spotted your car{spotToast.note ? `: ${spotToast.note}` : '!'}</span><span className="text-xs opacity-80">Feed ›</span>
         </NavLink>
       )}
       {!onDrive && driving && (

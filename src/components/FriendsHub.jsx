@@ -4,7 +4,8 @@ import { Users, X, Share2, Send, LogOut, Loader2, MessageCircle, Check, UserPlus
 import { api } from '@/api/base44Client';
 import { getInitials } from '@/lib/helpers';
 import { distM, formatNavDistance } from '@/lib/nav';
-import { convoyUrl, startConvoy, inviteToConvoy, convoySettings, useConvoyChat } from '@/lib/convoy';
+import { convoyUrl, startConvoy, inviteToConvoy, convoySettings, useConvoyChat, voiceUrl } from '@/lib/convoy';
+import PushToTalk from '@/components/PushToTalk';
 import UserTags from '@/components/UserTags';
 import { spd, speedUnit } from '@/lib/units';
 
@@ -183,14 +184,22 @@ function GroupTab({ convoy, here, friends, inGroup, invited, busy, onInvite, onS
         <div ref={list} className="max-h-[26vh] overflow-y-auto p-2 space-y-1.5">
           {!msgs.length && <p className="text-[11px] text-muted-foreground text-center py-3">Group chat. Messages show for everyone in this drive{convoy.discordMirror ? ' and post to Discord' : ''}.</p>}
           {msgs.map((m) => (
-            <div key={m.id} className={`text-sm rounded-2xl px-3 py-1.5 max-w-[85%] ${m.mine ? 'ml-auto bg-primary text-primary-foreground' : 'bg-card text-foreground'}`}>
-              {!m.mine && <div className="text-[10px] font-bold opacity-70">{m.user.name}</div>}{m.text}
-            </div>
+            m.kind === 'system' ? (
+              <div key={m.id} className="text-[11px] text-center text-muted-foreground font-semibold py-0.5">{m.text}</div>
+            ) : (
+              <div key={m.id} className={`text-sm rounded-2xl px-3 py-1.5 max-w-[85%] ${m.mine ? 'ml-auto bg-primary text-primary-foreground' : 'bg-card text-foreground'}`}>
+                {!m.mine && <div className="text-[10px] font-bold opacity-70">{m.user.name}</div>}
+                {m.kind === 'voice'
+                  ? <button onClick={() => new Audio(voiceUrl(convoy.code, m.id)).play().catch(() => {})} className="flex items-center gap-1.5 font-semibold">▶ Voice · {Math.round(m.secs || 0)} s</button>
+                  : m.text}
+              </div>
+            )
           ))}
         </div>
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar px-2 pb-2">
           {QUICK.map((q) => <button key={q} onClick={() => say(q)} className="shrink-0 text-xs px-3 py-1.5 rounded-full bg-card text-foreground border border-border">{q}</button>)}
         </div>
+        <div className="px-2 pb-2"><PushToTalk code={convoy.code} className="w-full justify-center" /></div>
         <div className="flex gap-2 p-2 pt-0">
           <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && say(text)} placeholder="Message the group…" className="flex-1 min-w-0 h-10 bg-card rounded-xl px-3 text-sm text-foreground border border-border focus:border-primary outline-none" />
           <button onClick={() => say(text)} className="w-10 h-10 rounded-xl dz-go flex items-center justify-center" aria-label="Send"><Send className="w-4 h-4" /></button>

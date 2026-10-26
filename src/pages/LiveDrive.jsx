@@ -20,7 +20,8 @@ import { useActiveLook, speedStyle } from '@/lib/mapTheme';
 import DriverSheet from '@/components/DriverSheet';
 import { api } from '@/api/base44Client';
 import { mileageMode } from '@/lib/carBluetooth';
-import { useConvoy, useOpenConvoys, joinConvoy } from '@/lib/convoy';
+import { useConvoy, useOpenConvoys, joinConvoy, useGroupLive } from '@/lib/convoy';
+import PushToTalk from '@/components/PushToTalk';
 import FriendsHub from '@/components/FriendsHub';
 import MeetRadar from '@/components/MeetRadar';
 import AskGemini from '@/components/AskGemini';
@@ -192,6 +193,9 @@ export default function LiveDrive({ active = true }) {
   // Teen / kid accounts: parents get speeding, hard-braking and phone-use alerts; features they turned off are hidden.
   useTeenAlerts({ driving: drive.status === 'driving', speed: drive.currentSpeed, limit: speedLimit?.mph || null, hardBrakes: drive.stats?.hardBrakes, pos: drive.currentPosition });
   const canGroup = useAllowed('convoys');
+  // Group drive: voice clips from the others play by themselves; on-the-way / halfway / arrived updates show and are spoken.
+  const [groupNews, clearGroupNews] = useGroupLive(convoy?.code, active, { speak: (t) => { if (voiceOn) say(t); } });
+  useEffect(() => { if (!groupNews) return undefined; const t = setTimeout(clearGroupNews, 7000); return () => clearTimeout(t); }, [groupNews?.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const canMeets = useAllowed('meets');
   const radar = scene && canMeets ? (
     <MeetRadar here={drive.currentPosition || herePos} heading={drive.status === 'driving' ? drive.heading : null}
@@ -490,6 +494,7 @@ export default function LiveDrive({ active = true }) {
           <AskGemini size={46} context={askContext} onAction={onAskAction} />
           {hub}
           {radar}
+          {convoy && canGroup && <PushToTalk code={convoy.code} />}
         </div>
       )}
 
@@ -646,7 +651,9 @@ export default function LiveDrive({ active = true }) {
             <div className={`absolute right-3 flex flex-col items-end gap-2 ${nav.active ? (turnsMin ? 'top-[80px]' : 'top-[150px]') : 'top-[max(12px,env(safe-area-inset-top))]'}`}>
               {hub}
               {radar}
+              {convoy && canGroup && <PushToTalk code={convoy.code} />}
             </div>
+
 
             {/* Tōge / Wangan run card */}
             {driveMode !== 'cruise' && (() => {
@@ -854,6 +861,14 @@ export default function LiveDrive({ active = true }) {
       )}
 
       {/* "Drive saved" note */}
+      {/* Latest from the group drive (voice clip playing, chat, on the way / halfway / arrived) */}
+      {groupNews && active && !toast && (
+        <div className="absolute left-3 right-3 top-[max(12px,env(safe-area-inset-top))] z-[690] pointer-events-auto dz-pop-in">
+          <button onClick={clearGroupNews} className="mx-auto max-w-md w-full text-left rounded-2xl bg-card/95 backdrop-blur border border-primary/60 shadow-2xl px-4 py-2.5 text-sm font-semibold text-foreground block">
+            {groupNews.kind === 'voice' ? `🎙️ ${groupNews.user?.name || 'Group'} is talking…` : groupNews.kind === 'system' ? groupNews.text : `💬 ${groupNews.user?.name}: ${groupNews.text}`}
+          </button>
+        </div>
+      )}
       {toast && active && (
         <div className="absolute left-3 right-3 top-[max(12px,env(safe-area-inset-top))] z-[700] pointer-events-auto dz-pop-in">
           <div className="mx-auto max-w-md rounded-2xl bg-[#188038] text-white shadow-2xl pl-4 pr-1.5 py-1.5 flex items-center gap-2">

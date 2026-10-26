@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/api/base44Client';
 
 export const convoyUrl = (code) => `${window.location.origin}/convoy/${code}`;
@@ -64,4 +64,36 @@ export function useConvoyChat(code, open) {
   }, [code, open]);
   const send = async (text) => { await api.post(`/convoys/${code}/messages`, { text }); };
   return { msgs, send, setMsgs };
+}
+
+// Push-to-talk: send a recorded clip ({ mime, data, seconds }) to the group.
+export const sendVoice = (code, clip) => api.post(`/convoys/${code}/voice`, { mime: clip.mime, data: clip.data, secs: clip.seconds });
+export const voiceUrl = (code, id) => `/api/convoys/${code}/voice/${id}`;
+
+// While you're in a group drive: plays new voice clips from the others, and calls out
+// "on the way / halfway / arrived" updates. Returns the latest update for an on-screen card.
+export function useGroupLive(code, active, { speak, autoplay = true } = {}) {
+  const [latest, setLatest] = useState(null);
+  const { msgs } = useConvoyChat(code, !!code && active);
+  const seen = useRef(null);
+  const queue = useRef(Promise.resolve());
+  useEffect(() => { seen.current = null; }, [code]);
+  useEffect(() => {
+    if (!msgs.length) return;
+    if (!seen.current) { seen.current = new Set(msgs.map((m) => m.id)); return; } // history: don't replay
+    for (const m of msgs) {
+      if (seen.current.has(m.id)) continue;
+      seen.current.add(m.id);
+      if (m.mine) continue;
+      setLatest({ ...m, key: m.id });
+      if (m.kind === 'voice' && autoplay) {
+        queue.current = queue.current.then(() => new Promise((done) => {
+          const a = new Audio(voiceUrl(code, m.id));
+          a.onended = done; a.onerror = done;
+          a.play().catch(done);
+        }));
+      } else if (m.kind === 'system') speak?.(m.text.replace(/^\S+\s/, ''));
+    }
+  }, [msgs]); // eslint-disable-line react-hooks/exhaustive-deps
+  return [latest, () => setLatest(null)];
 }
