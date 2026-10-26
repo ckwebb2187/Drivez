@@ -53,7 +53,7 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - [x] T26 · M · Meet photographers: photo drops onto a meet's page for attendees.
 - [x] T27 · M · Road scores: rate roads (twistiness, surface) from drives and reports.
 - [x] T27b · S · Road scores, part 2: show the road score (fun, surface, rough spots, twistiness) on planned route choices (`POST /roads/score`).
-- [ ] T28 · M · Local legends map (Louisiana): curated famous roads and spots layer.
+- [x] T28 · M · Local legends map (Louisiana): curated famous roads and spots layer.
 - [ ] T29 · M · Feature requests board with upvotes.
 - [ ] T30 · S · Report-a-problem form (goes to a records entity the owner can read).
 - [ ] T31 · S · Splash animation on app open (light-trail K logo). Must not slow startup: CSS only, under 2 KB.

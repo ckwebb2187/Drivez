@@ -37,3 +37,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-10-26 · T26 · deployed · live check ok 144 ms · meet-photo route live
 2026-10-26 · T27 · part 1 done · startup +0 KB · road_ratings table; Rate this road (surface/fun) on trip detail; /roads/score endpoint; split T27b for showing on routes
 2026-10-26 · T27b · done · startup +0.3 KB · 'Road: fun/surface stars · rough spots · twisty' line on planned routes
+2026-10-26 · T28 · done · startup +1 KB · 7 curated Louisiana legends (src/lib/legends.js, approx. pins) with radar pings, info sheet + Drive there; Map look toggle (on by default)

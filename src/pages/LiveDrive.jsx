@@ -18,6 +18,8 @@ import { WeatherButton } from '@/components/Weather';
 import TripPlanner from '@/components/TripPlanner';
 import { useSpeedLimit } from '@/lib/speedLimit';
 import { useActiveLook, speedStyle } from '@/lib/mapTheme';
+import { LEGENDS } from '@/lib/legends';
+const LEGEND_PINS = LEGENDS.map((l) => ({ ...l, label: l.name, legend: true }));
 import DriverSheet from '@/components/DriverSheet';
 import { api, base44 } from '@/api/base44Client';
 import { mileageMode } from '@/lib/carBluetooth';
@@ -396,6 +398,7 @@ export default function LiveDrive({ active = true, peek = false }) {
   const [endArmed, setEndArmed] = useState(false);
   const [settingsArmed, setSettingsArmed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [legend, setLegend] = useState(null); // tapped Local legend pin
   // Free drive (no route): end and save on its own after 10 minutes parked.
   const lastMoving = useRef(Date.now());
   useEffect(() => { if (drive.currentSpeed > 3 || drive.status !== 'driving') lastMoving.current = Date.now(); }, [drive.currentSpeed, drive.status]);
@@ -631,11 +634,11 @@ export default function LiveDrive({ active = true, peek = false }) {
             turn: nav.active && !nav.arrived && nav.distToStep < 160 && /left|right/.test(nav.step?.modifier || '') && nav.step?.type !== 'depart' ? (/left/.test(nav.step.modifier) ? 'left' : 'right') : null,
             alert: !!reportAlert,
           }}
-          pins={canMeets ? meetPins : []}
+          pins={[...(canMeets ? meetPins : []), ...(look.legends ? LEGEND_PINS : [])]}
           callout={mapCallout}
           highway={nav.active ? nav.route.highway : null}
           arrived={nav.active && nav.arrived}
-          onPinTap={() => navigate('/meets')}
+          onPinTap={(p) => (p?.legend ? setLegend(p) : navigate('/meets'))}
           onFriendTap={(f) => !f?.ghost && setOpenDriver(f)}
           guide={guideRoute ? guideRoute.route : null}
           trail={drive.route}
@@ -1060,6 +1063,19 @@ export default function LiveDrive({ active = true, peek = false }) {
             <span className="relative w-2.5 h-2.5"><span className="dz-ping" /><span className="absolute inset-0 rounded-full bg-primary" /></span>
             <span className="text-[11px] font-black tracking-widest text-primary">{passing.group ? 'GROUP' : 'FRIEND'}</span>
             <span className="text-sm font-bold text-white">{passing.name}</span>
+          </div>
+        </div>
+      )}
+      {legend && active && (
+        <div className="absolute inset-0 z-[1500] bg-black/40 flex items-end justify-center pointer-events-auto" onClick={() => setLegend(null)}>
+          <div className="w-full max-w-md bg-card rounded-t-3xl border-t border-border p-5 pb-[max(20px,env(safe-area-inset-bottom))] dz-pop-in" onClick={(e) => e.stopPropagation()}>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-primary">Local legend</div>
+            <div className="text-lg font-black text-foreground mt-0.5">{legend.emoji} {legend.name}</div>
+            <p className="text-sm text-muted-foreground mt-1">{legend.about}</p>
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setLegend(null)} className="flex-1 h-11 rounded-xl bg-secondary text-sm font-semibold text-foreground">Close</button>
+              <button onClick={() => { const l = legend; setLegend(null); radarGo({ name: l.name, lat: l.lat, lng: l.lng }); }} className="flex-1 h-11 rounded-xl dz-go text-sm font-bold flex items-center justify-center gap-1.5"><Navigation2 className="w-4 h-4" />Drive there</button>
+            </div>
           </div>
         </div>
       )}

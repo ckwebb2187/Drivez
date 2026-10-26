@@ -67,6 +67,11 @@ export default function MapLookSettings() {
         <div className="flex-1 min-w-0"><div className="text-xs font-semibold text-foreground">Live weather on the map</div><div className="text-[10px] text-muted-foreground truncate">Rain, fog, snow and clouds</div></div>
         <Toggle on={look.weatherFx} />
       </button>
+      <button onClick={() => update({ legends: !look.legends })} className="w-full flex items-center gap-2 text-left min-h-[40px]">
+        <span className="w-4 text-center shrink-0">⛰️</span>
+        <div className="flex-1 min-w-0"><div className="text-xs font-semibold text-foreground">Local legends</div><div className="text-[10px] text-muted-foreground truncate">Famous Louisiana roads and spots on the map</div></div>
+        <Toggle on={look.legends} />
+      </button>
       <button onClick={() => update({ jpNames: !look.jpNames })} className="w-full flex items-center gap-2 text-left min-h-[40px]">
         <Languages className="w-4 h-4 text-muted-foreground shrink-0" />
         <div className="flex-1 min-w-0"><div className="text-xs font-semibold text-foreground">Japanese feature names</div><div className="text-[10px] text-muted-foreground truncate">e.g. {featureName('map', true)}, {featureName('night', true)}</div></div>
