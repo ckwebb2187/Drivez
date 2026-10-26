@@ -1517,6 +1517,28 @@ async function handleApi(req, env, ctx, url) {
   }
 
   // --- road reports (police, crashes, hazards, traffic, closures) ---
+  // --- road scores (T27): rate a road after a drive; scores along a route ---
+  if (path === "/roads/rate" && method === "POST") {
+    const pts = (Array.isArray(body.points) ? body.points : []).filter((p) => Array.isArray(p) && isFinite(p[0]) && isFinite(p[1])).slice(0, 30);
+    const surface = Math.max(1, Math.min(5, Math.round(+body.surface || 0))) || null;
+    const fun = Math.max(1, Math.min(5, Math.round(+body.fun || 0))) || null;
+    if (!pts.length || (!surface && !fun)) throw new HttpError(400, "Rate the surface or how fun it was.");
+    const trip = String(body.tripId || "").slice(0, 40) || null;
+    if (trip) await db.prepare("DELETE FROM road_ratings WHERE owner_id = ? AND trip_id = ?").bind(me.id, trip).run(); // re-rating replaces
+    const t = Date.now();
+    await db.batch(pts.map((p) => db.prepare("INSERT INTO road_ratings (id, owner_id, trip_id, lat, lng, surface, fun, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(uid(), me.id, trip, +p[0], +p[1], surface, fun, t)));
+    return json({ ok: true });
+  }
+  if (path === "/roads/score" && method === "POST") {
+    const pts = (Array.isArray(body.points) ? body.points : []).filter((p) => Array.isArray(p) && isFinite(p[0]) && isFinite(p[1])).slice(0, 40);
+    if (!pts.length) return json({ surface: null, fun: null, ratings: 0, rough: 0 });
+    const d = 0.003; // ~300 m box around each sample
+    const where = pts.map(() => "(lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?)").join(" OR ");
+    const binds = pts.flatMap((p) => [p[0] - d, p[0] + d, p[1] - d * 1.2, p[1] + d * 1.2]);
+    const r = await db.prepare(`SELECT AVG(surface) AS s, AVG(fun) AS f, COUNT(DISTINCT COALESCE(trip_id, id)) AS n FROM road_ratings WHERE ${where}`).bind(...binds).first();
+    const rough = await db.prepare(`SELECT COUNT(*) AS n FROM reports WHERE type IN ('pothole','bump','dip') AND (${where.replace(/lat/g, "lat").replace(/lng/g, "lng")})`).bind(...binds).first().catch(() => ({ n: 0 }));
+    return json({ surface: r?.s ? Math.round(r.s * 10) / 10 : null, fun: r?.f ? Math.round(r.f * 10) / 10 : null, ratings: r?.n || 0, rough: rough?.n || 0 });
+  }
   if (path === "/reports" && method === "GET") {
     const lat = +url.searchParams.get("lat"), lng = +url.searchParams.get("lng");
     const radius = Math.min(+url.searchParams.get("km") || 40, 150) / 111; // degrees, roughly

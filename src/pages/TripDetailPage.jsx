@@ -7,6 +7,7 @@ import DarkMap from '@/components/DarkMap';
 import DiscordShareButton from '@/components/DiscordShareButton';
 import NarrateButton from '@/components/NarrateButton';
 import SectionSaver from '@/components/SectionSaver';
+import RateRoad from '@/components/RateRoad';
 import { useApp, mapTrip } from '@/lib/AppContext';
 import { base44 } from '@/api/base44Client';
 import { formatDuration, formatTimeAgo } from '@/lib/helpers';
@@ -241,6 +242,7 @@ export default function TripDetailPage() {
         )}
 
         {scene && trip.route.length > 20 && <SectionSaver trip={trip} onChange={setSection} />}
+        {trip.route.length > 5 && <RateRoad trip={trip} />}
 
         {/* Route replay controls */}
         <div className="bg-card rounded-2xl p-4 border border-border mt-3">
