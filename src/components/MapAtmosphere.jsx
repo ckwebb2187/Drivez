@@ -56,14 +56,19 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
     if (wk === 'rain' || wk === 'heavyrain' || wk === 'storm') add(wk === 'rain' ? 70 : 140, rain(wk !== 'rain'));
     if (wk === 'snow') add(70, (init) => ({ t: 'snow', x: rnd(0, w), y: init ? rnd(0, h) : -5, v: rnd(0.6, 1.6), r: rnd(1.2, 2.8), ph: rnd(0, 6) }));
     if (wk === 'clouds' || wk === 'fog' || wk === 'storm') add(4, () => ({ t: 'cloud', x: rnd(-0.3, 1) * w, y: rnd(0.05, 0.9) * h, r: rnd(0.35, 0.6) * Math.max(w, h), v: rnd(0.08, 0.2) }));
-    const PETALS = { kawaii: '255,170,205', sakura: '255,182,206', lavender: '190,160,235', rose: '232,165,152', sakuranight: '255,150,190', zen: '120,150,80' };
-    if (PETALS[theme]) add(theme === 'rose' ? 10 : 22, (init) => ({ t: 'petal', c: PETALS[theme], x: rnd(0, w), y: init ? rnd(0, h) : -10, v: rnd(0.5, 1.2), r: rnd(3, 6), ph: rnd(0, 6), rot: rnd(0, 6) }));
+    const PETALS = { kawaii: '255,170,205', sakura: '255,182,206', lavender: '190,160,235', rose: '232,165,152', sakuranight: '255,150,190', zen: '120,150,80', samurai: '170,28,40' };
+    if (PETALS[theme]) add(theme === 'rose' || theme === 'samurai' ? 10 : 22, (init) => ({ t: 'petal', c: PETALS[theme], x: rnd(0, w), y: init ? rnd(0, h) : -10, v: rnd(0.5, 1.2), r: rnd(3, 6), ph: rnd(0, 6), rot: rnd(0, 6) }));
     const SPARKS = { kawaii: 10, y2k: 18, harajuku: 14, galaxy: 45 };
     if (SPARKS[theme]) add(SPARKS[theme], () => ({ t: 'spark', x: rnd(0, w), y: rnd(0, h), ph: rnd(0, 6), s: theme === 'galaxy' ? 0.5 : 1 }));
     if (theme === 'matrix') add(26, (init) => ({ t: 'code', x: Math.floor(rnd(0, w / 14)) * 14, y: init ? rnd(-h, h) : rnd(-300, 0), v: rnd(2, 5), len: Math.floor(rnd(6, 18)) }));
     if (theme === 'vapor' || theme === 'galaxy') add(5, () => ({ t: 'trail', x: rnd(0, w), y: rnd(0.55, 1) * h, v: rnd(2, 5), len: rnd(40, 90), hue: theme === 'vapor' ? (Math.random() < 0.5 ? '255,113,206' : '1,205,254') : (Math.random() < 0.5 ? '124,77,255' : '58,209,255') }));
     if (theme === 'wasteland') add(55, (init) => ({ t: 'dust', x: init ? rnd(0, w) : -5, y: rnd(0, h), v: rnd(0.4, 1.4), r: rnd(0.8, 2) }));
+    const LIGHTS = { bayshore: ['255,154,60', '223,234,255'], daikoku: ['255,59,48', '255,255,255'], shuto: ['255,179,71', '255,255,255'] };
+    if (LIGHTS[theme]) add(5, () => ({ t: 'trail', x: rnd(0, w), y: rnd(0.55, 1) * h, v: rnd(2, 5), len: rnd(40, 90), hue: LIGHTS[theme][Math.random() < 0.5 ? 0 : 1] }));
+    if (theme === 'tougedawn' || theme === 'daikoku') add(3, () => ({ t: 'mist', x: rnd(-0.3, 1) * w, y: rnd(0.3, 0.9) * h, r: rnd(0.4, 0.6) * Math.max(w, h), v: rnd(0.1, 0.22) }));
     if (theme === 'tokyo' || theme === 'cyberpunk') add(6, () => ({ t: 'trail', x: rnd(0, w), y: rnd(0.55, 1) * h, v: rnd(2, 5), len: rnd(40, 90), hue: theme === 'tokyo' ? (Math.random() < 0.5 ? '255,45,149' : '0,229,255') : (Math.random() < 0.5 ? '176,38,255' : '0,255,213') }));
+
+    if (theme === 'samurai') add(2, () => ({ t: 'slash', x: rnd(0.1, 0.9) * w, y: rnd(0.1, 0.8) * h, len: rnd(60, 120), a: 0, ph: rnd(0, 300) }));
 
     let raf, lastT = 0, frame = 0;
     const draw = (now) => {
@@ -110,6 +115,15 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
             g.fillStyle = i === 0 ? `rgba(200,255,215,${a})` : `rgba(57,255,106,${a})`;
             g.fillText(String.fromCharCode(0x30a0 + ((p.x + i * 7 + Math.floor(p.y / 14)) % 96)), p.x, p.y - i * 14);
           }
+        } else if (p.t === 'mist') {
+          p.x += p.v; if (p.x - p.r > w) p.x = -p.r;
+          const mg = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+          mg.addColorStop(0, theme === 'daikoku' ? 'rgba(255,190,110,0.07)' : 'rgba(255,255,255,0.13)'); mg.addColorStop(1, 'rgba(0,0,0,0)');
+          g.fillStyle = mg; g.fillRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+        } else if (p.t === 'slash') {
+          const k = ((frame + p.ph) % 300) / 300; const a = k < 0.12 ? k / 0.12 : k < 0.3 ? 1 - (k - 0.12) / 0.18 : 0;
+          if (k > 0.97) { p.x = rnd(0.1, 0.9) * w; p.y = rnd(0.1, 0.8) * h; }
+          if (a > 0) { g.strokeStyle = `rgba(217,207,184,${a * 0.5})`; g.lineWidth = 1.5; g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x + p.len * 0.8 * Math.min(1, k * 8), p.y - p.len * 0.5 * Math.min(1, k * 8)); g.stroke(); }
         } else if (p.t === 'trail') {
           p.y -= p.v; if (p.y < h * 0.45) { p.y = h + rnd(0, 200); p.x = rnd(0, w); }
           const lg = g.createLinearGradient(p.x, p.y, p.x, p.y + p.len);
@@ -134,6 +148,10 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
     <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 1 }} aria-hidden="true">
       {/* Theme mood that doesn't need animation frames */}
       {theme === 'tokyo' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 70% at 50% 110%, rgba(255,45,149,0.18), transparent 60%), radial-gradient(90% 50% at 50% -10%, rgba(0,229,255,0.12), transparent 60%)' }} />}
+      {theme === 'bayshore' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 60% at 50% 110%, rgba(255,154,60,0.18), transparent 60%), radial-gradient(80% 40% at 50% 100%, rgba(223,234,255,0.10), transparent 70%)' }} />}
+      {theme === 'daikoku' && <div className="absolute inset-0" style={{ background: 'radial-gradient(100% 60% at 50% 105%, rgba(255,176,64,0.2), transparent 65%), linear-gradient(180deg, transparent 50%, rgba(255,59,48,0.06))' }} />}
+      {theme === 'shuto' && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(255,179,71,0.10), transparent 25%), radial-gradient(100% 50% at 50% 110%, rgba(31,191,107,0.12), transparent 60%)' }} />}
+      {theme === 'tougedawn' && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(255,181,144,0.38), rgba(143,180,217,0.18) 35%, rgba(200,215,225,0.18) 70%, rgba(220,230,235,0.28))' }} />}
       {theme === 'cyberpunk' && <div className="absolute inset-0 dz-scanlines" />}
       {theme === 'dystopian' && <>
         <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(120,120,110,0.35), rgba(60,60,55,0.05) 45%, rgba(40,40,38,0.25))' }} />
@@ -146,6 +164,11 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
       {['sakura', 'lavender', 'y2k', 'harajuku'].includes(theme) && <div className="absolute inset-0" style={{ background: `radial-gradient(80% 50% at 50% -10%, ${{ sakura: 'rgba(255,182,206,0.35)', lavender: 'rgba(190,160,235,0.3)', y2k: 'rgba(255,95,200,0.3)', harajuku: 'rgba(255,225,77,0.3)' }[theme]}, transparent 70%)` }} />}
       {theme === 'matrix' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 70% at 50% 110%, rgba(57,255,106,0.12), transparent 60%)' }} />}
       {theme === 'zen' && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(235,240,225,0.45), rgba(235,240,225,0.05) 45%, transparent)' }} />}
+      {theme === 'risingsun' && <>
+        <div className="absolute inset-0" style={{ background: 'radial-gradient(60% 35% at 50% 100%, rgba(192,23,43,0.28), transparent 70%)' }} />
+        <div className="absolute" style={{ left: '50%', bottom: '-14%', width: '70vmin', height: '70vmin', transform: 'translateX(-50%)', borderRadius: '50%', background: 'radial-gradient(circle, rgba(170,16,34,0.55) 0 60%, rgba(150,12,28,0.22) 70%, transparent 100%)' }} />
+      </>}
+      {theme === 'samurai' && <div className="absolute inset-0" style={{ background: 'radial-gradient(90% 55% at 50% -10%, rgba(217,207,184,0.10), transparent 70%), radial-gradient(100% 50% at 50% 110%, rgba(179,32,44,0.14), transparent 60%)' }} />}
       {theme === 'minimal' && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(215,216,214,0.5), rgba(215,216,214,0.05) 50%)' }} />}
       {theme === 'sakuranight' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 70% at 50% 110%, rgba(255,79,126,0.2), transparent 60%)' }} />}
       {theme === 'kawaii' && <div className="absolute inset-0" style={{ background: 'radial-gradient(80% 50% at 50% -10%, rgba(255,182,220,0.35), transparent 70%)' }} />}
