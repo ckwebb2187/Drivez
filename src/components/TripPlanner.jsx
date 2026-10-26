@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+const ElevationChart = lazy(() => import('@/components/ElevationChart'));
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles, Plus, ArrowUp, ArrowDown, GripVertical, Shuffle, Save, TrafficCone, Play, Bookmark, Trophy, Menu, Users } from 'lucide-react';
 import { ReportButton } from '@/components/MapBits';
@@ -436,6 +437,8 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
                     ))}
                   </div>
                 )}
+
+                <Suspense fallback={null}><ElevationChart coords={route.coords} metric={distUnit() === 'km'} /></Suspense>
 
                 <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
                   <button onClick={() => setAddingStop(true)} disabled={allStops.length >= MAX_STOPS + 1} className="shrink-0 h-9 px-3 rounded-full bg-secondary text-xs font-semibold text-foreground flex items-center gap-1.5 disabled:opacity-40">

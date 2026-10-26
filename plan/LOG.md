@@ -11,3 +11,5 @@ One line per run: date · ticket · result · startup KB · note.
 2026-10-26 · T03 · needs decision · - · free OSRM rejects exclude=toll/ferry; asked owner about Valhalla
 2026-10-26 · T04 · done · startup 563 KB gz · 15 stops; OSRM trip+route ok with 17 points
 2026-10-26 · T05 · done · startup 563 KB gz (+3.6 incl. T04) · drag grip on each stop, re-plans route on drop
+2026-10-26 · owner · Settings button on drive screen (moving = tap twice, for passengers) + new KM bronze app icon (web/PWA; Android needs a new APK)
+2026-10-26 · T06 · done · startup 563.6 KB gz (+0.6) · elevation strip under a planned route, Open-Meteo 50 samples, plain SVG, lazy-loaded
