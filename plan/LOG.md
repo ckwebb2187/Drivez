@@ -30,3 +30,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-10-26 · T18 · done · startup +0.2 KB · /convoys/:code/leader-run (members only) returns leader's best run on a section starting nearby; shown as 'Leader' ghost
 2026-10-26 · T14-T18 · deployed · live check ok 215 ms (first try 404 while Cloudflare updated) · -
 2026-10-26 · T19 · done · startup +0.3 KB · group drive HUD: one-tap Discord (group's link) + mute/unmute group audio (voice clips + spoken updates; app can't mute Discord itself)
+2026-10-26 · T23 · done · startup +0.4 KB · SW keeps loaded map tiles/style/fonts (2500 cap) for offline; planned route's corridor z10-15 pre-cached (600 cap, last route only)

@@ -45,7 +45,7 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - [x] T22 · M · Spotted mode, part 2: spotted feed and "crossed paths" cards after a drive.
 
 ## Phase 5: Offline
-- [ ] T23 · M · Offline route, part 1: when a route is planned, cache its map tiles along the corridor in the service worker (size cap, clear old).
+- [x] T23 · M · Offline route, part 1: when a route is planned, cache its map tiles along the corridor in the service worker (size cap, clear old).
 - [ ] T24 · M · Offline route, part 2: cache turn steps, elevation and hazard alerts for the route so turn-by-turn works with no signal.
 
 ## Backlog

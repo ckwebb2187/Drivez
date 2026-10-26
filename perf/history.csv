@@ -40,3 +40,4 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-10-26T18:37,T18,live,,,,,FAIL
 2026-10-26T18:37,T18,live,,,59,215,pass
 2026-10-26T20:22,T19,build,566.9,948.2,,,pass
+2026-10-26T20:23,T23,build,567.3,948.5,,,pass

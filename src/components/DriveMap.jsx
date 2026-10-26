@@ -424,6 +424,19 @@ function DriveMapInner({
     refresh();
   }, [routeCoords, pos?.[0], pos?.[1], trail?.length, guide]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { routeIdx.current = 0; }, [routeCoords]);
+  // Offline route (T23): ask the service worker to save the map tiles along a planned route.
+  useEffect(() => {
+    const map = mapRef.current, sw = navigator.serviceWorker?.controller;
+    if (!map || !sw || !routeCoords || routeCoords.length < 2) return undefined;
+    let off = false;
+    const send = () => {
+      const tpl = map.getSource('openmaptiles')?.tiles?.[0];
+      if (off || !tpl) return;
+      sw.postMessage({ type: 'cache-route-tiles', urls: routeTileUrls(routeCoords, tpl, 600) });
+    };
+    const t = setTimeout(() => (map.isStyleLoaded() ? send() : map.once('idle', send)), 3000);
+    return () => { off = true; clearTimeout(t); };
+  }, [routeCoords]);
 
   // Destination pin.
   useEffect(() => {
@@ -598,4 +611,29 @@ function DriveMapInner({
   }, [showTraffic]);
 
   return <div ref={box} className={`dz-drive-map ${className}`} style={{ position: 'absolute', inset: 0 }} />;
+}
+
+// Tile URLs covering a route: every zoom from 10 to 15, the route's tile plus its neighbours
+// (only the route's own tile at 15), stopping at `max` tiles.
+function routeTileUrls(coords, tpl, max) {
+  const out = new Set();
+  const tileOf = (lat, lng, z) => {
+    const n = 2 ** z, r = (lat * Math.PI) / 180;
+    return [Math.floor(((lng + 180) / 360) * n), Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n)];
+  };
+  for (let z = 10; z <= 15 && out.size < max; z++) {
+    const ring = z < 15 ? 1 : 0;
+    let last = '';
+    for (const [lat, lng] of coords) {
+      const [x, y] = tileOf(lat, lng, z);
+      const k = `${x},${y}`;
+      if (k === last) continue;
+      last = k;
+      for (let dx = -ring; dx <= ring; dx++) for (let dy = -ring; dy <= ring; dy++) {
+        if (out.size >= max) return [...out];
+        out.add(tpl.replace('{z}', z).replace('{x}', x + dx).replace('{y}', y + dy));
+      }
+    }
+  }
+  return [...out];
 }
