@@ -556,6 +556,7 @@ function DriveMapInner({
       m.friend = f;
       m.setLngLat([f.lng, f.lat]);
       const el = m.getElement();
+      el.style.opacity = f.ghost ? '0.55' : '';
       const carBox = el.querySelector('[data-car]');
       const sig = JSON.stringify([f.car, Math.round(f.heading || 0)]);
       if (carBox.dataset.sig !== sig) {

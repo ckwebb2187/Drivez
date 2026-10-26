@@ -19,7 +19,7 @@ import TripPlanner from '@/components/TripPlanner';
 import { useSpeedLimit } from '@/lib/speedLimit';
 import { useActiveLook, speedStyle } from '@/lib/mapTheme';
 import DriverSheet from '@/components/DriverSheet';
-import { api } from '@/api/base44Client';
+import { api, base44 } from '@/api/base44Client';
 import { mileageMode } from '@/lib/carBluetooth';
 import { useConvoy, useOpenConvoys, joinConvoy, useGroupLive } from '@/lib/convoy';
 import PushToTalk from '@/components/PushToTalk';
@@ -177,6 +177,50 @@ export default function LiveDrive({ active = true, peek = false }) {
     }
   }, [drive.currentPosition, mapFriends]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!passing) return undefined; const t = setTimeout(() => setPassing(null), 4500); return () => clearTimeout(t); }, [passing]);
+  // Ghost runs: entering one of your Tōge sections shows your best run there as a see-through car.
+  const [ghost, setGhost] = useState(null);
+  const ghostRef = useRef({ loaded: false, sections: [], best: {}, active: null });
+  useEffect(() => {
+    const g = ghostRef.current;
+    if (drive.status !== 'driving' || g.loaded) return;
+    g.loaded = true;
+    import('@/lib/sections').then(async ({ mySections }) => {
+      g.sections = await mySections();
+      if (!g.sections.length) return;
+      const runs = await base44.entities.SectorRun.list('-created_date', 500).catch(() => []);
+      for (const r of runs) if (r.trace?.length > 2 && (!g.best[r.sector_id] || r.score > g.best[r.sector_id].score)) g.best[r.sector_id] = r;
+    }).catch(() => {});
+  }, [drive.status]);
+  useEffect(() => {
+    const g = ghostRef.current, me = drive.currentPosition;
+    if (drive.status !== 'driving' || !me) return;
+    const here = [me.lat, me.lng];
+    if (g.active) {
+      const pts = g.active.sector.points;
+      if (distM(here, pts[pts.length - 1]) < 50) { g.active = null; setGhost(null); }
+      return;
+    }
+    for (const s of g.sections) {
+      const run = g.best[s.id];
+      if (run && s.points?.length > 1 && distM(here, s.points[0]) < 50) { g.active = { sector: s, run, t0: Date.now() }; break; }
+    }
+  }, [drive.currentPosition, drive.status]);
+  useEffect(() => {
+    if (drive.status !== 'driving') { ghostRef.current.active = null; setGhost(null); return undefined; }
+    const t = setInterval(() => {
+      const a = ghostRef.current.active;
+      if (!a) return;
+      const tr = a.run.trace, el = (Date.now() - a.t0) / 1000;
+      if (el > tr[tr.length - 1][0] + 20) { ghostRef.current.active = null; setGhost(null); return; }
+      let i = 1;
+      while (i < tr.length - 1 && tr[i][0] < el) i++;
+      const [t1, la1, ln1] = tr[i - 1], [t2, la2, ln2] = tr[i];
+      const f = Math.max(0, Math.min(1, t2 > t1 ? (el - t1) / (t2 - t1) : 1));
+      const heading = (Math.atan2(ln2 - ln1, la2 - la1) * 180) / Math.PI;
+      setGhost({ userId: 'ghost', ghost: true, name: `👻 PB ${a.run.score}`, lat: la1 + (la2 - la1) * f, lng: ln1 + (ln2 - ln1) * f, heading, car: myCar });
+    }, 500);
+    return () => clearInterval(t);
+  }, [drive.status]); // eslint-disable-line react-hooks/exhaustive-deps
   // Upcoming car meets near you, pinned on the map (scene mode).
   const [meets, setMeets] = useState([]);
   const meetsAt = useRef(null);
@@ -572,7 +616,7 @@ export default function LiveDrive({ active = true, peek = false }) {
           dest={navPlan ? navPlan.dest : preview ? preview.dest : null}
           stops={nav.active ? nav.stops.slice(nav.stopIdx) : preview ? preview.stops : []}
           fitCoords={drive.status === 'idle' && preview ? preview.route.coords : null}
-          friends={mapFriends}
+          friends={ghost ? [...mapFriends, ghost] : mapFriends}
           driveFx={{
             turn: nav.active && !nav.arrived && nav.distToStep < 160 && /left|right/.test(nav.step?.modifier || '') && nav.step?.type !== 'depart' ? (/left/.test(nav.step.modifier) ? 'left' : 'right') : null,
             alert: !!reportAlert,
@@ -582,7 +626,7 @@ export default function LiveDrive({ active = true, peek = false }) {
           highway={nav.active ? nav.route.highway : null}
           arrived={nav.active && nav.arrived}
           onPinTap={() => navigate('/meets')}
-          onFriendTap={setOpenDriver}
+          onFriendTap={(f) => !f?.ghost && setOpenDriver(f)}
           guide={guideRoute ? guideRoute.route : null}
           trail={drive.route}
           reports={roadReports.reports}
