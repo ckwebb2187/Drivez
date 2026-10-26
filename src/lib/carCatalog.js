@@ -97,6 +97,8 @@ export function carLook(v) {
     // Extras: paint finish, light style, decals, underglow animation, mirror charm.
     style: {
       finish: v?.finish || 'metallic',
+      grille: !!v?.led_grille,
+      splitter: !!v?.splitter,
       lights: v?.lights || 'stock',
       lashes: !!v?.lashes,
       decal: v?.decal || 'none',

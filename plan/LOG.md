@@ -32,3 +32,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-10-26 · T19 · done · startup +0.3 KB · group drive HUD: one-tap Discord (group's link) + mute/unmute group audio (voice clips + spoken updates; app can't mute Discord itself)
 2026-10-26 · T23 · done · startup +0.4 KB · SW keeps loaded map tiles/style/fonts (2500 cap) for offline; planned route's corridor z10-15 pre-cached (600 cap, last route only)
 2026-10-26 · T24 · done · startup +0.2 KB · steps already kept (dz-live-nav); road reports + route weather alerts saved to phone (12 h); SW keeps Open-Meteo elevation; reroute offline keeps old route
+2026-10-26 · T25 · done · startup +0.1 KB · LED grille bar (headlight color) and carbon front splitter in the builder; details buttons now a 3-col grid

@@ -49,7 +49,7 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - [x] T24 · M · Offline route, part 2: cache turn steps, elevation and hazard alerts for the route so turn-by-turn works with no signal.
 
 ## Backlog
-- [ ] T25 · S · Car builder: LED grille and front splitter options (`src/lib/car3d.js`, `src/components/CarBuilder.jsx`).
+- [x] T25 · S · Car builder: LED grille and front splitter options (`src/lib/car3d.js`, `src/components/CarBuilder.jsx`).
 - [ ] T26 · M · Meet photographers: photo drops onto a meet's page for attendees.
 - [ ] T27 · M · Road scores: rate roads (twistiness, surface) from drives and reports.
 - [ ] T28 · M · Local legends map (Louisiana): curated famous roads and spots layer.

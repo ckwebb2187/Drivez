@@ -180,9 +180,12 @@ export default function CarBuilder({ vehicle: v, save }) {
 
       {/* Details */}
       {display === 'build' && (
-        <div className="flex gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {[['scoop', 'Hood scoop'], ['wing', 'Rear wing']].map(([k, l]) => (
             <button key={k} onClick={() => save({ [k]: !look[k] })} className={`flex-1 text-xs py-2.5 rounded-xl border ${look[k] ? 'border-primary bg-primary/10 text-primary font-semibold' : 'border-border text-muted-foreground'}`}>{l}</button>
+          ))}
+          {[['led_grille', 'LED grille', look.style.grille], ['splitter', 'Splitter', look.style.splitter]].map(([k, l, on]) => (
+            <button key={k} onClick={() => save({ [k]: !on })} className={`flex-1 text-xs py-2.5 rounded-xl border ${on ? 'border-primary bg-primary/10 text-primary font-semibold' : 'border-border text-muted-foreground'}`}>{l}</button>
           ))}
           <button onClick={() => save({ lowered: !v.lowered })} className={`flex-1 text-xs py-2.5 rounded-xl border ${v.lowered ? 'border-primary bg-primary/10 text-primary font-semibold' : 'border-border text-muted-foreground'}`}>Lowered</button>
         </div>

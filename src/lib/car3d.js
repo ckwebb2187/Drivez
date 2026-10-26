@@ -307,6 +307,18 @@ export function buildCar({ body = '#1f5ad6', glow = null, shape = 'sedan', wheel
     const gate = new THREE.Mesh(new THREE.BoxGeometry(d.wid - 0.2, 0.32, 0.08), paint);
     gate.position.set(0, top + 0.14, d.len / 2 - 0.16); car.add(gate);
   }
+  // LED grille: a glowing light bar across the nose. Front splitter: a thin carbon lip under the bumper.
+  if (style.grille) {
+    const ledMat = new THREE.MeshBasicMaterial({ color: LIGHT_COLOR[style.lights] || '#e8f6ff' });
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(d.wid * 0.6, 0.035, 0.03), ledMat);
+    bar.position.set(0, d.y0 + d.bodyH * 0.62, -d.len / 2 - 0.005);
+    car.add(bar);
+  }
+  if (style.splitter) {
+    const sp = new THREE.Mesh(new THREE.BoxGeometry(d.wid * 0.92, 0.025, 0.22), carbon);
+    sp.position.set(0, d.y0 + 0.01, -d.len / 2 + 0.04);
+    car.add(sp);
+  }
   if (scoop) {
     const sc = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1, 0.42), paint);
     sc.position.set(0, top + 0.02, -d.len / 2 + 0.95);
