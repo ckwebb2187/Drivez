@@ -5,7 +5,7 @@ import { FAMILY_SCHEMA, handleFamily, kidRules, familyBrief } from "./family.js"
 import { SPOT_SCHEMA, handleSpot, recordTrail, findCrossings, feedItems } from "./spotting.js";
 import { FILES } from "./static/index.js";
 
-const ENTITIES = new Set(["Vehicle", "Trip", "Route", "Place"]);
+const ENTITIES = new Set(["Vehicle", "Trip", "Route", "Place", "Sector"]);
 const BODY_TYPES = new Set(["hatch", "sports", "sedan", "suv", "truck", "moto"]);
 const SESSION_COOKIE = "dz_session";
 const SESSION_DAYS = 60;

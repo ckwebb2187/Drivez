@@ -24,3 +24,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-10-26 · T13 · done · startup 565.4 KB gz (+0.8) · black animated wireframe turn card (themed looks) + smaller Groups button
 2026-10-26 · T10-T13 · deployed · live check ok 258 ms · -
 2026-10-26 · T14 · done · startup +0.2 KB · 30 roll (30-70) and 60-100 timed from GPS; on trip detail + profile Best times
+2026-10-26 · T15 · done · startup +0 KB · Sector records entity (owner-only); Save a Tōge section on trip detail with start/end sliders, orange preview

@@ -33,7 +33,7 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 
 ## Phase 3: Driving skill
 - [x] T14 · S · Acceleration times: add 60–100 mph and 30 mph roll times next to the existing 0-60 (drive stats code). Show on trip detail and profile showcase.
-- [ ] T15 · M · Toge sections, part 1: data model (records entity `sector`) and a way to save a stretch of road from a past drive as a section.
+- [x] T15 · M · Toge sections, part 1: data model (records entity `sector`) and a way to save a stretch of road from a past drive as a section.
 - [ ] T16 · M · Toge sections, part 2: score each pass: cornering smoothness, steady side g-force, clean entry/exit. No speed-based points.
 - [ ] T17 · M · Ghost runs, part 1: on a saved section, show your personal best as a ghost marker during the drive.
 - [ ] T18 · S · Ghost runs, part 2: compare against the convoy leader's run on the same section.

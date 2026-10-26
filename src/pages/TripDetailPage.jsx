@@ -6,6 +6,7 @@ import { LineChart, Line, ResponsiveContainer, YAxis, XAxis, Tooltip } from 'rec
 import DarkMap from '@/components/DarkMap';
 import DiscordShareButton from '@/components/DiscordShareButton';
 import NarrateButton from '@/components/NarrateButton';
+import SectionSaver from '@/components/SectionSaver';
 import { useApp, mapTrip } from '@/lib/AppContext';
 import { base44 } from '@/api/base44Client';
 import { formatDuration, formatTimeAgo } from '@/lib/helpers';
@@ -18,6 +19,7 @@ export default function TripDetailPage() {
   const [editing, setEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [confirmDel, setConfirmDel] = useState(false);
+  const [section, setSection] = useState(null); // [startIdx, endIdx] of a Tōge section being picked
   const [busy, setBusy] = useState(false);
   const listed = trips.find(t => t.id === id);
   // The drive list only has a thinned-out route; fetch the full one for this drive
@@ -87,6 +89,7 @@ export default function TripDetailPage() {
         <DarkMap center={currentPoint || trip.route[0]} zoom={14} follow>
           <Polyline positions={trip.route} pathOptions={{ color: trip.userColor || '#00BFFF', weight: 3, opacity: 0.2 }} />
           <Polyline positions={visibleRoute} pathOptions={{ color: trip.userColor || '#00BFFF', weight: 4, opacity: 0.9 }} />
+          {section && <Polyline positions={trip.route.slice(section[0], section[1] + 1)} pathOptions={{ color: '#FF9F0A', weight: 7, opacity: 0.95 }} />}
           {currentPoint && (
             <CircleMarker center={currentPoint} radius={6} pathOptions={{ color: '#39FF14', fillColor: '#39FF14', fillOpacity: 1 }} />
           )}
@@ -236,6 +239,8 @@ export default function TripDetailPage() {
             </p>
           </div>
         )}
+
+        {scene && trip.route.length > 20 && <SectionSaver trip={trip} onChange={setSection} />}
 
         {/* Route replay controls */}
         <div className="bg-card rounded-2xl p-4 border border-border mt-3">
