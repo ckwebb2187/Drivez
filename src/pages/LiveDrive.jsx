@@ -3,7 +3,8 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useTrafficEta } from '@/lib/traffic';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X, ChevronUp, Navigation2, SkipForward, MapPin } from 'lucide-react';
+import { ChevronDown, Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X, ChevronUp, Navigation2, SkipForward, MapPin, Settings } from 'lucide-react';
+import { SettingsSheet } from '@/components/SettingsList';
 import DriveMap from '@/components/DriveMap';
 import { useGpsDrive, pendingDrive, clearPendingDrive } from '@/lib/useGpsDrive';
 import { useApp } from '@/lib/AppContext';
@@ -310,6 +311,8 @@ export default function LiveDrive({ active = true, peek = false }) {
   const setMin = (v) => { setTurnsMin(v); try { localStorage.setItem('dz-turns-min', v ? '1' : '0'); } catch { /* ignore */ } };
   const [stepsOpen, setStepsOpen] = useState(false);
   const [endArmed, setEndArmed] = useState(false);
+  const [settingsArmed, setSettingsArmed] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Free drive (no route): end and save on its own after 10 minutes parked.
   const lastMoving = useRef(Date.now());
   useEffect(() => { if (drive.currentSpeed > 3 || drive.status !== 'driving') lastMoving.current = Date.now(); }, [drive.currentSpeed, drive.status]);
@@ -809,6 +812,16 @@ export default function LiveDrive({ active = true, peek = false }) {
               <WeatherButton className="!w-[50px] !h-[50px]" />
               <MusicButton size={50} />
               <ReportButton size={50} onReport={(type) => roadReports.report(type, drive.currentPosition)} disabled={!drive.currentPosition} />
+              {/* Settings mid-drive. Moving: first tap asks for a second tap (meant for passengers). */}
+              <button onClick={() => {
+                  if ((drive.currentSpeed || 0) < 5 || settingsArmed) { setSettingsArmed(false); setSettingsOpen(true); return; }
+                  setSettingsArmed(true); setTimeout(() => setSettingsArmed(false), 3500);
+                }}
+                className={`h-[50px] rounded-full shadow-xl border flex items-center justify-center gap-1.5 transition-all self-end ${settingsArmed ? 'w-[150px] bg-primary border-primary text-primary-foreground' : 'w-[50px] bg-card border-border text-foreground'}`}
+                aria-label="Settings">
+                <Settings className="w-5 h-5" />{settingsArmed && <span className="text-xs font-bold">Passenger? Tap</span>}
+              </button>
+              {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
               {!nav.active && (
                 <button onClick={() => { if (endArmed) { setEndArmed(false); drive.end(); } else { setEndArmed(true); setTimeout(() => setEndArmed(false), 3500); } }}
                   className={`h-[50px] rounded-full shadow-xl border flex items-center justify-center gap-1.5 transition-all ${endArmed ? 'w-[128px] bg-destructive border-destructive text-white' : 'w-[50px] bg-card border-border text-destructive'}`}
