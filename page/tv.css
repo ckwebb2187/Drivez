@@ -42,4 +42,5 @@ body.saver #clock { font-size:21vh }
 body.saver #lane { bottom:3vh; height:20vh; left:6vw; right:6vw }
 #lane .hero-pace { height:100%; bottom:0 }
 .hero-visit { z-index:3 }
-@media (prefers-reduced-motion: reduce) { #motes { display:none } #wrap { transition:none } }
+@media (prefers-reduced-motion: reduce) { #motes { display:none } #wrap { transition:none }
+  .hero, .hero svg *, .hero-pace, .hero-pace .hv-turn, .stk-a { animation:none !important } .hero-visit { display:none } }

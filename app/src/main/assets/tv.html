@@ -47,7 +47,8 @@ body.saver #clock { font-size:21vh }
 body.saver #lane { bottom:3vh; height:20vh; left:6vw; right:6vw }
 #lane .hero-pace { height:100%; bottom:0 }
 .hero-visit { z-index:3 }
-@media (prefers-reduced-motion: reduce) { #motes { display:none } #wrap { transition:none } }
+@media (prefers-reduced-motion: reduce) { #motes { display:none } #wrap { transition:none }
+  .hero, .hero svg *, .hero-pace, .hero-pace .hv-turn, .stk-a { animation:none !important } .hero-visit { display:none } }
 
 .stk { display:inline-block; width:var(--sz, 48px); height:var(--sz, 48px); flex:none; transform:rotate(var(--r0, 0deg)); pointer-events:none }
 .stk-a { display:block; width:100%; height:100%; animation:var(--an, none) var(--du, 4s) ease-in-out var(--dl, 0s) infinite; transform-origin:50% 60%; will-change:transform }
@@ -796,7 +797,7 @@ function makeMotes(cols) {
    screensaver they take turns crossing the screen. */
 function renderLane() {
   const lane = $('#lane'), ht = D.ht;
-  if (!ht || decoStill()) { lane.innerHTML = ''; return; }
+  if (!ht) { lane.innerHTML = ''; return; }   /* with reduced motion they stand still (see the CSS) */
   const hs = heroesFor(ht); if (!hs.length) { lane.innerHTML = ''; return; }
   const day = Math.floor(Date.now() / 864e5), name = hs[day % hs.length], H = HEROES[name];
   const per = HERO_PACE[H.go] || 0, pd = per ? (MODE === 'saver' ? 46 : 38) : 0, pdl = pd ? -((Date.now() / 1000) % pd) : 0;

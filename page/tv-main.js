@@ -68,7 +68,7 @@ function makeMotes(cols) {
    screensaver they take turns crossing the screen. */
 function renderLane() {
   const lane = $('#lane'), ht = D.ht;
-  if (!ht || decoStill()) { lane.innerHTML = ''; return; }
+  if (!ht) { lane.innerHTML = ''; return; }   /* with reduced motion they stand still (see the CSS) */
   const hs = heroesFor(ht); if (!hs.length) { lane.innerHTML = ''; return; }
   const day = Math.floor(Date.now() / 864e5), name = hs[day % hs.length], H = HEROES[name];
   const per = HERO_PACE[H.go] || 0, pd = per ? (MODE === 'saver' ? 46 : 38) : 0, pdl = pd ? -((Date.now() / 1000) % pd) : 0;
