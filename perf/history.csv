@@ -15,3 +15,4 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-10-26T14:53,autochip,live,,,40,177,pass
 2026-10-26T14:58,glow,live,,,57,205,pass
 2026-10-26T15:06,nobar,live,,,57,198,pass
+2026-10-26T17:41,T05,build,563,941.2,,,pass

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles, Plus, ArrowUp, ArrowDown, Shuffle, Save, TrafficCone, Play, Bookmark, Trophy, Menu, Users } from 'lucide-react';
+import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles, Plus, ArrowUp, ArrowDown, GripVertical, Shuffle, Save, TrafficCone, Play, Bookmark, Trophy, Menu, Users } from 'lucide-react';
 import { ReportButton } from '@/components/MapBits';
 import MusicButton from '@/components/MusicButton';
 import { WeatherButton, WeatherTimeBadge } from '@/components/Weather';
@@ -139,6 +139,21 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
     if (j < 0 || j >= list.length) return;
     [list[i], list[j]] = [list[j], list[i]];
     plan(list[list.length - 1], list.slice(0, -1));
+  };
+  // Drag a stop by its grip to a new spot (works with touch and mouse, no library).
+  const [drag, setDrag] = useState(null); // { from, over }
+  const dragOver = (e) => {
+    const row = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-stop]');
+    if (row) setDrag((d) => (d ? { ...d, over: Number(row.dataset.stop) } : d));
+  };
+  const dragEnd = () => {
+    if (drag && drag.over !== drag.from) {
+      const list = [...allStops];
+      const [moved] = list.splice(drag.from, 1);
+      list.splice(drag.over, 0, moved);
+      plan(list[list.length - 1], list.slice(0, -1));
+    }
+    setDrag(null);
   };
   const bestOrder = async () => {
     if (!pos || stops.length < 2) return;
@@ -400,7 +415,15 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
                 {stops.length > 0 && (
                   <div className="mt-3 max-h-[30vh] overflow-y-auto no-scrollbar rounded-2xl bg-secondary/50 divide-y divide-border">
                     {allStops.map((st, i) => (
-                      <div key={`${st.lat},${st.lng},${i}`} className="flex items-center gap-2 pl-3 pr-1 py-2">
+                      <div key={`${st.lat},${st.lng},${i}`} data-stop={i} className={`flex items-center gap-2 pl-1 pr-1 py-2 transition-colors ${drag?.from === i ? 'opacity-50' : ''} ${drag && drag.over === i && drag.from !== i ? 'bg-primary/15' : ''}`}>
+                        <span
+                          className="w-6 h-8 flex items-center justify-center shrink-0 cursor-grab touch-none text-muted-foreground"
+                          aria-label="Drag to reorder"
+                          onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); setDrag({ from: i, over: i }); }}
+                          onPointerMove={(e) => drag && dragOver(e)}
+                          onPointerUp={dragEnd}
+                          onPointerCancel={() => setDrag(null)}
+                        ><GripVertical className="w-4 h-4" /></span>
                         <span className={`w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center shrink-0 ${i === allStops.length - 1 ? 'bg-[#EA4335] text-white' : 'dz-go'}`}>{i === allStops.length - 1 ? <MapPin className="w-3.5 h-3.5" /> : i + 1}</span>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-semibold text-foreground truncate">{st.name}</div>
