@@ -13,3 +13,5 @@ One line per run: date · ticket · result · startup KB · note.
 2026-10-26 · T05 · done · startup 563 KB gz (+3.6 incl. T04) · drag grip on each stop, re-plans route on drop
 2026-10-26 · owner · Settings button on drive screen (moving = tap twice, for passengers) + new KM bronze app icon (web/PWA; Android needs a new APK)
 2026-10-26 · T06 · done · startup 563.6 KB gz (+0.6) · elevation strip under a planned route, Open-Meteo 50 samples, plain SVG, lazy-loaded
+2026-10-26 · T04-T06 · deployed · live check ok (slow PC network, ipv4first) · -
+2026-10-26 · T07 · done · startup 564.1 KB gz (+0.5) · Home/Work beacon + light pillar, still dot in battery saver

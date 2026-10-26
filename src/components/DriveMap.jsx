@@ -7,6 +7,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { carMarkup } from '@/lib/cars';
 import { REPORT_TYPES } from '@/lib/reports';
 import { distM } from '@/lib/nav';
+import { useApp } from '@/lib/AppContext';
 import { useWeatherTiles, useWeatherPrefs } from '@/components/Weather';
 import { CAR_MODELS } from '@/lib/carModels';
 import { useLiveTraffic, trafficTileUrl } from '@/lib/traffic';
@@ -506,6 +507,22 @@ function DriveMapInner({
     }
     for (const [id, m] of pinMarkers.current) if (!keep.has(id)) { m.remove(); pinMarkers.current.delete(id); }
   }, [pins.map((p) => p.id).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Home & Work: a soft breathing beacon with a light pillar. Battery saver = plain still dot.
+  const { home, work } = useApp();
+  const anchorRef = useRef([]);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    anchorRef.current.forEach((m) => m.remove());
+    anchorRef.current = [home, work].filter((p) => p?.lat != null).map((p) => {
+      const el = document.createElement('div');
+      el.className = `dz-anchor${lite ? ' dz-anchor-still' : ''}`;
+      el.innerHTML = `<div class="dz-anchor-pillar"></div><div class="dz-anchor-ring"></div><div class="dz-anchor-dot">${p === home ? '🏠' : '💼'}</div>`;
+      return new maplibregl.Marker({ element: el, anchor: 'bottom', pitchAlignment: 'viewport', rotationAlignment: 'viewport' }).setLngLat([p.lng, p.lat]).addTo(map);
+    });
+    return () => { anchorRef.current.forEach((m) => m.remove()); anchorRef.current = []; };
+  }, [home?.lat, home?.lng, work?.lat, work?.lng, lite]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Friends driving now: their car + name. Tap to see their profile.
   useEffect(() => {

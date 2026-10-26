@@ -228,3 +228,13 @@ html[data-skin="standard"] .dz-report-icon { color: #f29900; filter: none; }
 .dz-sweep::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, hsl(var(--primary) / 0.3) 50%, transparent 70%); transform: translateX(-100%); animation: dz-auto-sweep 3.6s ease-in-out infinite; }
 .dz-sweep-light::after { background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%); }
 @media (prefers-reduced-motion: reduce) { .dz-glow, .dz-sweep::after { animation: none; } }
+
+/* Home & Work map beacons (T07) */
+.dz-anchor { position: relative; width: 40px; height: 64px; display: flex; align-items: flex-end; justify-content: center; pointer-events: none; }
+.dz-anchor-dot { position: relative; z-index: 2; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; background: hsl(var(--card)); border: 2px solid hsl(var(--primary)); box-shadow: 0 0 10px hsl(var(--primary) / .7); }
+.dz-anchor-ring { position: absolute; bottom: -4px; left: 50%; width: 34px; height: 34px; margin-left: -17px; border-radius: 50%; border: 2px solid hsl(var(--primary) / .8); animation: dz-anchor-ring 2.8s ease-out infinite; }
+.dz-anchor-pillar { position: absolute; bottom: 13px; left: 50%; width: 6px; height: 52px; margin-left: -3px; border-radius: 3px; background: linear-gradient(to top, hsl(var(--primary) / .75), transparent); filter: blur(1.5px); animation: dz-anchor-breathe 2.8s ease-in-out infinite; }
+@keyframes dz-anchor-ring { from { transform: scale(.6); opacity: .9; } to { transform: scale(1.9); opacity: 0; } }
+@keyframes dz-anchor-breathe { 0%, 100% { opacity: .35; } 50% { opacity: .9; } }
+.dz-anchor-still .dz-anchor-ring, .dz-anchor-still .dz-anchor-pillar { display: none; }
+@media (prefers-reduced-motion: reduce) { .dz-anchor-ring, .dz-anchor-pillar { animation: none; } }
