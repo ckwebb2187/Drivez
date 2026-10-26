@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Home Base Launcher</string>
+    <string name="home_button_name">Home Base home button</string>
+    <string name="home_button_desc">Opens the Home Base home screen whenever you press the Home button, instead of the Google TV home screen. It only watches for the Google TV home screen opening; it doesn\'t read anything on screen.</string>
+</resources>

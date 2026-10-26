@@ -1,0 +1,38 @@
+# Tries the app on an Android TV emulator and keeps the screenshots in a draft release (not public).
+name: Home Base TV check
+on:
+  push:
+    branches: [home-base-tv]
+    paths: ['HomeBaseTV.apk', 'ci/**', '.github/workflows/home-base-tv-test.yml']
+permissions:
+  contents: write
+jobs:
+  emulator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Try it on an Android TV emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: android-tv
+          arch: x86
+          profile: tv_1080p
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash ci/emulator-check.sh
+      - name: Keep the screenshots
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p shots && cd shots && zip -q ../tv-check.zip ./* ; cd ..
+          gh release view tv-check --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create tv-check --repo "$GITHUB_REPOSITORY" --draft --title "Home Base TV check (temporary)" --notes "Screenshots from the emulator check. Safe to delete."
+          gh release upload tv-check tv-check.zip --repo "$GITHUB_REPOSITORY" --clobber
+          gh release delete tv-toolchain --repo "$GITHUB_REPOSITORY" --yes || true
