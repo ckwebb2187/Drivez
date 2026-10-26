@@ -46,7 +46,7 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 
 ## Phase 5: Offline
 - [x] T23 · M · Offline route, part 1: when a route is planned, cache its map tiles along the corridor in the service worker (size cap, clear old).
-- [ ] T24 · M · Offline route, part 2: cache turn steps, elevation and hazard alerts for the route so turn-by-turn works with no signal.
+- [x] T24 · M · Offline route, part 2: cache turn steps, elevation and hazard alerts for the route so turn-by-turn works with no signal.
 
 ## Backlog
 - [ ] T25 · S · Car builder: LED grille and front splitter options (`src/lib/car3d.js`, `src/components/CarBuilder.jsx`).

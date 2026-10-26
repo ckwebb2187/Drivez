@@ -25,8 +25,18 @@ export function useWeatherAlerts(pos) {
 export async function alertsAlongRoute(coords) {
   const n = Math.min(10, Math.max(2, Math.ceil(coords.length / 80)));
   const pts = Array.from({ length: n }, (_, k) => coords[Math.round((k / (n - 1)) * (coords.length - 1))]);
-  const d = await api.post('/nws/route', { points: pts });
-  return d.alerts.filter((a) => SERIOUS.test(a.event));
+  // Saved per route so the alerts along it still show with no signal (offline route, T24).
+  const key = `${pts[0].map((x) => x.toFixed(3))}|${pts[pts.length - 1].map((x) => x.toFixed(3))}`;
+  try {
+    const d = await api.post('/nws/route', { points: pts });
+    const list = d.alerts.filter((a) => SERIOUS.test(a.event));
+    try { localStorage.setItem('dz-route-alerts', JSON.stringify({ key, at: Date.now(), list })); } catch { /* full */ }
+    return list;
+  } catch (e) {
+    const c = JSON.parse(localStorage.getItem('dz-route-alerts') || 'null');
+    if (c?.key === key && Date.now() - c.at < 12 * 3600000) return c.list;
+    throw e;
+  }
 }
 
 // Point-in-polygon for GeoJSON Polygon/MultiPolygon ([lng,lat] rings).

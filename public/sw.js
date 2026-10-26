@@ -9,6 +9,7 @@ const PAGES = 'dz-pages-v2';
 const MAP = 'dz-map-v1';
 const ROUTE = 'dz-route-tiles-v1';
 const MAP_HOST = 'tiles.openfreemap.org';
+const ELEV_HOST = 'api.open-meteo.com'; // route elevation, kept for offline
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil((async () => {
@@ -42,7 +43,7 @@ self.addEventListener('message', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   // Map tiles, style, fonts and icons: network first, saved copy when there's no signal.
-  if (e.request.method === 'GET' && url.host === MAP_HOST) {
+  if (e.request.method === 'GET' && (url.host === MAP_HOST || url.host === ELEV_HOST)) {
     e.respondWith((async () => {
       try {
         const res = await fetch(e.request);

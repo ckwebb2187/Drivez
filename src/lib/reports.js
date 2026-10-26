@@ -17,7 +17,10 @@ export const REPORT_TYPES = {
 
 // Loads road reports around `pos`, refreshing every minute or after moving 2 km.
 export function useReports(pos) {
-  const [reports, setReports] = useState([]);
+  // Last list is kept on the phone (12 h) so hazards still show after a restart with no signal.
+  const [reports, setReports] = useState(() => {
+    try { const c = JSON.parse(localStorage.getItem('dz-reports-cache') || 'null'); return c && Date.now() - c.at < 12 * 3600000 ? c.reports : []; } catch { return []; }
+  });
   const last = useRef({ at: 0, pos: null });
 
   const load = useCallback(async (p = pos, force = false) => {
@@ -25,7 +28,11 @@ export function useReports(pos) {
     const moved = !last.current.pos || distM(last.current.pos, p) > 2000;
     if (!force && !moved && Date.now() - last.current.at < 60000) return;
     last.current = { at: Date.now(), pos: p };
-    try { setReports((await api.get(`/reports?lat=${p[0]}&lng=${p[1]}&km=40`)).reports); } catch { /* keep old list */ }
+    try {
+      const list = (await api.get(`/reports?lat=${p[0]}&lng=${p[1]}&km=40`)).reports;
+      setReports(list);
+      try { localStorage.setItem('dz-reports-cache', JSON.stringify({ at: Date.now(), reports: list })); } catch { /* full or private */ }
+    } catch { /* offline: keep old list */ }
   }, [pos]);
 
   useEffect(() => { load(pos); }, [pos, load]);
