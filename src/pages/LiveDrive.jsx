@@ -620,8 +620,8 @@ export default function LiveDrive({ active = true, peek = false }) {
       {/* Map */}
       <div className="absolute inset-0 dz-map-layer">
         <DriveMap
-          pos={drive.currentPosition || herePos}
-          heading={drive.heading}
+          pos={(drive.status === 'driving' && nav.active && nav.snapped) || drive.currentPosition || herePos}
+          heading={drive.status === 'driving' && nav.active && nav.snapped && drive.currentSpeed > 3 ? nav.roadBearing : drive.heading}
           speed={drive.currentSpeed}
           car={myCar}
           driving={drive.status === 'driving'}

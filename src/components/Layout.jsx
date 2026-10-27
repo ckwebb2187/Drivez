@@ -8,6 +8,7 @@ import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
 import { useMapLook, useActiveLook, featureName, applySkin } from '@/lib/mapTheme';
 import { useUnits } from '@/lib/units';
+import { useLeaveReminder, planOf, leaveTimeText } from '@/components/LeaveLater';
 import { useFamilyPing, useFamilyBrief, EVENT_ICON } from '@/lib/family';
 
 
@@ -21,6 +22,8 @@ export default function Layout() {
   useEffect(() => { applySkin(skinKey); }, [skinKey]);
   const fam = useFamilyBrief();
   const [famToast, clearFamToast] = useFamilyPing();
+  // Scheduled drive (Routes → Leave later): heads-up 10 minutes before it's time to go.
+  const [leaveDue, clearLeaveDue] = useLeaveReminder();
   // Someone spotted your car: a quick heads-up (checked every 2 minutes).
   const [spotToast, setSpotToast] = useState(null);
   useEffect(() => {
@@ -94,6 +97,15 @@ export default function Layout() {
         <NavLink to="/family" onClick={clearFamToast} className={`fixed left-3 right-3 top-[max(12px,env(safe-area-inset-top))] z-[1600] rounded-2xl shadow-2xl px-4 py-3 text-sm font-semibold flex items-center gap-2 dz-pop-in ${famToast.kind === 'sos' ? 'bg-red-600 text-white animate-pulse' : 'bg-card text-foreground border border-primary/60'}`}>
           <span className="text-lg">{EVENT_ICON[famToast.kind] || '👪'}</span><span className="flex-1">{famToast.text}</span><span className="text-xs opacity-80">Open ›</span>
         </NavLink>
+      )}
+      {leaveDue && !famToast && (
+        <div className="fixed left-3 right-3 top-[max(12px,env(safe-area-inset-top))] z-[1610] rounded-2xl shadow-2xl px-4 py-3 bg-card border border-primary/60 dz-glow dz-pop-in flex items-center gap-3">
+          <span className="dz-sweep" aria-hidden="true" />
+          <span className="text-xl">⏰</span>
+          <span className="flex-1 min-w-0"><span className="block text-sm font-bold text-foreground truncate">Time to head out: {leaveDue.name}</span><span className="block text-[11px] text-muted-foreground">Leave by {leaveTimeText(new Date(leaveDue.leave_at))}</span></span>
+          <NavLink to={leaveDue.dest ? '/' : `/?route=${leaveDue.id}`} state={leaveDue.dest ? { plan: planOf(leaveDue) } : undefined} onClick={clearLeaveDue} className="h-9 px-3 rounded-full dz-go text-xs font-bold flex items-center">Go</NavLink>
+          <button onClick={clearLeaveDue} className="text-xs text-muted-foreground" aria-label="Dismiss">✕</button>
+        </div>
       )}
       {spotToast && !famToast && (
         <NavLink to="/feed" onClick={() => setSpotToast(null)} className="fixed left-3 right-3 top-[max(12px,env(safe-area-inset-top))] z-[1600] rounded-2xl shadow-2xl px-4 py-3 text-sm font-semibold flex items-center gap-2 dz-pop-in bg-card text-foreground border border-primary/60">

@@ -249,6 +249,13 @@ export function AppProvider({ children }) {
     return mapped;
   };
 
+  // Change a saved route (e.g. its "leave later" time).
+  const updateRoute = async (id, patch) => {
+    const rec = await base44.entities.Route.update(id, patch);
+    setSavedRoutes(prev => prev.map(r => (r.id === id ? { ...r, ...mapRoute({ ...r, ...rec, points: r.route }) } : r)));
+    return rec;
+  };
+
   const deleteRoute = async (id) => {
     await base44.entities.Route.delete(id);
     setSavedRoutes(prev => prev.filter(r => r.id !== id));
@@ -292,7 +299,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       user, scene, setAppMode, carBt, carAuto, btCar, saveProfile, stats, weeklyStats, vehicles, trips, savedRoutes, loading, activeVehicle, myCar, setPrimaryVehicle,
       toggleGhostMode, updateUser, addVehicle, updateTrip, deleteTrip, removeVehicle, setVehicleImage, addVehiclePhoto, removeVehiclePhoto, updateVehicle, addTrip,
-      addRoute, deleteRoute, shareRouteWithFriends, places, addPlace, deletePlace, renamePlace, home, work, setHomeWork, refreshData: loadData
+      addRoute, updateRoute, deleteRoute, shareRouteWithFriends, places, addPlace, deletePlace, renamePlace, home, work, setHomeWork, refreshData: loadData
     }}>
       {children}
     </AppContext.Provider>

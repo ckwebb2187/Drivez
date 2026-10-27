@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import SetPlaceModal from '@/components/SetPlaceModal';
 import NamePlaceSheet from '@/components/NamePlaceSheet';
+import AddPlaceSheet from '@/components/AddPlaceSheet';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Search, Star, Navigation, Upload, MapPin, Home, Briefcase, Pencil } from 'lucide-react';
+import { ChevronLeft, Search, Star, Navigation, Upload, MapPin, Home, Briefcase, Pencil, Plus } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 
 export default function PlacesPage() {
@@ -10,6 +11,7 @@ export default function PlacesPage() {
   const { places, deletePlace, renamePlace, home, work } = useApp();
   const [renaming, setRenaming] = useState(null);
   const [setting, setSetting] = useState(null);
+  const [adding, setAdding] = useState(false);
   const [pos, setPos] = useState(null);
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition((p) => setPos([p.coords.latitude, p.coords.longitude]), () => {}, { maximumAge: 60000 });
@@ -41,9 +43,14 @@ export default function PlacesPage() {
             <p className="text-[11px] text-muted-foreground">{places.length.toLocaleString()} saved</p>
           </div>
         </div>
-        <button onClick={() => navigate('/import')} className="bg-primary text-primary-foreground rounded-xl px-3 py-2 text-xs font-bold flex items-center gap-1">
-          <Upload className="w-3.5 h-3.5" /> Import
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => navigate('/import')} className="bg-secondary text-foreground rounded-xl px-3 py-2 text-xs font-bold flex items-center gap-1">
+            <Upload className="w-3.5 h-3.5" /> Import
+          </button>
+          <button onClick={() => setAdding(true)} className="bg-primary text-primary-foreground rounded-xl px-3 py-2 text-xs font-bold flex items-center gap-1">
+            <Plus className="w-3.5 h-3.5" /> Add address
+          </button>
+        </div>
       </div>
 
       <div className="px-5">
@@ -76,12 +83,13 @@ export default function PlacesPage() {
           <NamePlaceSheet title="Rename place" initialName={renaming.name} address={renaming.address}
             onSave={(n) => renamePlace(renaming.id, n)} onRemove={() => deletePlace(renaming.id)} onClose={() => setRenaming(null)} />
         )}
+        {adding && <AddPlaceSheet pos={pos} lists={lists.filter((l) => l !== 'All')} onClose={() => setAdding(false)} />}
         {setting && <SetPlaceModal kind={setting} pos={pos} onClose={() => setSetting(null)} />}
         {places.filter((p) => !p.kind).length === 0 ? (
           <div className="text-center py-12">
             <MapPin className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">No saved places yet</p>
-            <p className="text-xs text-muted-foreground mt-1">Tap the star after searching for a place, or import from Google Maps and Waze.</p>
+            <p className="text-xs text-muted-foreground mt-1">Tap “Add address” to type one in, tap the star after searching on the map, or import from Google Maps and Waze.</p>
           </div>
         ) : (
           <div className="space-y-2">

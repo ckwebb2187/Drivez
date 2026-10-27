@@ -8,6 +8,7 @@ import ShareRouteModal from '@/components/ShareRouteModal';
 import RouteThumbnail from '@/components/RouteThumbnail';
 import { useApp } from '@/lib/AppContext';
 import { dst, distUnit } from '@/lib/units';
+import { LeaveLaterList } from '@/components/LeaveLater';
 
 
 async function geocode(query) {
@@ -118,6 +119,8 @@ export default function RoutesPage() {
           <Plus className="w-3.5 h-3.5" /> Plan
         </button>
       </div>
+
+      <LeaveLaterList routes={myRoutes} />
 
       {/* My saved routes */}
       <div className="px-5 space-y-3 pb-2">
