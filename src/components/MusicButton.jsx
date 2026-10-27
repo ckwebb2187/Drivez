@@ -133,13 +133,33 @@ function useNowPlaying(user, every) {
   return { track, loading, error, hint };
 }
 
-function Bars() {
+// Beat ring: equalizer bars dancing in a circle around the button while music plays,
+// and the button's glow pulsing in rhythm. Paused = the bars rest, no pulse.
+// (Other apps' audio can't be read, so the rhythm is a steady tempo picked per song.)
+const RING_COLORS = ['#7cc8ff', '#a9b2ff', '#c39bff', '#e29cf0', '#ff8fd0', '#c39bff'];
+export function tempoFor(title = '') {
+  let h = 0; for (const ch of String(title)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return 0.42 + (h % 19) / 100; // 0.42-0.60 s per beat (about 100-140 BPM)
+}
+function BeatRing({ size, playing, beat }) {
+  const n = 28, r = size / 2 + 3;
   return (
-    <span className="absolute -top-0.5 -right-0.5 flex items-end gap-[2px] h-3.5 px-1 py-0.5 rounded-full bg-[#ff8fd0]">
-      {[0, 1, 2].map((i) => <span key={i} className="w-[2px] bg-white rounded-full dz-eq" style={{ animationDelay: `${i * 0.18}s` }} />)}
+    <span className="absolute pointer-events-none" style={{ left: '50%', top: '50%', width: 0, height: 0 }} aria-hidden="true">
+      {Array.from({ length: n }, (_, i) => {
+        const deg = (360 / n) * i;
+        return (
+          <span key={i} className="absolute left-0 top-0" style={{ transform: `rotate(${deg}deg) translateY(-${r}px)` }}>
+            <span className={`block w-[3px] h-[9px] -ml-[1.5px] -mt-[9px] rounded-full origin-bottom ${playing ? 'dz-ring-bar' : ''}`}
+              style={{ background: RING_COLORS[i % RING_COLORS.length], opacity: playing ? 0.95 : 0.3, transform: playing ? undefined : 'scaleY(0.35)',
+                boxShadow: playing ? `0 0 6px ${RING_COLORS[i % RING_COLORS.length]}` : 'none',
+                animationDuration: `${beat * (1 + ((i * 7) % 5) / 10)}s`, animationDelay: `${-((i * 37) % 23) / 23 * beat}s` }} />
+          </span>
+        );
+      })}
     </span>
   );
 }
+
 
 // Inside the Drivez Android app, the phone itself tells us what's playing and
 // lets us control it, so no ListenBrainz setup is needed.
@@ -174,12 +194,12 @@ function NativeMusicButton({ size }) {
   return (
     <>
       <button onClick={() => setOpen(!open)} aria-label="Music"
-        className="relative rounded-full p-[2.5px] shadow-xl active:scale-95 transition-transform"
-        style={{ width: size, height: size, background: 'conic-gradient(from 200deg, #7cc8ff, #c39bff, #ff8fd0, #7cc8ff)' }}>
+        className={`relative rounded-full p-[2.5px] shadow-xl active:scale-95 transition-transform ${track?.playing ? 'dz-beat' : ''}`}
+        style={{ width: size, height: size, background: 'conic-gradient(from 200deg, #7cc8ff, #c39bff, #ff8fd0, #7cc8ff)', '--beat': `${tempoFor(track?.title)}s` }}>
+        <BeatRing size={size} playing={!!track?.playing} beat={tempoFor(track?.title)} />
         <span className="flex items-center justify-center w-full h-full rounded-full overflow-hidden" style={{ background: 'radial-gradient(circle at 35% 30%, #2a2a3d, #0e0e16 70%)' }}>
           {track?.art ? <img src={track.art} alt="" className="w-full h-full object-cover" /> : <img src="/yuma.png" alt="" className="w-[62%] h-[62%] object-contain" />}
         </span>
-        {track?.playing && <Bars />}
       </button>
 
       {open && createPortal(
@@ -289,13 +309,13 @@ function WebMusicButton({ size }) {
       <button
         onClick={toggle}
         aria-label="Music"
-        className="relative rounded-full p-[2.5px] shadow-xl active:scale-95 transition-transform"
-        style={{ width: size, height: size, background: 'conic-gradient(from 200deg, #7cc8ff, #c39bff, #ff8fd0, #7cc8ff)' }}
+        className={`relative rounded-full p-[2.5px] shadow-xl active:scale-95 transition-transform ${track && !track.recent ? 'dz-beat' : ''}`}
+        style={{ width: size, height: size, background: 'conic-gradient(from 200deg, #7cc8ff, #c39bff, #ff8fd0, #7cc8ff)', '--beat': `${tempoFor(track?.title)}s` }}
       >
+        <BeatRing size={size} playing={!!track && !track.recent} beat={tempoFor(track?.title)} />
         <span className="flex items-center justify-center w-full h-full rounded-full overflow-hidden" style={{ background: 'radial-gradient(circle at 35% 30%, #2a2a3d, #0e0e16 70%)' }}>
           {track?.art ? <img src={track.art} alt="" className="w-full h-full object-cover" /> : <img src="/yuma.png" alt="" className="w-[62%] h-[62%] object-contain" />}
         </span>
-        {track && <Bars />}
       </button>
 
       {open && createPortal(
