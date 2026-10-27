@@ -52,3 +52,5 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-10-26T20:36,T31,build,569.1,954,,,pass
 2026-10-26T21:17,T03,build,569.5,954.4,,,pass
 2026-10-26T21:29,android-1.8,live,,,132,319,pass
+2026-10-27T03:57,logo-v2,live,,,386,731,FAIL
+2026-10-27T03:57,logo-v2,live,,,43,186,pass

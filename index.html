@@ -3,21 +3,42 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#09090b" />
+    <meta name="theme-color" content="#071222" />
     <link rel="icon" href="/icon-192.png" type="image/png" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="preload" as="image" href="/logo.webp" />
     <title>Kaido Maps</title>
   </head>
   <body>
     <div id="root"></div>
-    <!-- Splash (T31): light-trail K, CSS only; never blocks taps and fades by itself. -->
-    <div id="dz-splash" aria-hidden="true"><svg viewBox="0 0 100 100"><path d="M34 18v64M70 18L36 52l36 30"/></svg></div>
+    <!-- Splash: an orange route draws in, the arrow rides it to the middle, then the KAIDO MAPS tile
+         pops in with a glow. CSS/SVG only; never blocks taps and fades by itself. -->
+    <div id="dz-splash" aria-hidden="true">
+      <svg class="dzs-map" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
+        <g class="dzs-topo" fill="none" stroke="#1d4a7a" stroke-width="1.4">
+          <path d="M-20 140C60 90 120 170 200 130S330 60 420 110"/><path d="M-20 300C80 250 150 330 230 290S350 220 420 270"/>
+          <path d="M-20 560C70 520 140 600 220 560S340 490 420 540"/><path d="M-20 720C90 680 160 760 240 720S350 650 420 700"/>
+          <path d="M40 -20C10 120 90 220 60 360"/><path d="M340 870C370 730 300 640 330 500"/>
+        </g>
+        <path id="dzs-route" class="dzs-route" d="M-10 820C40 700 160 760 170 640S60 520 140 470S260 470 195 422"/>
+        <g class="dzs-arrow"><path d="M0 -14L11 12L0 6L-11 12Z" fill="#ff8a2a"/>
+          <animateMotion dur="1s" begin="0.05s" fill="freeze" rotate="auto" keyPoints="0;1" keyTimes="0;1" calcMode="spline" keySplines=".55 0 .35 1"><mpath href="#dzs-route"/></animateMotion></g>
+      </svg>
+      <img class="dzs-logo" src="/logo.webp" alt="" width="190" height="190" />
+    </div>
     <style>
-      #dz-splash{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:#09090b;pointer-events:none;animation:dzs-out .45s ease 1.25s forwards}
-      #dz-splash svg{width:96px;height:96px;fill:none;stroke:#ff9f0a;stroke-width:7;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 6px #ff9f0a) drop-shadow(0 0 14px #ff5e3a)}
-      #dz-splash path{stroke-dasharray:180;stroke-dashoffset:180;animation:dzs-draw .9s cubic-bezier(.6,0,.3,1) forwards}
+      #dz-splash{position:fixed;inset:0;z-index:9999;overflow:hidden;background:radial-gradient(120% 80% at 50% 45%,#0e2340 0%,#071222 60%,#04080f 100%);pointer-events:none;animation:dzs-out .5s ease 1.9s forwards}
+      #dz-splash .dzs-map{position:absolute;inset:0;width:100%;height:100%}
+      .dzs-topo{opacity:0;animation:dzs-fade .8s ease forwards}
+      .dzs-route{fill:none;stroke:#ff7a1a;stroke-width:4;stroke-linecap:round;stroke-dasharray:1000;stroke-dashoffset:1000;filter:drop-shadow(0 0 5px #ff7a1a) drop-shadow(0 0 12px #ff4d00);animation:dzs-draw 1.05s cubic-bezier(.55,0,.35,1) .05s forwards}
+      .dzs-arrow{filter:drop-shadow(0 0 6px #ff9a3c);animation:dzs-arrow-out .25s ease 1.05s forwards}
+      #dz-splash .dzs-logo{position:absolute;left:50%;top:50%;width:190px;height:190px;margin:-95px 0 0 -95px;border-radius:42px;opacity:0;transform:scale(.8);animation:dzs-pop .5s cubic-bezier(.2,1.4,.4,1) 1s forwards,dzs-glow 1.2s ease-in-out 1.3s infinite alternate}
       @keyframes dzs-draw{to{stroke-dashoffset:0}}
+      @keyframes dzs-fade{to{opacity:.55}}
+      @keyframes dzs-arrow-out{to{opacity:0}}
+      @keyframes dzs-pop{to{opacity:1;transform:scale(1)}}
+      @keyframes dzs-glow{from{box-shadow:0 0 0 1px #ff7a1a33,0 0 24px #ff7a1a44,0 18px 40px #000a}to{box-shadow:0 0 0 1px #ff7a1a88,0 0 46px #ff7a1a88,0 18px 40px #000a}}
       @keyframes dzs-out{to{opacity:0;visibility:hidden}}
       @media (prefers-reduced-motion:reduce){#dz-splash{display:none}}
     </style>
