@@ -27,6 +27,10 @@ js.append("const S = { settings: { holidayMode: 'off', motionNight: false } };\n
           "const isDarkNow = () => true; const inNight = () => false;\n"
           "const fxStill = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };")
 js.append(between(WALL, '/* ---------- holiday stickers ----------', 'function holidayCard() {'))
+# Background music: the wall's own music engine (made right on the screen with Web Audio, nothing to download).
+js.append("const TV = true;")
+js.append(line_from(WALL, 'const lsGet = k =>', 2))
+js.append(between(WALL, '/* ---------- background music ----------', 'function musicCard() {'))
 js.append(open(os.path.join(HERE, 'tv-main.js'), encoding='utf-8').read())
 script = '\n'.join(js)
 assert '</script' not in script

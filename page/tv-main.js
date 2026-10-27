@@ -35,6 +35,8 @@ function applyLook(data) {
   const lk = (data && data.look) || {}, key = JSON.stringify(lk);
   if (key === D.look) return; D.look = key;
   const ht = lk.th ? holThemeById(lk.th) : null; D.ht = ht;
+  /* The music picks its style from the holiday theme showing (spooky music box for Halloween, sleigh bells, ...). */
+  S.settings.holidayMode = ht ? 'pick' : 'off'; S.settings.holidayTheme = ht ? ht.id : '';
   const main = ht ? ht.main : isHex(lk.main) ? lk.main : '#1D5B4A', hi = ht ? ht.hi : isHex(lk.hi) ? lk.hi : '#C98A12';
   const tk = deriveTokens(main, hi, true), root = document.documentElement.style;
   const bg = ht ? ht.bgDark : tk['--bg'];
@@ -200,6 +202,14 @@ load();
 setInterval(load, 60000);
 (function tickClock() { renderClock(); setTimeout(tickClock, 60000 - Date.now() % 60000 + 50); })();
 setInterval(render, 30000);
+/* Very quiet background music on the home screen only (not the screensaver). It follows the holiday theme, and the
+   app stops it whenever another app opens. */
+if (MODE === 'home') {
+  if (lsGet('hb.musicVol') == null) lsSet('hb.musicVol', '0.1');
+  S.booted = true;
+  setTimeout(musicSync, 1200); setInterval(musicSync, 60000);
+}
+window.hbMusic = on => { if (MODE !== 'home') return; if (on) musicSync(); else musicStop(); };
 if (MODE === 'saver') { setInterval(drift, 90000); setInterval(visit, 40000); setTimeout(visit, 8000); }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) window.hbRefresh(); });
 requestAnimationFrame(() => { document.body.classList.add('ready'); try { HB_APP && HB_APP.ready(); } catch (e) {} });

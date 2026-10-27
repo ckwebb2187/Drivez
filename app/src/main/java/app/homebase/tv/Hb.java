@@ -8,9 +8,6 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.graphics.Color;
 import android.webkit.WebChromeClient;
-import android.webkit.WebResourceError;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -54,41 +51,53 @@ final class Hb {
     }
 
     /**
-     * Shows the background page. The newest copy comes from the bridge, so the screen can change without reinstalling
-     * the app; when the bridge has none or can't be reached, the copy that ships inside the app is used instead.
+     * Shows the background page right away from this device: the newest copy the bridge has sent before, or the copy
+     * that ships inside the app. Then, in the background, it asks the bridge for a newer copy and keeps it for next time,
+     * so the screen can change without reinstalling the app but never waits on the internet to appear.
      */
     static void loadPage(Context c, WebView w, String mode) {
-        final Context app = c.getApplicationContext();
-        final boolean[] fellBack = { false };
-        w.setWebViewClient(new WebViewClient() {
-            private void fallBack(WebView v) {
-                if (fellBack[0]) return;
-                fellBack[0] = true;
-                v.post(() -> loadBundled(app, v, mode));
-            }
-            @Override public void onReceivedError(WebView v, WebResourceRequest req, WebResourceError err) {
-                if (req.isForMainFrame()) fallBack(v);
-            }
-            @Override public void onReceivedHttpError(WebView v, WebResourceRequest req, WebResourceResponse res) {
-                if (req.isForMainFrame()) fallBack(v);
-            }
-        });
-        if (code(c).isEmpty() || code(c).equals("demo")) { fellBack[0] = true; loadBundled(c, w, mode); return; }
-        w.loadUrl(pageUrl(c, mode));
+        w.loadDataWithBaseURL(pageUrl(c, mode), page(c), "text/html", "UTF-8", null);
+        refreshPage(c.getApplicationContext());
     }
 
     private static String page;
-    /** The page that ships inside the app (instant, no download), reading its data from the bridge. */
-    static void loadBundled(Context c, WebView w, String mode) {
-        if (page == null) {
-            try (InputStream in = c.getAssets().open("tv.html")) {
-                java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
-                byte[] buf = new byte[16384]; int n;
-                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-                page = out.toString("UTF-8");
-            } catch (Exception e) { page = "<body style='background:#0D1412'></body>"; }
+    private static long checkedAt;
+    private static synchronized String page(Context c) {
+        if (page != null) return page;
+        java.io.File f = new java.io.File(c.getFilesDir(), "tv.html");
+        if (f.isFile() && f.length() > 50000) {
+            try (InputStream in = new java.io.FileInputStream(f)) { page = readAll(in); return page; } catch (Exception e) { /* use the bundled copy */ }
         }
-        w.loadDataWithBaseURL(pageUrl(c, mode), page, "text/html", "UTF-8", null);
+        try (InputStream in = c.getAssets().open("tv.html")) { page = readAll(in); }
+        catch (Exception e) { page = "<body style='background:#0D1412'></body>"; }
+        return page;
+    }
+    private static String readAll(InputStream in) throws java.io.IOException {
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        byte[] buf = new byte[16384]; int n;
+        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+        return out.toString("UTF-8");
+    }
+    /** At most every 6 hours: saves the bridge's copy of the page when it has one that differs (used from the next load). */
+    private static void refreshPage(final Context c) {
+        final String code = code(c);
+        if (code.isEmpty() || code.equals("demo") || System.currentTimeMillis() - checkedAt < 6 * 3600 * 1000L) return;
+        checkedAt = System.currentTimeMillis();
+        new Thread(() -> {
+            HttpURLConnection h = null;
+            try {
+                h = (HttpURLConnection) new URL(BRIDGE + "/w/" + code + "/tv").openConnection();
+                h.setConnectTimeout(8000); h.setReadTimeout(15000);
+                if (h.getResponseCode() != 200) return;
+                String got;
+                try (InputStream in = h.getInputStream()) { got = readAll(in); }
+                if (got.length() < 50000 || !got.contains("id=\"wrap\"") || got.equals(page)) return;
+                java.io.File tmp = new java.io.File(c.getFilesDir(), "tv.html.part");
+                try (java.io.FileOutputStream out = new java.io.FileOutputStream(tmp)) { out.write(got.getBytes("UTF-8")); }
+                if (tmp.renameTo(new java.io.File(c.getFilesDir(), "tv.html"))) synchronized (Hb.class) { page = got; }
+            } catch (Exception e) { /* try again later */ }
+            finally { if (h != null) h.disconnect(); }
+        }, "hb-page").start();
     }
 
     /** Checks a code against the bridge. Returns "" when it works, otherwise what went wrong. Runs on a background thread. */

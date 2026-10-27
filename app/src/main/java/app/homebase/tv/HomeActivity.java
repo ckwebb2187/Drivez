@@ -63,6 +63,10 @@ public class HomeActivity extends Activity {
     private TextView label;
     private int tileW, tileH;
     private String loadedFor = "";
+    private boolean rowDirty = true;
+    private final android.content.BroadcastReceiver appsChanged = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(android.content.Context c, Intent i) { rowDirty = true; if (hasWindowFocus()) { rowDirty = false; buildRow(); } }
+    };
     /** The theme's colors, sent by the page, for the glow around the focused app. */
     private int glow = Color.rgb(109, 194, 164), glow2 = Color.rgb(240, 180, 60);
     private final List<Runnable> restyle = new ArrayList<>();
@@ -140,6 +144,10 @@ public class HomeActivity extends Activity {
         root.addView(label, lp);
 
         setContentView(root);
+        android.content.IntentFilter pf = new android.content.IntentFilter();
+        pf.addAction(Intent.ACTION_PACKAGE_ADDED); pf.addAction(Intent.ACTION_PACKAGE_REMOVED); pf.addAction(Intent.ACTION_PACKAGE_CHANGED); pf.addAction(Intent.ACTION_PACKAGE_REPLACED);
+        pf.addDataScheme("package");
+        registerReceiver(appsChanged, pf);
     }
 
     @Override protected void onResume() {
@@ -149,13 +157,16 @@ public class HomeActivity extends Activity {
         if (!want.equals(loadedFor)) { loadedFor = want; fallback.setVisibility(View.VISIBLE); fallback.setAlpha(1f); Hb.loadPage(this, web, "home"); }
         else web.evaluateJavascript("window.hbRefresh && hbRefresh()", null);
         web.onResume();
-        buildRow();
+        web.evaluateJavascript("window.hbMusic && hbMusic(true)", null);
+        // The app row is only rebuilt when apps are installed or removed (or the first time), so Home is instant.
+        if (rowDirty || row.getChildCount() == 0) { rowDirty = false; buildRow(); }
         resetIdle();
     }
 
     @Override protected void onPause() {
         super.onPause();
         ui.removeCallbacks(idle);
+        web.evaluateJavascript("window.hbMusic && hbMusic(false)", null);   // quiet when another app or the screensaver opens
         web.onPause();
     }
 
@@ -355,6 +366,7 @@ public class HomeActivity extends Activity {
 
     @Override protected void onDestroy() {
         ui.removeCallbacksAndMessages(null);
+        try { unregisterReceiver(appsChanged); } catch (Exception e) { /* not registered */ }
         if (web != null) { ((ViewGroup) web.getParent()).removeView(web); web.destroy(); }
         super.onDestroy();
     }
