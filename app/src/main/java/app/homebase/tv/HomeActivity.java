@@ -265,8 +265,10 @@ public class HomeActivity extends Activity {
         for (ResolveInfo r : pm.queryIntentActivities(q, 0)) {
             final String pkg = r.activityInfo.packageName;
             if (pkg.equals(getPackageName()) || HIDE.contains(pkg) || pkg.equals(hbPkg) || !seen.add(pkg)) continue;
-            Drawable art = appIcon(r, pm);
-            final boolean isBanner = false;
+            Drawable banner = r.activityInfo.loadBanner(pm);
+            if (banner == null) banner = r.activityInfo.applicationInfo.loadBanner(pm);
+            final boolean isBanner = banner != null;
+            Drawable art = isBanner ? banner : appIcon(r, pm);
             final ComponentName cn = new ComponentName(pkg, r.activityInfo.name);
             apps.add(new Tile(pkg, String.valueOf(r.loadLabel(pm)), art, isBanner, () -> {
                 Intent i = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER).setComponent(cn).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -281,7 +283,7 @@ public class HomeActivity extends Activity {
             return a.name.toLowerCase(Locale.US).compareTo(b.name.toLowerCase(Locale.US));
         });
         List<Tile> out = new ArrayList<>();
-        out.add(new Tile("homebase", "Home Base", getDrawable(R.drawable.icon), false, () -> Hb.openWall(this)));
+        out.add(new Tile("homebase", "Home Base", getDrawable(R.drawable.banner), true, () -> Hb.openWall(this)));
         out.addAll(apps);
         out.add(new Tile("settings", "Settings  ·  hold OK for Home Base settings", getDrawable(android.R.drawable.ic_menu_preferences), false, () -> {
             try { startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Exception e) { Toast.makeText(this, "Settings wouldn't open.", Toast.LENGTH_SHORT).show(); }
@@ -295,66 +297,27 @@ public class HomeActivity extends Activity {
         v.setTag(t.key);
         v.setFocusable(true);
         v.setClickable(true);
-        // Themed tile: Home Base's theme colors behind the app's own icon on a soft light plate, its name, and (in a
-        // holiday theme) one of the theme's stickers tucked in the corner, a different one for each app.
-        int top = mix(theme.main, Color.WHITE, 0.10f), bottom = mix(theme.main, Color.BLACK, 0.55f);
-        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{ top, mix(theme.main, Color.BLACK, 0.2f), bottom });
-        bg.setCornerRadius(r);
-        bg.setStroke(Math.max(1, Math.round(tileH * 0.012f)), Color.argb(70, Color.red(theme.gold), Color.green(theme.gold), Color.blue(theme.gold)));
-        v.setBackground(bg);
+        // Themed tile: the app's own banner filling the whole tile (or its icon on its own color when it has no
+        // banner), with every pixel recolored into Home Base's theme, so it looks like the app's native tile in the
+        // theme's colors. In holiday themes one of the theme's stickers sits in the corner.
+        v.setBackgroundColor(Color.TRANSPARENT);
         v.setClipToOutline(true);
         v.setOutlineProvider(new ViewOutlineProvider() {
             @Override public void getOutline(View view, Outline o) { o.setRoundRect(0, 0, view.getWidth(), view.getHeight(), r); }
         });
-        // A soft glow of the highlight color behind the icon.
-        int ps = Math.round(tileH * 0.52f);
-        View shine = new View(this);
-        GradientDrawable sh = new GradientDrawable();
-        sh.setShape(GradientDrawable.OVAL); sh.setGradientType(GradientDrawable.RADIAL_GRADIENT); sh.setGradientRadius(ps * 0.95f);
-        sh.setColors(new int[]{ Color.argb(110, Color.red(theme.gold), Color.green(theme.gold), Color.blue(theme.gold)), Color.TRANSPARENT });
-        shine.setBackground(sh);
-        FrameLayout.LayoutParams shp = new FrameLayout.LayoutParams(Math.round(ps * 1.9f), Math.round(ps * 1.9f), Gravity.CENTER_HORIZONTAL | Gravity.TOP);
-        shp.topMargin = Math.round(tileH * 0.09f - ps * 0.45f);
-        v.addView(shine, shp);
-        FrameLayout plate = new FrameLayout(this);
-        GradientDrawable pd = new GradientDrawable();
-        pd.setCornerRadius(ps * 0.26f);
-        pd.setColor(Color.argb(238, 250, 250, 248));
-        plate.setBackground(pd);
-        plate.setElevation(tileH * 0.04f);
         ImageView img = new ImageView(this);
-        img.setImageDrawable(t.art);
-        img.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        if (t.key.equals("settings")) img.setColorFilter(theme.main);
-        int ipad = Math.round(ps * 0.12f);
-        img.setPadding(ipad, ipad, ipad, ipad);
-        plate.addView(img, new FrameLayout.LayoutParams(-1, -1));
-        FrameLayout.LayoutParams pp = new FrameLayout.LayoutParams(ps, ps, Gravity.CENTER_HORIZONTAL | Gravity.TOP);
-        pp.topMargin = Math.round(tileH * 0.09f);
-        v.addView(plate, pp);
-        TextView name = new TextView(this);
-        name.setText(t.key.equals("settings") ? "Settings" : t.name);
-        name.setTextColor(Color.WHITE);
-        name.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
-        name.setTextSize(TypedValue.COMPLEX_UNIT_PX, tileH * 0.13f);
-        name.setShadowLayer(6, 0, 2, Color.argb(170, 0, 0, 0));
-        name.setSingleLine(true);
-        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        name.setGravity(Gravity.CENTER);
-        int np2 = Math.round(tileH * 0.1f);
-        name.setPadding(np2, 0, np2, 0);
-        FrameLayout.LayoutParams np = new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM);
-        np.bottomMargin = Math.round(tileH * 0.07f);
-        v.addView(name, np);
+        img.setScaleType(ImageView.ScaleType.FIT_XY);
+        img.setImageBitmap(themedArt(t));
+        v.addView(img, new FrameLayout.LayoutParams(-1, -1));
         if (!theme.stickers.isEmpty()) {
             int h = Math.abs(t.key.hashCode());
             ImageView st = new ImageView(this);
             st.setImageBitmap(theme.stickers.get(tileN % theme.stickers.size()));
             st.setScaleType(ImageView.ScaleType.FIT_CENTER);
             st.setRotation((h / 7 % 25) - 12);
-            int ss = Math.round(tileH * 0.44f);
+            int ss = Math.round(tileH * 0.36f);
             FrameLayout.LayoutParams stp = new FrameLayout.LayoutParams(ss, ss, Gravity.TOP | Gravity.END);
-            stp.topMargin = Math.round(tileH * 0.02f); stp.rightMargin = Math.round(tileH * 0.03f);
+            stp.topMargin = Math.round(tileH * 0.03f); stp.rightMargin = Math.round(tileH * 0.03f);
             v.addView(st, stp);
         }
         // Focus glow drawn on top: a bright ring in the theme's color with a soft wash inside it, plus a colored
@@ -422,6 +385,58 @@ public class HomeActivity extends Activity {
             return true;
         });
         return holder;
+    }
+
+    /**
+     * The tile picture: the app's banner (or its icon centered on its own main color) drawn at tile size, then every
+     * pixel's brightness mapped onto the theme's colors: darkest to a deep shade of the theme, the middle to the theme's
+     * main color, the brightest to a warm cream touched with the highlight color. Each tile's brightness is stretched
+     * first, so logos stay crisp against their background.
+     */
+    private android.graphics.Bitmap themedArt(Tile t) {
+        int w = Math.max(16, tileW), h = Math.max(9, tileH);
+        android.graphics.Bitmap bm = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas c = new android.graphics.Canvas(bm);
+        try {
+            if (t.banner) {
+                c.drawColor(Color.BLACK);
+                t.art.setBounds(0, 0, w, h); t.art.draw(c);
+            } else {
+                c.drawColor(averageColor(t.art));
+                int s = Math.round(h * 0.62f), x = (w - s) / 2, y = (h - s) / 2;
+                t.art.setBounds(x, y, x + s, y + s); t.art.draw(c);
+            }
+        } catch (Exception e) { c.drawColor(Color.DKGRAY); }
+        int[] px = new int[w * h];
+        bm.getPixels(px, 0, w, 0, 0, w, h);
+        int lo = 255, hi = 0;
+        int[] hist = new int[256];
+        for (int p : px) { int l = lum(p); hist[l]++; }
+        int n = px.length, acc = 0;
+        for (int l = 0; l < 256; l++) { acc += hist[l]; if (acc > n * 0.01) { lo = l; break; } }
+        acc = 0;
+        for (int l = 255; l >= 0; l--) { acc += hist[l]; if (acc > n * 0.01) { hi = l; break; } }
+        if (hi - lo < 40) { int m = (hi + lo) / 2; lo = Math.max(0, m - 60); hi = Math.min(255, m + 60); }
+        int dark = mix(theme.main, Color.BLACK, 0.72f), mid = theme.main, light = mix(Color.rgb(255, 248, 236), theme.gold, 0.18f);
+        int[] lut = new int[256];
+        for (int l = 0; l < 256; l++) {
+            float f = Math.max(0f, Math.min(1f, (l - lo) / (float) (hi - lo)));
+            lut[l] = f < 0.55f ? mix(dark, mid, f / 0.55f) : mix(mid, light, (f - 0.55f) / 0.45f);
+        }
+        for (int k = 0; k < n; k++) px[k] = lut[lum(px[k])] | 0xFF000000;
+        bm.setPixels(px, 0, w, 0, 0, w, h);
+        return bm;
+    }
+    private static int lum(int p) { return (((p >> 16) & 255) * 54 + ((p >> 8) & 255) * 183 + (p & 255) * 19) >> 8; }
+    /** The icon's average color, so an icon-only app gets a tile in its own color before it's recolored. */
+    private static int averageColor(Drawable d) {
+        try {
+            android.graphics.Bitmap b = android.graphics.Bitmap.createBitmap(24, 24, android.graphics.Bitmap.Config.ARGB_8888);
+            d.setBounds(0, 0, 24, 24); d.draw(new android.graphics.Canvas(b));
+            long R = 0, G = 0, B = 0, N = 0;
+            for (int y = 0; y < 24; y++) for (int x = 0; x < 24; x++) { int p = b.getPixel(x, y); if ((p >>> 24) < 128) continue; R += (p >> 16) & 255; G += (p >> 8) & 255; B += p & 255; N++; }
+            return N == 0 ? Color.DKGRAY : Color.rgb((int) (R / N), (int) (G / N), (int) (B / N));
+        } catch (Exception e) { return Color.DKGRAY; }
     }
 
     /** The app's icon at the sharpest size it has (TV apps often give a small one by default). */
