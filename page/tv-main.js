@@ -56,7 +56,28 @@ function applyLook(data) {
     root.setProperty('--pat', holPattern(ht, true));
   } else { root.setProperty('--f-holiday', 'var(--f-display)'); root.setProperty('--f-holiday-w', '700'); root.removeProperty('--pat'); }
   makeMotes(ht && ht.fx ? ht.fx : [tk['--gold'], tk['--accent']]);
+  sendTileTheme(ht, main, tk);
   renderLane();
+}
+
+/* The app row's themed tiles (drawn by the app): the theme's colors and up to eight of its stickers as small pictures. */
+function stickerPng(inner) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => { try { const cv = document.createElement('canvas'); cv.width = cv.height = 160; cv.getContext('2d').drawImage(img, 0, 0, 160, 160); res(cv.toDataURL('image/png').split(',')[1]); } catch (e) { rej(e); } };
+    img.onerror = rej;
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 72 72" width="160" height="160">${inner}</svg>`);
+  });
+}
+async function sendTileTheme(ht, main, tk) {
+  if (MODE !== 'home' || !HB_APP || typeof HB_APP.theme !== 'function') return;
+  const key = D.look, stickers = [];
+  if (ht) {
+    const c = { ...HOL_BASE, ...ht.c }, names = [...new Set([...(ht.chars || []), ...ht.motifs])].filter(n => MOTIFS[n]).slice(0, 8);
+    for (const n of names) { try { stickers.push(await stickerPng(MOTIFS[n](c, { id: 'tile' + n, t: 0, still: true }))); } catch (e) { /* skip that one */ } }
+  }
+  if (key !== D.look) return;   /* the theme changed again meanwhile */
+  try { HB_APP.theme(JSON.stringify({ look: key, main, accent: tk['--accent'], gold: tk['--gold'], stickers })); } catch (e) {}
 }
 
 /* A few soft glowing dots drifting up, in the theme's colors (CSS only, so it stays light on the TV box). */
