@@ -82,6 +82,7 @@ public class HomeActivity extends Activity {
         tileW = Math.round(W * 0.145f); tileH = Math.round(tileW * 9f / 16f);
 
         root = new FrameLayout(this);
+        root.setClipChildren(false);
         root.setBackgroundColor(Color.rgb(13, 20, 18));
 
         // Shown until the page is ready (or if it can't load): a plain gradient and a clock.
@@ -282,16 +283,44 @@ public class HomeActivity extends Activity {
             rd.setColor(Color.argb(38, Color.red(glow), Color.green(glow), Color.blue(glow)));
             if (Build.VERSION.SDK_INT >= 28) { v.setOutlineSpotShadowColor(glow); v.setOutlineAmbientShadowColor(glow2); }
         };
+        // A soft halo of the theme's color spreading out behind the selected tile (outside it, so it sits in a holder).
+        final FrameLayout holder = new FrameLayout(this);
+        holder.setTag(t.key);
+        holder.setClipChildren(false);
+        holder.setClipToPadding(false);
+        final int hs = Math.round(tileW * 1.75f);
+        final View halo = new View(this);
+        final GradientDrawable hd = new GradientDrawable();
+        hd.setShape(GradientDrawable.OVAL);
+        hd.setGradientType(GradientDrawable.RADIAL_GRADIENT);
+        hd.setGradientRadius(hs / 2f);
+        halo.setBackground(hd);
+        halo.setScaleY(0.62f);
+        halo.setAlpha(0f);
+        holder.addView(halo, new FrameLayout.LayoutParams(hs, hs, Gravity.CENTER));
+        holder.addView(v, new FrameLayout.LayoutParams(-1, -1));
+
+        Runnable haloStyle = () -> { int hc = mix(glow, Color.WHITE, 0.2f); hd.setColors(new int[]{ Color.argb(210, Color.red(hc), Color.green(hc), Color.blue(hc)),
+                Color.argb(80, Color.red(glow), Color.green(glow), Color.blue(glow)), Color.TRANSPARENT }); };
         style.run();
+        haloStyle.run();
         restyle.add(style);
+        restyle.add(haloStyle);
         final ObjectAnimator breathe = ObjectAnimator.ofFloat(ring, "alpha", 1f, 0.55f);
         breathe.setDuration(1400);
         breathe.setRepeatCount(ValueAnimator.INFINITE);
         breathe.setRepeatMode(ValueAnimator.REVERSE);
+        final ObjectAnimator haloBreathe = ObjectAnimator.ofFloat(halo, "alpha", 1f, 0.6f);
+        haloBreathe.setDuration(1400);
+        haloBreathe.setRepeatCount(ValueAnimator.INFINITE);
+        haloBreathe.setRepeatMode(ValueAnimator.REVERSE);
 
         v.setOnFocusChangeListener((view, has) -> {
             ring.setVisibility(has ? View.VISIBLE : View.INVISIBLE);
             if (has) breathe.start(); else { breathe.cancel(); ring.setAlpha(1f); }
+            haloBreathe.cancel();
+            if (has) halo.animate().alpha(1f).setDuration(220).withEndAction(haloBreathe::start).start();
+            else halo.animate().alpha(0f).setDuration(160).start();
             view.animate().scaleX(has ? 1.12f : 1f).scaleY(has ? 1.12f : 1f).translationZ(has ? 36f : 0f).setDuration(160).start();
             if (has) label.setText(t.name);
         });
@@ -303,7 +332,7 @@ public class HomeActivity extends Activity {
             Toast.makeText(this, t.name + " moved to the front", Toast.LENGTH_SHORT).show();
             return true;
         });
-        return v;
+        return holder;
     }
 
     private static int mix(int a, int b, float t) {

@@ -120,6 +120,9 @@ function render() {
   $('#dinner').innerHTML = dinner ? `<span class="lbl">${late ? 'Tomorrow night' : 'Tonight'}</span><span class="dn">${esc(dinner)}</span>` : '';
   const left = (d && d.chores || []).filter(c => c.left && c.left.length);
   $('#chores').innerHTML = d && d.chores && d.chores.length ? `<span class="lbl">Chores</span><span>${left.length ? left.map(c => `${esc(c.who)} <b>${c.left.length} left</b>`).join(' · ') : 'All done today ★'}</span>` : '';
+  /* On a busy day, drop the last calendar items until dinner and chores fit above the app row. */
+  const card = $('.right'), evs = () => $('#up').querySelectorAll('.ev');
+  while (MODE === 'home' && card.scrollHeight > card.clientHeight + 2 && evs().length > 1) evs()[evs().length - 1].remove();
 }
 
 function isNow(e, now) { if (e.ad) return false; const s = new Date(e.s); return s <= now; }

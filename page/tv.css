@@ -44,6 +44,8 @@ body.photos #next { display:block }
   box-shadow:0 2vh 6vh rgba(0,0,0,.25), 0 0 7vh -1vh var(--glowA), inset 0 1px 0 rgba(255,255,255,.06) }
 /* A thin glowing edge along the top of the card. */
 .right::before { content:''; position:absolute; left:8%; right:8%; top:-1px; height:2px; border-radius:2px; background:linear-gradient(90deg, transparent, var(--accent), var(--gold), transparent); opacity:.75; box-shadow:0 0 1.6vh var(--haloA) }
+/* On a busy day the card stops above the app row instead of running behind it. */
+body.home .right { max-height:100%; box-sizing:border-box; overflow:hidden }
 .lbl { font-size:1.8vh; letter-spacing:.16em; text-transform:uppercase; color:var(--ink2); font-weight:700 }
 #up { margin-top:1vh }
 .ev { display:grid; grid-template-columns:.7vh minmax(0, 1fr); gap:1.8vh; padding:1.5vh 0; border-bottom:1px solid var(--line) }
