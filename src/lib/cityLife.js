@@ -29,12 +29,17 @@ const mix = (a, b, t) => { const x = hexRgb(a), y = hexRgb(b); return `rgb(${x.m
 const canvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
 const img = (g, w, h) => g.getImageData(0, 0, w, h);
 
+// Themes whose trees come in a mix of colors (each tree picks one).
+const TREE_COLORS = {
+  risingsun: ['#4a050b', '#650810', '#800a14', '#9c0d17', '#b5101b', '#cc1420', '#7a0c0c'],
+};
+
 // A tree sprite: trunk + round canopy (pink blossoms on sakura themes), with soft shading.
-function treeSprite(p, kind) {
+function treeSprite(p, kind, leafColor = null) {
   const [, g] = canvas(48, 64);
   const day = !p || p.base === 'day';
   const pink = /sakura|kawaii|rose/.test(kind);
-  const leaf = pink ? '#f7a8c4' : p ? mix(p.wood || p.park, day ? '#3f8f3a' : '#4fd08a', day ? 0.55 : 0.45) : '#3f8f3a';
+  const leaf = leafColor || (pink ? '#f7a8c4' : p ? mix(p.wood || p.park, day ? '#3f8f3a' : '#4fd08a', day ? 0.55 : 0.45) : '#3f8f3a');
   g.fillStyle = 'rgba(0,0,0,0.25)'; g.beginPath(); g.ellipse(24, 60, 12, 3.5, 0, 0, Math.PI * 2); g.fill();
   g.fillStyle = day ? '#6b4a2b' : '#3a2a1e'; g.fillRect(21, 36, 6, 24);
   const blobs = [[24, 24, 17], [14, 30, 11], [34, 30, 11], [24, 14, 11]];
@@ -43,7 +48,9 @@ function treeSprite(p, kind) {
   // Light from the top-left, shade at the bottom.
   g.globalCompositeOperation = 'source-atop';
   const grd = g.createRadialGradient(17, 14, 2, 24, 26, 26);
-  grd.addColorStop(0, 'rgba(255,255,255,0.4)'); grd.addColorStop(0.6, 'rgba(255,255,255,0)'); grd.addColorStop(1, 'rgba(0,0,0,0.3)');
+  // Red trees get a faint warm light (white would wash them toward pink).
+  const lit = leafColor ? 'rgba(255,90,40,0.18)' : 'rgba(255,255,255,0.4)', clear = leafColor ? 'rgba(255,90,40,0)' : 'rgba(255,255,255,0)';
+  grd.addColorStop(0, lit); grd.addColorStop(0.6, clear); grd.addColorStop(1, 'rgba(0,0,0,0.3)');
   g.fillStyle = grd; g.fillRect(0, 0, 48, 44);
   g.globalCompositeOperation = 'source-over';
   if (!day && p?.glow) { g.strokeStyle = `${p.glow[0]}88`; g.lineWidth = 1.5; g.beginPath(); g.arc(24, 24, 18, 0, Math.PI * 2); g.stroke(); }
@@ -145,7 +152,13 @@ export function addCityLife(map, theme, palette, isActive = () => true, { before
   if (!map.getSource(SRC)) return () => {};
   const p = palette;
   const add = (id, data, opts) => { try { if (!map.hasImage(id)) map.addImage(id, data, opts); } catch { /* ignore */ } };
-  add('dz-tree', treeSprite(p, theme), { pixelRatio: 2 });
+  const treeColors = TREE_COLORS[theme];
+  if (treeColors) treeColors.forEach((c, i) => add(`dz-tree-${theme}-${i}`, treeSprite(p, theme, c), { pixelRatio: 2 }));
+  else add(`dz-tree-${theme}`, treeSprite(p, theme), { pixelRatio: 2 });
+  // Each tree keeps the same color (picked from its own random number).
+  const treeImage = treeColors
+    ? ['concat', `dz-tree-${theme}-`, ['to-string', ['%', ['floor', ['*', ['get', 'ph'], 100]], treeColors.length]]]
+    : `dz-tree-${theme}`;
   for (const k of ['bench', 'fountain', 'playground', 'picnic']) add(`dz-prop-${k}`, propSprite(k, p), { pixelRatio: 2 });
   add('dz-canopy', canopySprite(p), { pixelRatio: 2 });
   CHAINS.forEach((c, i) => add(`dz-chain-${i}`, chainSprite(c), { pixelRatio: 2 }));
@@ -169,7 +182,7 @@ export function addCityLife(map, theme, palette, isActive = () => true, { before
   // Trees (billboards that stand up when the map tilts) + a gentle sway.
   map.addSource('dz-trees', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   map.addLayer({ id: 'dz-trees', type: 'symbol', source: 'dz-trees', minzoom: 14.8,
-    layout: { 'icon-image': 'dz-tree', 'icon-anchor': 'bottom', 'icon-size': ['interpolate', ['linear'], ['zoom'], 15, ['*', 0.55, ['get', 'sz']], 18, ['*', 1.15, ['get', 'sz']]],
+    layout: { 'icon-image': treeImage, 'icon-anchor': 'bottom', 'icon-size': ['interpolate', ['linear'], ['zoom'], 15, ['*', 0.55, ['get', 'sz']], 18, ['*', 1.15, ['get', 'sz']]],
       'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-pitch-alignment': 'viewport', 'icon-rotation-alignment': 'viewport',
       'icon-rotate': ['*', 3, ['sin', ['get', 'ph']]], 'symbol-z-order': 'viewport-y' },
     paint: { 'icon-opacity': ['interpolate', ['linear'], ['zoom'], 14.8, 0, 15.4, 1] } }, beforeId);
