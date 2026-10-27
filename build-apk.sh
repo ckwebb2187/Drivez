@@ -12,7 +12,7 @@ VERSION_CODE=${VERSION_CODE:-1}
 OUT=build; rm -rf "$OUT"; mkdir -p "$OUT"/{gen,classes,res,dex}
 M=app/src/main
 "$BT/aapt2" compile --dir $M/res -o "$OUT/res/res.zip"
-"$BT/aapt2" link -I "$JAR" --manifest $M/AndroidManifest.xml -A $M/assets \
+"$BT/aapt2" link -I "$JAR" --manifest $M/AndroidManifest.xml -A $M/assets -0 m4a \
   --min-sdk-version 26 --target-sdk-version 34 --version-code "$VERSION_CODE" --version-name "$VERSION_NAME" \
   --java "$OUT/gen" -o "$OUT/unsigned.apk" "$OUT/res/res.zip"
 javac --release 8 -Xlint:-options -nowarn -encoding UTF-8 -classpath "$JAR" -d "$OUT/classes" $(find $M/java "$OUT/gen" -name '*.java') 2>&1 | grep -v "^Picked up" || true

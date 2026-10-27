@@ -70,7 +70,12 @@ public class HomeActivity extends Activity {
     /** The theme's colors, sent by the page, for the glow around the focused app. */
     private int glow = Color.rgb(109, 194, 164), glow2 = Color.rgb(240, 180, 60);
     private final List<Runnable> restyle = new ArrayList<>();
-    private final Runnable idle = () -> startActivity(new Intent(this, SaverActivity.class));
+    /** True while the screensaver is opening over the home screen, so the music keeps playing behind it. */
+    private boolean toSaver;
+    private Zen zen;
+    /** Behind the screensaver the music stops when the box is allowed to sleep (after two hours, like the screensaver). */
+    private final Runnable zenSleep = () -> { if (zen != null) zen.pause(); };
+    private final Runnable idle = () -> { toSaver = true; startActivity(new Intent(this, SaverActivity.class)); };
 
     /** One tile: an app, the Home Base wall, or Settings. */
     private static final class Tile {
@@ -156,8 +161,11 @@ public class HomeActivity extends Activity {
         String want = Hb.pageUrl(this, "home");
         if (!want.equals(loadedFor)) { loadedFor = want; fallback.setVisibility(View.VISIBLE); fallback.setAlpha(1f); Hb.loadPage(this, web, "home"); }
         else web.evaluateJavascript("window.hbRefresh && hbRefresh()", null);
+        toSaver = false;
+        ui.removeCallbacks(zenSleep);
+        if (zen == null) zen = new Zen(this);
+        zen.play();
         web.onResume();
-        web.evaluateJavascript("window.hbMusic && hbMusic(true)", null);
         // The app row is only rebuilt when apps are installed or removed (or the first time), so Home is instant.
         if (rowDirty || row.getChildCount() == 0) { rowDirty = false; buildRow(); }
         resetIdle();
@@ -166,7 +174,8 @@ public class HomeActivity extends Activity {
     @Override protected void onPause() {
         super.onPause();
         ui.removeCallbacks(idle);
-        web.evaluateJavascript("window.hbMusic && hbMusic(false)", null);   // quiet when another app or the screensaver opens
+        if (toSaver) { ui.postDelayed(zenSleep, 2 * 60 * 60 * 1000L); return; }   // the music plays on behind the screensaver
+        if (zen != null) zen.pause();   // quiet when another app opens
         web.onPause();
     }
 
@@ -365,6 +374,7 @@ public class HomeActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        if (zen != null) zen.release();
         ui.removeCallbacksAndMessages(null);
         try { unregisterReceiver(appsChanged); } catch (Exception e) { /* not registered */ }
         if (web != null) { ((ViewGroup) web.getParent()).removeView(web); web.destroy(); }

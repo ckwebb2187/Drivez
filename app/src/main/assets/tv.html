@@ -801,7 +801,8 @@ const MUSIC_MODS = {
   freshstart: { name: "New Year's · fresh start", lead: 'piano', swing: 0, perc: null }
 };
 const MU = { ctx: null, master: null, dry: null, rev: null, noise: null, on: false, timer: 0, st: null, key: '', step: 0, nextT: 0, mel: null, seed: 1, stopT: 0 };
-const muPref = () => { const v = lsGet('hb.music'); return v === '1' ? true : v === '0' ? false : TV; };
+/* Off unless switched on for this screen (the TV's home screen plays its own quiet zen music). */
+const muPref = () => lsGet('hb.music') === '1';
 const muVol = () => { const v = lsGet('hb.musicVol'); const n = Number(v); return v != null && n > 0 && n <= 1 ? n : 0.5; };
 const muNightQuiet = () => lsGet('hb.musicNight') === '1';
 function musicStyleNow() {
@@ -1172,13 +1173,13 @@ function drift() {
 
 applyLook(D.data); render();
 load();
-setInterval(load, 60000);
+setInterval(load, 20000);   // picks up a new theme or calendar change within about 20 seconds
 (function tickClock() { renderClock(); setTimeout(tickClock, 60000 - Date.now() % 60000 + 50); })();
 setInterval(render, 30000);
 /* Very quiet ambient pads on the home screen only (not the screensaver): slow, warm chords with no melody, each one
    fading into the next. Made with the wall's Web Audio pieces (nothing to download). The app stops it whenever
    another app or the screensaver opens. */
-const AMB = { on: false, timer: 0, i: 0, next: 0, vol: 0.22 };
+const AMB = { on: false, timer: 0, i: 0, next: 0, vol: 0.22, keep: false };
 const AMB_CHORDS = [[48, 55, 59, 64], [45, 52, 55, 60], [41, 48, 52, 57], [43, 50, 53, 62]];   /* Cmaj7, Am7, Fmaj7, G sus */
 function ambVoice(f, t, dur, vol) {
   const c = MU.ctx, end = t + dur + 6, lp = c.createBiquadFilter(), g = c.createGain();
@@ -1191,7 +1192,8 @@ function ambVoice(f, t, dur, vol) {
 function ambTick() {
   const c = MU.ctx; if (!AMB.on || !c || c.state !== 'running') return;
   if (AMB.next < c.currentTime) AMB.next = c.currentTime + 0.2;
-  while (AMB.next < c.currentTime + 2) {
+  /* Scheduled well ahead: behind the screensaver the page is hidden and its timers can slow to once a minute. */
+  while (AMB.next < c.currentTime + 75) {
     const ch = AMB_CHORDS[AMB.i++ % AMB_CHORDS.length];
     ch.forEach((m, n) => ambVoice(mtof(m), AMB.next + n * 0.35, 9, n ? 0.012 : 0.016));
     AMB.next += 10;
@@ -1209,8 +1211,14 @@ function ambStop() {
   const g = MU.master.gain, now = MU.ctx.currentTime; g.cancelScheduledValues(now); g.setValueAtTime(Math.max(0.0001, g.value), now); g.linearRampToValueAtTime(0.0001, now + 1.5);
   setTimeout(() => { if (!AMB.on && MU.ctx) MU.ctx.suspend().catch(() => {}); }, 1800);
 }
-if (MODE === 'home') { setTimeout(ambStart, 1200); document.addEventListener('visibilitychange', () => { if (document.hidden) ambStop(); else ambStart(); }); }
-window.hbMusic = on => { if (on) ambStart(); else ambStop(); };
+/* The home screen's music is now recorded zen music played by the app itself (see Zen.java); these pads stay off. */
+/* The app calls hbMusic(true) when home shows, 'keep' when the screensaver covers it (the music plays on), false otherwise. */
+window.hbMusic = on => {
+  AMB.keep = on === 'keep'; clearTimeout(AMB.sleepT);
+  /* The screensaver lets the box go to sleep after two hours, so the music goes quiet then too. */
+  if (on === 'keep') { AMB.sleepT = setTimeout(ambStop, 2 * 3600e3); return; }
+  if (on) ambStart(); else ambStop();
+};
 if (MODE === 'saver') { setInterval(drift, 90000); setInterval(visit, 40000); setTimeout(visit, 8000); }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) window.hbRefresh(); });
 requestAnimationFrame(() => { document.body.classList.add('ready'); try { HB_APP && HB_APP.ready(); } catch (e) {} });

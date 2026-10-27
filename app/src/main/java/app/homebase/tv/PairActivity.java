@@ -62,6 +62,9 @@ public class PairActivity extends Activity {
         status = text("", H * 0.028f, Color.rgb(240, 180, 60), false);
         status.setPadding(0, Math.round(H * 0.03f), 0, 0);
         col.addView(status);
+        TextView credit = text("Home screen music: “Meditation Impromptu” 1–3 and “Healing” by Kevin MacLeod (incompetech.com), licensed under Creative Commons: By Attribution 4.0.", H * 0.022f, Color.rgb(150, 168, 160), false);
+        credit.setPadding(0, Math.round(H * 0.05f), 0, 0);
+        col.addView(credit);
         setContentView(col);
         box.requestFocus();
     }
