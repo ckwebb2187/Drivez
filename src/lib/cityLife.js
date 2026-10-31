@@ -5,7 +5,9 @@
 // Skipped entirely in battery saver.
 
 const SRC = 'openmaptiles';
-const MAX_TREES = 360;
+const MAX_TREES = 1200;
+// Aim for this many trees in each green area, spread over the whole shape.
+const TREES_PER_AREA = 48;
 
 // Chains people recognize from the road: name match -> badge colors + short mark.
 // (Simple colored badges with initials, not logos.)
@@ -29,32 +31,70 @@ const mix = (a, b, t) => { const x = hexRgb(a), y = hexRgb(b); return `rgb(${x.m
 const canvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
 const img = (g, w, h) => g.getImageData(0, 0, w, h);
 
-// Themes whose trees come in a mix of colors (each tree picks one).
-const TREE_COLORS = {
-  risingsun: ['#4a050b', '#650810', '#800a14', '#9c0d17', '#b5101b', '#cc1420', '#7a0c0c'],
+// Themes whose trees should keep their own colors instead of following the theme accent:
+// real greens for the forest themes, and each blossom theme's own pinks.
+const TREE_TINT = {
+  zen: ['#6b9a58', '#4f7a42', '#8ab26d'],
+  'zen@n': ['#4a7a4e', '#33603a', '#628f5f'],
+  tougedawn: ['#3a6b46', '#2b5236', '#54855a'],
+  'tougedawn@n': ['#2f4f3c', '#22392c', '#42684b'],
+  wasteland: ['#8a9445', '#6f7a34', '#a3ab5c'],
+  sakura: ['#f9c2d6', '#f2a0bd', '#ffd9e6'],
+  'sakura@n': ['#e78fb3', '#c96b93', '#ffb3cf'],
+  sakuranight: ['#ff86ab', '#e0608a', '#ffb3c9'],
+  kawaii: ['#ffa8d4', '#f58cc6', '#ffc7e4'],
+  'kawaii@n': ['#d97bb0', '#b45f95', '#f0a3cc'],
+  harajuku: ['#ff9ec2', '#ff6fa8', '#ffc7dd'],
+  lavender: ['#c2aee8', '#a68fd6', '#d8caf2'],
+  'lavender@n': ['#9d86cc', '#7f68ad', '#b9a6e0'],
+  rose: ['#e59fae', '#c77f92', '#f5bcc8'],
+  y2k: ['#ff9fe0', '#f57cc8', '#ffc4ee'],
+  'y2k@n': ['#d96bb8', '#b9529a', '#f08fd0'],
+  risingsun: ['#b5101b', '#800a14', '#cc1420'],
 };
 
-// A tree sprite: trunk + round canopy (pink blossoms on sakura themes), with soft shading.
-function treeSprite(p, kind, leafColor = null) {
-  const [, g] = canvas(48, 64);
+// Three canopy shades taken from the theme's own palette: the ground color lifted and tinted
+// with that theme's signature light, so trees never look bolted onto a world.
+export function treeShades(p, theme) {
+  const custom = TREE_TINT[theme];
+  if (custom) return custom;
   const day = !p || p.base === 'day';
-  const pink = /sakura|kawaii|rose/.test(kind);
-  const leaf = leafColor || (pink ? '#f7a8c4' : p ? mix(p.wood || p.park, day ? '#3f8f3a' : '#4fd08a', day ? 0.55 : 0.45) : '#3f8f3a');
-  g.fillStyle = 'rgba(0,0,0,0.25)'; g.beginPath(); g.ellipse(24, 60, 12, 3.5, 0, 0, Math.PI * 2); g.fill();
-  g.fillStyle = day ? '#6b4a2b' : '#3a2a1e'; g.fillRect(21, 36, 6, 24);
-  const blobs = [[24, 24, 17], [14, 30, 11], [34, 30, 11], [24, 14, 11]];
-  g.fillStyle = leaf;
-  for (const [x, y, r] of blobs) { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
-  // Light from the top-left, shade at the bottom.
+  const accent = (p?.glow && p.glow[0]) || (p?.neon && p.neon[0]) || p?.windows?.[2] || p?.text || (day ? '#6f9a5a' : '#3f8f6a');
+  const base = p?.wood || p?.park || (day ? '#5f8a4a' : '#2c4a36');
+  // Mixed in one pass: mix() returns an rgb() string, so feeding its output back in (or reusing
+  // hexRgb on it) silently turns every theme's trees gray.
+  const toHex = (c) => `#${c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`;
+  const shade = (t, white) => {
+    const a = hexRgb(base), b = hexRgb(accent);
+    return toHex(a.map((v, i) => (v + (b[i] - v) * t) * (1 - white) + 255 * white));
+  };
+  return day ? [shade(0.34, 0.12), shade(0.16, 0.2), shade(0.5, 0.04)] : [shade(0.38, 0.18), shade(0.2, 0.26), shade(0.52, 0.1)];
+}
+
+// A full tree sprite: trunk, a four-blob canopy in three shades of the theme's leaf color, and
+// soft light from the top-left. `variant` rotates which blob gets which shade, so neighbouring
+// trees aren't identical.
+function treeSprite(p, theme, variant = 0) {
+  const [, g] = canvas(52, 68);
+  const day = !p || p.base === 'day';
+  const shades = treeShades(p, theme);
+  const leaf = (i) => shades[(i + variant) % shades.length];
+  const trunk = p ? mix(p.bldgTop || p.bldg || '#6b4a2b', day ? '#3a2a18' : '#0e0b09', day ? 0.5 : 0.78) : '#5b4128';
+  g.fillStyle = day ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0.32)';
+  g.beginPath(); g.ellipse(26, 64, 13, 3.6, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = trunk; g.beginPath(); g.roundRect(23, 38, 6, 26, 2); g.fill();
+  // Each blob a different shade: reads as depth instead of one flat disc.
+  const blobs = [[26, 27, 18, 0], [15, 35, 12, 1], [37, 35, 12, 1], [26, 16, 13, 2]];
+  for (const [x, y, r, si] of blobs) { g.fillStyle = leaf(si); g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
   g.globalCompositeOperation = 'source-atop';
-  const grd = g.createRadialGradient(17, 14, 2, 24, 26, 26);
-  // Red trees get a faint warm light (white would wash them toward pink).
-  const lit = leafColor ? 'rgba(255,90,40,0.18)' : 'rgba(255,255,255,0.4)', clear = leafColor ? 'rgba(255,90,40,0)' : 'rgba(255,255,255,0)';
-  grd.addColorStop(0, lit); grd.addColorStop(0.6, clear); grd.addColorStop(1, 'rgba(0,0,0,0.3)');
-  g.fillStyle = grd; g.fillRect(0, 0, 48, 44);
+  const grd = g.createRadialGradient(18, 15, 2, 26, 28, 28);
+  grd.addColorStop(0, day ? 'rgba(255,255,255,0.34)' : 'rgba(255,255,255,0.22)');
+  grd.addColorStop(0.55, 'rgba(255,255,255,0)');
+  grd.addColorStop(1, 'rgba(0,0,0,0.32)');
+  g.fillStyle = grd; g.fillRect(0, 0, 52, 48);
   g.globalCompositeOperation = 'source-over';
-  if (!day && p?.glow) { g.strokeStyle = `${p.glow[0]}88`; g.lineWidth = 1.5; g.beginPath(); g.arc(24, 24, 18, 0, Math.PI * 2); g.stroke(); }
-  return img(g, 48, 64);
+  if (!day && p?.glow) { g.strokeStyle = `${p.glow[0]}66`; g.lineWidth = 1.5; g.beginPath(); g.arc(26, 26, 19, 0, Math.PI * 2); g.stroke(); }
+  return img(g, 52, 68);
 }
 
 // Park props: bench, fountain, playground swing, picnic table.
@@ -110,41 +150,66 @@ function inRing(pt, ring) {
   return inside;
 }
 
-// Scatter trees inside the green areas currently on screen.
-function scatterTrees(map) {
+// Scatter trees inside the green areas currently on screen. Each area is filled on its own and
+// they take turns at the cap, so the trees can't all be spent on whichever park came back first.
+export function scatterTrees(map) {
   const b = map.getBounds();
   const feats = [
     ...map.querySourceFeatures(SRC, { sourceLayer: 'park' }),
     ...map.querySourceFeatures(SRC, { sourceLayer: 'landcover', filter: ['in', ['get', 'class'], ['literal', ['wood', 'grass']]] }),
   ];
-  const step = 0.00028 * 2 ** (16 - Math.min(18, Math.max(15, map.getZoom()))); // ~30 m at z16
-  const pts = [];
   const seen = new Set();
+  const buckets = [];
   for (const f of feats) {
     const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates : [];
     const wood = f.properties?.class === 'wood' || f.sourceLayer === 'park';
     for (const poly of polys) {
       const outer = poly[0];
+      if (!outer || outer.length < 3) continue;
       let minX = 180, minY = 90, maxX = -180, maxY = -90;
       for (const [x, y] of outer) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; }
       minX = Math.max(minX, b.getWest()); maxX = Math.min(maxX, b.getEast()); minY = Math.max(minY, b.getSouth()); maxY = Math.min(maxY, b.getNorth());
-      const s = wood ? step : step * 1.8;
+      const areaDeg = (maxX - minX) * (maxY - minY);
+      if (!(areaDeg > 0)) continue;
+      // How many trees this shape should get, and therefore how wide the spacing has to be:
+      // a small square gets a handful, a big wood gets a full stand, both evenly spread.
+      const want = Math.max(12, Math.min(220, Math.round(12 + 3600 * Math.sqrt(areaDeg))));
+      const accept = wood ? 0.88 : 0.66; // share of cells that get a tree, the rest is gaps
+      const s = Math.sqrt(areaDeg / Math.max(12, Math.round(want / accept)));
+      const pts = [];
       for (let x = Math.floor(minX / s) * s; x < maxX; x += s) {
         for (let y = Math.floor(minY / s) * s; y < maxY; y += s) {
           const key = `${Math.round(x / s)}:${Math.round(y / s)}`;
           if (seen.has(key)) continue;
           const h = rnd(Math.round(x / s) * 7919 + Math.round(y / s));
-          if (h < (wood ? 0.25 : 0.55)) continue; // gaps, so it looks natural
-          const pt = [x + (rnd(h * 991) - 0.5) * s * 0.8, y + (rnd(h * 373) - 0.5) * s * 0.8];
+          if (h < 1 - accept) continue; // gaps, so it looks natural
+          const pt = [x + (rnd(h * 991) - 0.5) * s * 0.9, y + (rnd(h * 373) - 0.5) * s * 0.9];
           if (!inRing(pt, outer) || poly.slice(1).some((hole) => inRing(pt, hole))) continue;
           seen.add(key);
-          pts.push({ type: 'Feature', properties: { ph: Math.round(h * 628) / 100, sz: 0.75 + rnd(h * 17) * 0.45 }, geometry: { type: 'Point', coordinates: pt } });
-          if (pts.length >= MAX_TREES) return pts;
+          pts.push({ h, pt });
         }
       }
+      if (pts.length) buckets.push(pts);
     }
   }
-  return pts;
+  // One tree per green area per pass, so every park, verge and wood on screen gets its share.
+  const out = [];
+  for (let round = 0; out.length < MAX_TREES; round++) {
+    let added = 0;
+    for (const pts of buckets) {
+      const t = pts[round];
+      if (!t) continue;
+      added++;
+      out.push({
+        type: 'Feature',
+        properties: { ph: Math.round(t.h * 628) / 100, sz: 0.75 + rnd(t.h * 17) * 0.45, v: Math.floor(rnd(t.h * 53) * 3) },
+        geometry: { type: 'Point', coordinates: t.pt },
+      });
+      if (out.length >= MAX_TREES) break;
+    }
+    if (!added) break;
+  }
+  return out;
 }
 
 // Adds everything. Returns a stop function. `isActive()` = the map is on screen.
@@ -152,13 +217,9 @@ export function addCityLife(map, theme, palette, isActive = () => true, { before
   if (!map.getSource(SRC)) return () => {};
   const p = palette;
   const add = (id, data, opts) => { try { if (!map.hasImage(id)) map.addImage(id, data, opts); } catch { /* ignore */ } };
-  const treeColors = TREE_COLORS[theme];
-  if (treeColors) treeColors.forEach((c, i) => add(`dz-tree-${theme}-${i}`, treeSprite(p, theme, c), { pixelRatio: 2 }));
-  else add(`dz-tree-${theme}`, treeSprite(p, theme), { pixelRatio: 2 });
-  // Each tree keeps the same color (picked from its own random number).
-  const treeImage = treeColors
-    ? ['concat', `dz-tree-${theme}-`, ['to-string', ['%', ['floor', ['*', ['get', 'ph'], 100]], treeColors.length]]]
-    : `dz-tree-${theme}`;
+  // Three shades of the same tree per theme, so a stand of trees has some variety.
+  for (let v = 0; v < 3; v++) add(`dz-tree-${theme}-${v}`, treeSprite(p, theme, v), { pixelRatio: 2 });
+  const treeImage = ['concat', `dz-tree-${theme}-`, ['to-string', ['%', ['coalesce', ['get', 'v'], 0], 3]]];
   for (const k of ['bench', 'fountain', 'playground', 'picnic']) add(`dz-prop-${k}`, propSprite(k, p), { pixelRatio: 2 });
   add('dz-canopy', canopySprite(p), { pixelRatio: 2 });
   CHAINS.forEach((c, i) => add(`dz-chain-${i}`, chainSprite(c), { pixelRatio: 2 }));

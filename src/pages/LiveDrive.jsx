@@ -30,6 +30,7 @@ import MeetRadar from '@/components/MeetRadar';
 import AskGemini from '@/components/AskGemini';
 import { say, getVoiceSettings, recapText, tripFacts } from '@/lib/voice';
 import { searchPlaces, getRoute } from '@/lib/nav';
+import { learnedRoute } from '@/lib/learned';
 import { useTeenAlerts, useAllowed } from '@/lib/family';
 import { useUnits, spd, dst, speedUnit, distUnit, distWord, isMetric } from '@/lib/units';
 
@@ -49,7 +50,7 @@ async function reverseGeocode(lat, lng) {
 
 export default function LiveDrive({ active = true, peek = false }) {
   const navigate = useNavigate();
-  const { activeVehicle, vehicles, myCar, savedRoutes, addTrip, scene, btCar } = useApp();
+  const { activeVehicle, vehicles, myCar, savedRoutes, addTrip, scene, btCar, trips } = useApp();
   const drive = useGpsDrive(myCar);
   useUnits();
   const location = useLocation();
@@ -453,8 +454,16 @@ export default function LiveDrive({ active = true, peek = false }) {
   }, [nav.remainingS]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!nav.active) { pace.current = { f: 1, t: null, r: null, secs: 0 }; setPaceF(1); } }, [nav.active]);
   const trust = Math.min(1, pace.current.secs / 180); // fully trusted after ~3 minutes of driving
+  // Your usual time on this route sets the first estimate, then fades out as live pace takes over.
+  const learnedAdjust = useRef(1);
+  useEffect(() => {
+    const r = navPlan?.route;
+    learnedAdjust.current = r?.coords?.length && navPlan.dest
+      ? learnedRoute({ trips, from: r.coords[0], to: [navPlan.dest.lat, navPlan.dest.lng], route: r })?.adjust ?? 1
+      : 1;
+  }, [navPlan?.route]); // eslint-disable-line react-hooks/exhaustive-deps
   const remainingS = nav.remainingS != null
-    ? (nav.remainingS * trafficRatio.current) / (1 + (paceF - 1) * trust)
+    ? (nav.remainingS * trafficRatio.current * (1 + (learnedAdjust.current - 1) * (1 - trust))) / (1 + (paceF - 1) * trust)
     : nav.remainingS;
 
   // Camera follows you; if you pan the map it waits, then snaps back after a few seconds (like Waze).

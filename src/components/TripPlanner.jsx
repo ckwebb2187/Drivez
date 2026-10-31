@@ -20,6 +20,7 @@ import PlaceSearchSheet from '@/components/PlaceSearchSheet';
 import { AlertsBanner, RouteConditions } from '@/components/WeatherAlerts';
 import { useWeatherAlerts } from '@/lib/alerts';
 import { useTrafficEta } from '@/lib/traffic';
+import { learnedRoute } from '@/lib/learned';
 import { getInitials } from '@/lib/helpers';
 import { startConvoy } from '@/lib/convoy';
 import { isLowered, countBumps } from '@/lib/bumps';
@@ -189,7 +190,9 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
   // Live traffic ETA for the planned route (TomTom, when set up).
   const trafficPoints = useMemo(() => (route && pos && dest ? [pos, ...stops.map((x) => [x.lat, x.lng]), [dest.lat, dest.lng]] : null), [route]); // eslint-disable-line react-hooks/exhaustive-deps
   const traffic = useTrafficEta(trafficPoints, !!route);
-  const routeSeconds = traffic?.travelTime ?? route?.duration;
+  // Your own drives on this route beat the router's guess when there's no live traffic.
+  const learned = useMemo(() => (route && pos && dest ? learnedRoute({ trips, from: pos, to: [dest.lat, dest.lng], route }) : null), [route, !!pos]); // eslint-disable-line react-hooks/exhaustive-deps
+  const routeSeconds = traffic?.travelTime ?? (learned ? learned.seconds : route?.duration);
 
   const greeting = useMemo(() => {
     const h = new Date().getHours();
@@ -223,7 +226,13 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
     setSuggEta(null);
     if (!suggestion || !pos) return undefined;
     let alive = true;
-    getRoute(pos, [suggestion.lat, suggestion.lng]).then((r) => alive && setSuggEta(r.duration)).catch(() => {});
+    getRoute(pos, [suggestion.lat, suggestion.lng])
+      .then((r) => {
+        if (!alive) return;
+        const l = learnedRoute({ trips, from: pos, to: [suggestion.lat, suggestion.lng], route: r });
+        setSuggEta(l ? l.seconds : r.duration);
+      })
+      .catch(() => {});
     return () => { alive = false; };
   }, [suggKey, !!pos]); // eslint-disable-line react-hooks/exhaustive-deps
   const dismissSuggestion = () => { setDismissed(suggKey); try { sessionStorage.setItem('dz_sugg_off', suggKey); } catch { /* ignore */ } };
