@@ -97,8 +97,10 @@ export async function searchPlaces(q, near) {
   const params = new URLSearchParams({ q });
   if (near) { params.set('lat', near[0]); params.set('lng', near[1]); }
   const res = await fetch(`/api/geocode?${params}`, { credentials: 'same-origin' });
-  if (!res.ok) throw new Error('Search is unavailable right now');
-  return (await res.json()).results || [];
+  // A failed search is not the same as "no such address": say which one it was.
+  if (res.status === 401) throw new Error('Your session ended — log in again to search.');
+  if (!res.ok) throw new Error('Search is unavailable right now. Try again in a moment.');
+  return (await res.json().catch(() => ({}))).results || [];
 }
 
 // Driving directions from `from` to `to` ([lat, lng]), optionally through `stops`

@@ -10,6 +10,7 @@ export default function PlaceSearchSheet({ title = 'Add stop', pos, onPick, onCl
   const [q, setQ] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
   const inputRef = useRef(null);
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 50); }, []);
   useEffect(() => {
@@ -18,7 +19,10 @@ export default function PlaceSearchSheet({ title = 'Add stop', pos, onPick, onCl
     let alive = true;
     setSearching(true);
     const id = setTimeout(() => {
-      searchPlaces(t, pos).then((r) => alive && setResults(r)).catch(() => alive && setResults([])).finally(() => alive && setSearching(false));
+      searchPlaces(t, pos)
+        .then((r) => { if (alive) { setResults(r); setSearchError(''); } })
+        .catch((e) => { if (alive) { setResults([]); setSearchError(e.message || 'Search failed. Try again.'); } })
+        .finally(() => alive && setSearching(false));
     }, 300);
     return () => { alive = false; clearTimeout(id); };
   }, [q]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -59,7 +63,8 @@ export default function PlaceSearchSheet({ title = 'Add stop', pos, onPick, onCl
         ))}
         {saved.length > 0 && results.length > 0 && <div className="h-px bg-border mx-3 my-1" />}
         {results.map((r) => <Row key={r.id} p={r} icon={MapPin} />)}
-        {s.length >= 3 && !searching && results.length === 0 && saved.length === 0 && <p className="px-3 py-3 text-sm text-muted-foreground">No matches. Try adding the city.</p>}
+        {s.length >= 3 && !searching && searchError && <p className="px-3 py-3 text-sm text-destructive">{searchError}</p>}
+        {s.length >= 3 && !searching && !searchError && results.length === 0 && saved.length === 0 && <p className="px-3 py-3 text-sm text-muted-foreground">No matches. Try adding the city and state, like “123 Main St, Dallas, TX”.</p>}
       </div>
     </div>,
     document.body

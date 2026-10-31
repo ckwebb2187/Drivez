@@ -24,7 +24,10 @@ export default function SetPlaceModal({ kind, pos, onClose, onSaved }) {
     let alive = true;
     setSearching(true);
     const id = setTimeout(() => {
-      searchPlaces(t, pos).then((r) => alive && setResults(r)).catch(() => alive && setResults([])).finally(() => alive && setSearching(false));
+      searchPlaces(t, pos)
+        .then((r) => { if (alive) { setResults(r); setError(''); } })
+        .catch((e) => { if (alive) { setResults([]); setError(e.message || 'Search failed. Try again.'); } })
+        .finally(() => alive && setSearching(false));
     }, 300);
     return () => { alive = false; clearTimeout(id); };
   }, [q]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -84,7 +87,7 @@ export default function SetPlaceModal({ kind, pos, onClose, onSaved }) {
             {r.distance != null && <span className="text-[11px] text-muted-foreground shrink-0">{formatNavDistance(r.distance)}</span>}
           </button>
         ))}
-        {q.trim().length >= 3 && !searching && results.length === 0 && <p className="px-3 py-3 text-sm text-muted-foreground">No matches. Try adding the city, like “123 Main St, Dallas”.</p>}
+        {q.trim().length >= 3 && !searching && !error && results.length === 0 && <p className="px-3 py-3 text-sm text-muted-foreground">No matches. Try adding the city and state, like “123 Main St, Dallas, TX”.</p>}
       </div>
       {saving && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>}
     </div>,

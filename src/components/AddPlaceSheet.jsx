@@ -23,7 +23,10 @@ export default function AddPlaceSheet({ pos, lists = [], onClose }) {
     let alive = true;
     setSearching(true);
     const id = setTimeout(() => {
-      searchPlaces(t, pos).then((r) => alive && setResults(r)).catch(() => alive && setResults([])).finally(() => alive && setSearching(false));
+      searchPlaces(t, pos)
+        .then((r) => { if (alive) { setResults(r); setErr(''); } })
+        .catch((e) => { if (alive) { setResults([]); setErr(e.message || 'Search failed. Try again.'); } })
+        .finally(() => alive && setSearching(false));
     }, 300);
     return () => { alive = false; clearTimeout(id); };
   }, [q, pick]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -70,7 +73,7 @@ export default function AddPlaceSheet({ pos, lists = [], onClose }) {
                 {r.distance != null && <span className="text-[11px] text-muted-foreground shrink-0">{formatNavDistance(r.distance)}</span>}
               </button>
             ))}
-            {q.trim().length >= 3 && !searching && !results.length && <p className="text-xs text-muted-foreground px-2 py-2">No match yet. Try adding the city and state.</p>}
+            {q.trim().length >= 3 && !searching && !err && !results.length && <p className="text-xs text-muted-foreground px-2 py-2">No match yet. Try adding the city and state.</p>}
           </div>
         )}
 

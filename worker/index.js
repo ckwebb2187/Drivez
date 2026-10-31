@@ -394,21 +394,23 @@ const expandAbbr = (q) => q.replace(/\b([A-Za-z]+)\.?(?=\s|,|$)/g, (w, a) => ABB
 const titleCase = (s) => s.toLowerCase().replace(/\b([a-z])/g, (c) => c.toUpperCase()).replace(/\b(Ne|Nw|Se|Sw|[NSEW])\b/g, (c) => c.toUpperCase());
 const metersBetween = (a, b) => { const R = 6371000, r = Math.PI / 180; const h = Math.sin((b[0] - a[0]) * r / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin((b[1] - a[1]) * r / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
 
-async function cachedJSON(ctx, url, ttl, headers = {}) {
+async function cachedJSON(ctx, url, ttl, headers = {}, keep = () => true) {
   const key = new Request(url);
   const hit = await caches.default.match(key);
   if (hit) return hit.json();
   const res = await fetch(url, { headers: { "user-agent": "Drivez/1.0 (https://drivez.webb-home.workers.dev)", ...headers } });
   if (!res.ok) throw new Error(`lookup failed ${res.status}`);
   const data = await res.json();
-  ctx.waitUntil(caches.default.put(key, new Response(JSON.stringify(data), { headers: { "content-type": "application/json", "cache-control": `public, max-age=${ttl}` } })));
+  // Only remember answers that found something. A miss memoized for a week (or a single bad
+  // moment upstream) would keep an address broken long after it starts working again.
+  if (keep(data)) ctx.waitUntil(caches.default.put(key, new Response(JSON.stringify(data), { headers: { "content-type": "application/json", "cache-control": `public, max-age=${ttl}` } })));
   return data;
 }
 
 async function photon(q, near, ctx) {
   const p = new URLSearchParams({ q, limit: "7", lang: "en" });
   if (near) { p.set("lat", near[0]); p.set("lon", near[1]); }
-  const d = await cachedJSON(ctx, `https://photon.komoot.io/api/?${p}`, 86400).catch(() => ({ features: [] }));
+  const d = await cachedJSON(ctx, `https://photon.komoot.io/api/?${p}`, 86400, {}, (x) => (x.features || []).length > 0).catch(() => ({ features: [] }));
   return (d.features || []).map((f) => {
     const pr = f.properties || {};
     const street = [pr.housenumber, pr.street].filter(Boolean).join(" ");
@@ -433,39 +435,62 @@ async function nearbyArea(near, ctx) {
 
 async function census(address, ctx) {
   const u = `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?benchmark=Public_AR_Current&format=json&address=${encodeURIComponent(address)}`;
-  const d = await cachedJSON(ctx, u, 7 * 86400).catch(() => null);
+  const d = await cachedJSON(ctx, u, 7 * 86400, {}, (x) => (x?.result?.addressMatches || []).length > 0).catch(() => null);
   return (d?.result?.addressMatches || []).slice(0, 3).map((m) => {
     const [street, ...rest] = m.matchedAddress.split(", ");
-    const zip = rest.pop();
+    // Keep the state uppercase: "New Orleans, LA", not "New Orleans, La".
+    const stateCase = (x) => (/^[A-Za-z]{2}$/.test(x.trim()) ? x.trim().toUpperCase() : titleCase(x));
+    const zip = /^\d{5}(-\d{4})?$/.test((rest[rest.length - 1] || "").trim()) ? rest.pop() : "";
+    const area = rest.map(stateCase).join(", ");
     return {
       id: `census:${m.matchedAddress}`,
       name: titleCase(street),
-      address: `${rest.map((x, i) => (i === rest.length - 1 ? x : titleCase(x))).join(", ")} ${zip}`.trim(),
+      address: [area, zip].filter(Boolean).join(" "),
       lat: m.coordinates.y, lng: m.coordinates.x, exact: true,
     };
   });
 }
 
+// Real state codes only: "4100 Main St" must not look like it ends in a state ("St").
+const STATE_CODES = new Set("AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC".split(" "));
+
 async function geocode(q, near, ctx) {
-  const num = (q.match(/^\s*(\d+[a-z]?)\s+\S/i) || [])[1];
-  const hasCity = /,/.test(q) || /\b\d{5}\b/.test(q.replace(/^\s*\d+/, "")) || /\b[A-Z]{2}\s*$/.test(q.trim());
+  // A house number can be "4100", "4100-B" or "9A"; anything else isn't a street address.
+  const num = (q.match(/^\s*(\d[\w-]*)\s+\S/) || [])[1];
+  // A state or ZIP typed by hand is a real signal: keep its results even when they're far away.
+  const lastToken = (q.match(/(?:^|[,\s])([A-Za-z]{2})\s*$/) || [])[1];
+  const typedStateOrZip = /\b\d{5}\b/.test(q) || (!!lastToken && STATE_CODES.has(lastToken.toUpperCase()));
+  // Did the driver already name the place? Then don't second-guess it with where they are now.
+  const typedArea = /,/.test(q) || /\b\d{5}\b/.test(q.replace(/^\s*\d+/, "")) || typedStateOrZip;
   const [base, area] = await Promise.all([photon(q, near, ctx), num ? nearbyArea(near, ctx) : null]);
   let results = base;
-  if (!results.length && expandAbbr(q) !== q) results = await photon(expandAbbr(q), near, ctx);
+  if (!results.length) {
+    const expanded = expandAbbr(q);
+    if (expanded !== q) results = await photon(expanded, near, ctx);
+  }
   // A result only counts as the exact address if it has the house number you typed.
   for (const r of results) r.exact = !!num && r.name.toLowerCase().startsWith(num.toLowerCase() + " ");
+  // The Census is the only provider with reliable US house numbers, so it also gets a go as a
+  // last resort when Photon found nothing: a street-only search shouldn't be a dead end.
   let exact = [];
   if (num) {
-    // Street addresses: the Census finds exact house numbers. Without a city, look in your area first.
     const tries = [];
-    if (!hasCity && area) tries.push(`${q}, ${area.city}, ${area.state}`, `${q}, ${area.state}`);
+    // Only the state, never the city: the street may be in a neighbouring town, and the Census
+    // resolves a city on its own anyway.
+    if (!typedArea && area?.state) tries.push(`${q}, ${area.state}`);
     tries.push(q);
     for (const t of tries) { exact = await census(t, ctx); if (exact.length) break; }
   }
+  if (!exact.length && !results.length) exact = await census(q, ctx);
   const byDist = (a, b) => (near ? metersBetween(near, [a.lat, a.lng]) - metersBetween(near, [b.lat, b.lng]) : 0);
-  // Once the address is found nearby, drop same-number streets in other states.
-  const far = (r) => exact.length && near && metersBetween(near, [r.lat, r.lng]) > 300000;
-  const all = [...exact, ...results.filter((r) => r.exact && !far(r)).sort(byDist), ...results.filter((r) => !r.exact)];
+  // Same house number, wrong state: the classic junk hit. Census matches are exact matches of
+  // what was typed, so they're always kept; only the fuzzy provider gets distance-filtered.
+  const tooFar = (r) => !!near && !!num && !typedStateOrZip && metersBetween(near, [r.lat, r.lng]) > 300000;
+  let all = [...exact, ...results.filter((r) => !tooFar(r))];
+  // Nothing close by and no state was given: for a bare street show the nearest few, but for a
+  // named city say so instead of offering a house in another state as if it were the answer.
+  if (!all.length && results.length) all = typedArea ? [] : results.filter((r) => r.exact).sort(byDist).slice(0, 3);
+  all.sort((a, b) => (b.exact ? 1 : 0) - (a.exact ? 1 : 0) || byDist(a, b));
   const out = [];
   for (const r of all) if (!out.some((o) => metersBetween([o.lat, o.lng], [r.lat, r.lng]) < 25)) out.push(r);
   return out.slice(0, 8).map((r) => ({ ...r, distance: near ? metersBetween(near, [r.lat, r.lng]) : null }));

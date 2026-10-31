@@ -7,18 +7,20 @@ import SavedRouteCard from '@/components/SavedRouteCard';
 import ShareRouteModal from '@/components/ShareRouteModal';
 import RouteThumbnail from '@/components/RouteThumbnail';
 import { useApp } from '@/lib/AppContext';
+import { searchPlaces } from '@/lib/nav';
 import { dst, distUnit } from '@/lib/units';
 import { LeaveLaterList } from '@/components/LeaveLater';
 
 
+// Same search the map uses, so an address that works there also works when planning a route.
 async function geocode(query) {
-  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`);
-  const data = await res.json();
-  if (!Array.isArray(data) || data.length === 0) throw new Error(`Couldn't find "${query}"`);
+  const hits = await searchPlaces(query, null);
+  if (!hits.length) throw new Error(`Couldn't find "${query}"`);
+  const [hit] = hits;
   return {
-    lat: parseFloat(data[0].lat),
-    lng: parseFloat(data[0].lon),
-    name: data[0].display_name.split(', ').slice(0, 2).join(', ')
+    lat: hit.lat,
+    lng: hit.lng,
+    name: [hit.name, hit.address].filter(Boolean).join(', ') || query
   };
 }
 

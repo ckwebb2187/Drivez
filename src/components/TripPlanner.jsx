@@ -46,6 +46,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
   const [focused, setFocused] = useState(false);
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
   const [dest, setDest] = useState(null);
   const [route, setRoute] = useState(null);
   const [alts, setAlts] = useState([]); // other ways to get there (route choices)
@@ -77,11 +78,14 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
   // Type-ahead search
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 3 || dest) { setResults([]); return; }
+    if (q.length < 3 || dest) { setResults([]); setSearchError(''); return; }
     let alive = true;
     setSearching(true);
     const t = setTimeout(() => {
-      searchPlaces(q, pos).then((r) => alive && setResults(r)).catch(() => alive && setResults([])).finally(() => alive && setSearching(false));
+      searchPlaces(q, pos)
+        .then((r) => { if (alive) { setResults(r); setSearchError(''); } })
+        .catch((e) => { if (alive) { setResults([]); setSearchError(e.message || 'Search failed. Try again.'); } })
+        .finally(() => alive && setSearching(false));
     }, 300);
     return () => { alive = false; clearTimeout(t); };
   }, [query, dest]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -329,7 +333,8 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
                 </button>
               );
             })}
-            {searchList.length === 0 && !searching && query.trim().length >= 3 && <p className="px-4 py-4 text-sm text-muted-foreground">No places found</p>}
+            {searchError && !searching && query.trim().length >= 3 && <p className="px-4 py-4 text-sm text-destructive">{searchError}</p>}
+            {!searchError && searchList.length === 0 && !searching && query.trim().length >= 3 && <p className="px-4 py-4 text-sm text-muted-foreground">No places found. Try adding the city and state.</p>}
             {searchList.map((r) => (
               <button key={r.id} onMouseDown={(e) => e.preventDefault()} onClick={() => choose(r)} className="w-full flex items-center gap-3 px-4 py-3 text-left border-b border-border last:border-0 active:bg-secondary">
                 <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0">{r.saved ? <Star className="w-4 h-4 text-amber-400 fill-amber-400" /> : <MapPin className="w-4 h-4 text-muted-foreground" />}</div>
