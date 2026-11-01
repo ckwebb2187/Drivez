@@ -2,6 +2,11 @@ name = "drivez"
 main = "worker/index.js"
 compatibility_date = "2025-09-01"
 
+# Build the app (vite + packed static files) before every deploy,
+# so Cloudflare's GitHub builds work with just "npx wrangler deploy".
+[build]
+command = "npm run build"
+
 [[rules]]
 type = "Data"
 globs = ["**/*.bin"]

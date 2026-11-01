@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build && node scripts-pack-static.mjs",
     "preview": "wrangler dev",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "@maplibre/maplibre-gl-leaflet": "^0.1.4",
