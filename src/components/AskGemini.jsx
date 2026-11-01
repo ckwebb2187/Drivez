@@ -3,13 +3,17 @@ import { createPortal } from 'react-dom';
 import { Sparkles, Mic, Square, Send, X, Loader2, Volume2, VolumeX } from 'lucide-react';
 import { api } from '@/api/base44Client';
 import { recordWav, say, stopSpeaking, useAiEnabled } from '@/lib/voice';
+import { useFamilyBrief } from '@/lib/family';
 
 const SUGGEST = ['Nearest gas station', 'Any good drives near me?', 'Report police', 'Switch to Tōge mode', 'What does a blow-off valve do?'];
 
 // "Ask Gemini": tap the button, talk (or type), hear the answer. Gemini can also start
 // directions, report something on the road or switch drive modes (onAction).
 export default function AskGemini({ context, onAction, size = 50, className = '' }) {
-  const enabled = useAiEnabled();
+  const ai = useAiEnabled();
+  const fam = useFamilyBrief();
+  // Gemini is 18+ only (Google's terms), so teen/kid accounts don't see it.
+  const enabled = ai && !['teen', 'kid'].includes(fam?.role);
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle | listening | thinking
   const [level, setLevel] = useState(0);

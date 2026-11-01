@@ -707,6 +707,8 @@ async function handleApi(req, env, ctx, url) {
     if (path === "/spot" && method === "POST") block(kid.social, "Spotting is");
     if (path === "/friends/request" || (path === "/friends/respond" && body.accept) || (path === "/convoys" && method === "POST") || /^\/convoys\/[a-f0-9]{8}\/(join|invite)$/.test(path)) block(kid.convoys, "Group drives and friend requests are");
     if (path === "/auth/me" && method === "PATCH" && body.ghost_mode === false) block(kid.mapVisible, "Being visible on the map is");
+    // Gemini's API terms are 18+ only. Narration and voice fall back to the phone's own voice.
+    if (["/ask", "/narrate", "/tts"].includes(path)) throw new HttpError(403, "Gemini is for adult accounts only.");
   }
 
   if (path === "/auth/me") {

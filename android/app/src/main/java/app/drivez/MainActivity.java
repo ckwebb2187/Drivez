@@ -2,6 +2,7 @@ package app.drivez;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -76,7 +77,15 @@ public class MainActivity extends Activity {
                 if (hasLocation()) { cb.invoke(origin, true, true); return; }
                 pendingGeoOrigin = origin;
                 pendingGeo = cb;
-                requestPermissions(new String[]{ Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION }, REQ_LOCATION);
+                // Google Play wants a plain explanation before Android's location prompt.
+                new AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Use your location?")
+                    .setMessage("Kaido Maps uses your location while you use the app to show you on the map, give turn-by-turn directions and record your drives.\n\n"
+                        + "If you turn them on, it also shares your live location with friends, group drives, your family group or Spotted mode.")
+                    .setCancelable(false)
+                    .setPositiveButton("Continue", (d, w) -> requestPermissions(new String[]{ Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION }, REQ_LOCATION))
+                    .setNegativeButton("Not now", (d, w) -> { cb.invoke(origin, false, false); pendingGeo = null; })
+                    .show();
             }
 
             // Microphone for "Ask Gemini" (voice questions): ask Android once, then let the page record.
@@ -228,6 +237,10 @@ public class MainActivity extends Activity {
                 o.put("mediaAccess", media.hasAccess());
                 o.put("bluetooth", true);
                 o.put("androidAuto", true);
+                // Installed from Google Play? Then Play handles updates, not the in-app APK link.
+                String inst = null;
+                try { inst = getPackageManager().getInstallerPackageName(getPackageName()); } catch (Exception ignored) { }
+                o.put("store", "com.android.vending".equals(inst) ? "play" : "direct");
             } catch (Exception ignored) { }
             return o.toString();
         }

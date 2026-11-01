@@ -46,6 +46,8 @@ function AndroidAppCard() {
   }, []);
   const isAndroid = /Android/i.test(navigator.userAgent);
   if (!info && !isAndroid) return null;
+  // Google Play installs update through Play (Play doesn't allow apps to update themselves).
+  if (info?.store === 'play') return null;
   const outdated = info && latest && latest.versionCode > info.versionCode;
   return (
     <div className="bg-card rounded-2xl p-4 border border-border mt-2 flex items-center gap-3">

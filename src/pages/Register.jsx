@@ -15,12 +15,14 @@ export default function Register() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [agree, setAgree] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     if (password.length < 8) return setError("Use at least 8 characters for your password.");
     if (password !== confirm) return setError("The passwords don't match.");
+    if (!agree) return setError("Please confirm you're 13 or older and agree to the Terms.");
     setLoading(true);
     try {
       await base44.auth.register({ name, email, password });
@@ -81,6 +83,13 @@ export default function Register() {
             <Input id="confirm" type="password" autoComplete="new-password" placeholder="Type it again" value={confirm} onChange={(e) => setConfirm(e.target.value)} className="pl-10 h-12" required />
           </div>
         </div>
+        {/* 13+ for now: kid (under 13) sign-up needs a parent-consent flow first. */}
+        <label className="flex items-start gap-2 text-sm text-muted-foreground">
+          <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-1 w-4 h-4 accent-primary" />
+          <span>
+            I'm 13 or older and agree to the <Link to="/terms" className="text-primary underline">Terms</Link> and <Link to="/privacy" className="text-primary underline">Privacy Policy</Link>.
+          </span>
+        </label>
         <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>
           {loading ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating account...</>) : "Create account"}
         </Button>

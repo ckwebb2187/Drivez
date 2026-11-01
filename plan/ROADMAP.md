@@ -58,6 +58,23 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - [x] T30 · S · Report-a-problem form (goes to a records entity the owner can read).
 - [x] T31 · S · Splash animation on app open (light-trail K logo). Must not slow startup: CSS only, under 2 KB.
 
+## Phase 6: Google Play launch (13+ at launch)
+- [x] T32 · M · Play launch, part 1 (done by hand Nov 1): public /privacy, /terms, /delete-account pages; "13 or older + agree" on sign-up;
+  Gemini off for teen/kid accounts (server + button hidden; Google's Gemini terms are 18+); Play installs hide the APK download/update card;
+  location explanation before Android's prompt (`MainActivity.java`, needs a test build).
+- [ ] T33 · S · Speed check is red on main: startup is ~16 KB over `perf/baseline` since the Oct 27-31 commits (address search, usual times, trees).
+  Find what grew in the startup bundle and lazy-load it with `import()` until `node scripts/perf-check.mjs T33` passes. Don't raise the limit.
+- [ ] T34 · S · Family invites: hide the "kid" (under 13) role while sign-up is 13+ (kids can't make accounts yet). Short note: "Kid accounts are coming later."
+  `worker/family.js` should also refuse new `kid` invites with that message. Existing kid members stay as they are.
+
+### Owner steps (not automated)
+- Android build: compileSdk/targetSdk 36 (Play requires API 36 since Aug 31 2026). Test edge-to-edge (Android 15+ draws under the status bar), then build a signed **AAB** (Play doesn't take APKs) and turn on Play App Signing.
+- "Now playing" uses notification access (`MediaListenerService`). Play reviews this closely. Leave it out of the Play build, or justify it in the Console.
+- Play Console: verify identity, privacy policy URL `https://drivez.webb-home.workers.dev/privacy`, delete-account URL `.../delete-account`,
+  Data safety form (match /privacy), content rating, target audience 13+, no ads.
+- Closed test: 12 testers opted in for 14 days in a row before you can apply for production.
+- Trademark search on "Kaido Maps" before the listing goes up.
+
 ## Done before automation
 - [x] Family & parental controls (shared location, places, check-in, SOS, teen alerts, parent controls) (done before automation)
 
@@ -68,3 +85,8 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - [?] OBD-II gauges: needs a Bluetooth OBD adapter plan for the Android app.
 - [?] Featured landmarks / sponsored pins / premium: replace the non-commercial 3D WRX model before charging money.
 - [?] Push-to-talk inside the app (vs. using Discord voice from T19).
+- [?] Routing at launch: the free OSRM demo and FOSSGIS Valhalla servers forbid heavy/commercial use. Pay for hosted routing or self-host?
+- [?] Open-Meteo (elevation, weather) is free for non-commercial use only. Paid plan (~$99/mo) needed before any premium/sponsored features.
+- [?] Gemini key: on the free tier Google may read prompts (they include location and voice). Move to a paid key?
+- [?] Kid (under 13) accounts: need a COPPA parent-consent sign-up flow before they come back.
+- [?] Play listing link: once the app is on Play, the "Get the Android app" card should link there instead of `drivez.apk`.

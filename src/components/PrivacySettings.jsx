@@ -60,6 +60,10 @@ export default function PrivacySettings() {
           </div>
         )}
         {error && <p className="text-xs text-destructive">{error}</p>}
+        <div className="flex justify-center gap-4 text-xs text-muted-foreground pt-1">
+          <a href="/privacy" className="underline">Privacy Policy</a>
+          <a href="/terms" className="underline">Terms of Use</a>
+        </div>
       </div>
     </div>
   );

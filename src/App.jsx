@@ -29,6 +29,10 @@ export default function App() {
               <Route path="/reset-password" element={<Page.ResetPassword />} />
               <Route path="/u/:username" element={<Page.PublicProfile />} />
               <Route path="/join/:code" element={<Page.JoinPage />} />
+              {/* Public: linked from Google Play */}
+              <Route path="/privacy" element={<Page.LegalPage />} />
+              <Route path="/terms" element={<Page.LegalPage />} />
+              <Route path="/delete-account" element={<Page.LegalPage />} />
               <Route element={<ProtectedRoute />}>
                 <Route element={<Layout />}>
                   {/* The drive map is the home screen. Layout draws it so it keeps running in the background. */}

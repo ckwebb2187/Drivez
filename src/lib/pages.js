@@ -22,6 +22,7 @@ const loaders = {
   Register: () => import('@/pages/Register'),
   ForgotPassword: () => import('@/pages/ForgotPassword'),
   ResetPassword: () => import('@/pages/ResetPassword'),
+  LegalPage: () => import('@/pages/LegalPage'),
 };
 
 export const Page = Object.fromEntries(Object.entries(loaders).map(([k, load]) => [k, lazy(load)]));
