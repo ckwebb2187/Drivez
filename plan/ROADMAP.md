@@ -68,7 +68,7 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
   `worker/family.js` should also refuse new `kid` invites with that message. Existing kid members stay as they are.
 
 ### Owner steps (not automated)
-- Cloudflare Workers Builds stopped deploying after Oct 31 21:34 UTC (pushes to main don't go live). Check Workers & Pages → drivez → Settings → Builds.
+- Fixed Nov 1: pushes to main now deploy through GitHub Actions (`.github/workflows/deploy.yml`, secret `CLOUDFLARE_API_TOKEN` from the "Edit Cloudflare Workers" template).
 - Android build: compileSdk/targetSdk 36 (Play requires API 36 since Aug 31 2026). Test edge-to-edge (Android 15+ draws under the status bar), then build a signed **AAB** (Play doesn't take APKs) and turn on Play App Signing.
 - "Now playing" uses notification access (`MediaListenerService`). Play reviews this closely. Leave it out of the Play build, or justify it in the Console.
 - Play Console: verify identity, privacy policy URL `https://drivez.webb-home.workers.dev/privacy`, delete-account URL `.../delete-account`,

@@ -49,3 +49,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-11-01 · - · note · Cloudflare Workers Builds reconnected by owner; this push checks auto-deploy
 2026-11-01 · - · note · GitHub connected to Cloudflare Workers Builds; first auto-deploy
 2026-11-01 · - · note · Cloudflare Builds connected to GitHub (ckwebb2187/Drivez, main)
+2026-11-01 · - · deployed · GitHub Actions deploy works; T32 + T33 live (version 1.1.30)
