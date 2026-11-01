@@ -48,3 +48,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-11-01 · T33 · done by hand · startup -0.1 KB vs baseline · garage drawer (3D bay, car builder, sharing) loads on first tap; not deployed (Workers Builds stuck since Oct 31)
 2026-11-01 · - · note · Cloudflare Workers Builds reconnected by owner; this push checks auto-deploy
 2026-11-01 · - · note · GitHub connected to Cloudflare Workers Builds; first auto-deploy
+2026-11-01 · - · note · Cloudflare Builds connected to GitHub (ckwebb2187/Drivez, main)
