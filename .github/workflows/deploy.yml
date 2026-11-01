@@ -1,0 +1,68 @@
+name: Deploy to Cloudflare
+
+# Every push to main goes live. Needs one repo secret: CLOUDFLARE_API_TOKEN
+# (the "API token for external CI/CD" from the drivez worker's Settings -> Builds page).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check the Cloudflare token is there
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$CF_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN is missing. Add it under Settings -> Secrets and variables -> Actions, then re-run this workflow."
+            exit 1
+          fi
+
+      - name: Find the Cloudflare account
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          # Use the CLOUDFLARE_ACCOUNT_ID secret if set; otherwise ask Cloudflare which account the token belongs to.
+          id="$CF_ACCOUNT"
+          if [ -z "$id" ]; then
+            id=$(curl -fsS -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/accounts" | jq -r '.result[0].id // empty')
+          fi
+          if [ -z "$id" ]; then
+            echo "::error::Couldn't find the Cloudflare account for this token. Add a CLOUDFLARE_ACCOUNT_ID secret (Cloudflare dashboard -> Account home -> Account ID)."
+            exit 1
+          fi
+          echo "::add-mask::$id"
+          echo "CLOUDFLARE_ACCOUNT_ID=$id" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        # wrangler.toml's [build] runs "npm run build" first.
+        run: npx wrangler deploy
+
+      - name: Report the live version
+        run: |
+          sleep 5
+          echo "Live bundle: $(curl -fsS https://drivez.webb-home.workers.dev/ | grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' | head -1)"
