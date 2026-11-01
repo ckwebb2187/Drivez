@@ -1,5 +1,6 @@
 name = "drivez"
 main = "worker/index.js"
+account_id = "dd81911b012739137c32d4ddcac10f9e"
 compatibility_date = "2025-09-01"
 
 # Build the app (vite + packed static files) before every deploy,
