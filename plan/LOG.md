@@ -47,3 +47,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-11-01 · T32 · done by hand · startup +0.2 KB · Play launch part 1: privacy/terms/delete pages, 13+ sign-up, Gemini adults only, Play hides APK updater, location notice (Android untested)
 2026-11-01 · T33 · done by hand · startup -0.1 KB vs baseline · garage drawer (3D bay, car builder, sharing) loads on first tap; not deployed (Workers Builds stuck since Oct 31)
 2026-11-01 · - · note · Cloudflare Workers Builds reconnected by owner; this push checks auto-deploy
+2026-11-01 · - · note · GitHub connected to Cloudflare Workers Builds; first auto-deploy
