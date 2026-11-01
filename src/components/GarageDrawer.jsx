@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Wrench, Cpu, QrCode, Users, ChevronLeft, Sparkles, Hand } from 'lucide-react';
+import { X, Wrench, Cpu, QrCode, Users, Sparkles, Hand } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import GarageBay3D from '@/components/GarageBay3D';
 import VehicleDetail from '@/components/VehicleDetail';
@@ -16,16 +16,6 @@ const accentColor = () => {
 };
 
 // "GARAGE" pull-tab on the right edge of the map (like the design boards).
-export function GarageTab({ onOpen }) {
-  return (
-    <button onClick={onOpen} aria-label="Open garage"
-      className="pointer-events-auto absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-card/95 backdrop-blur border border-r-0 border-border rounded-l-xl shadow-xl py-3 pl-1 pr-1.5 flex flex-col items-center gap-1 text-primary">
-      <ChevronLeft className="w-3.5 h-3.5" />
-      <span className="text-[10px] font-black tracking-[0.2em]" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>GARAGE</span>
-    </button>
-  );
-}
-
 // Slide-out garage over the live map: 3D showroom + quick actions.
 export default function GarageDrawer({ open, onClose }) {
   const { user, vehicles, activeVehicle, trips, setPrimaryVehicle } = useApp();

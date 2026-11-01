@@ -45,3 +45,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-10-26 · T29-T31 · deployed · live check ok 177 ms · roadmap clear except Needs a decision + T03
 2026-10-26 · T03 · done · startup +0.4 KB · No tolls / No ferries chips (saved per phone) switch routing to Valhalla osrm-format; reroutes follow; tested route, alternatives, stops
 2026-11-01 · T32 · done by hand · startup +0.2 KB · Play launch part 1: privacy/terms/delete pages, 13+ sign-up, Gemini adults only, Play hides APK updater, location notice (Android untested)
+2026-11-01 · T33 · done by hand · startup -0.1 KB vs baseline · garage drawer (3D bay, car builder, sharing) loads on first tap; not deployed (Workers Builds stuck since Oct 31)

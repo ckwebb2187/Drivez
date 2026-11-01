@@ -62,12 +62,13 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - [x] T32 · M · Play launch, part 1 (done by hand Nov 1): public /privacy, /terms, /delete-account pages; "13 or older + agree" on sign-up;
   Gemini off for teen/kid accounts (server + button hidden; Google's Gemini terms are 18+); Play installs hide the APK download/update card;
   location explanation before Android's prompt (`MainActivity.java`, needs a test build).
-- [ ] T33 · S · Speed check is red on main: startup is ~16 KB over `perf/baseline` since the Oct 27-31 commits (address search, usual times, trees).
+- [x] T33 · S · Speed check is red on main: startup is ~16 KB over `perf/baseline` since the Oct 27-31 commits (address search, usual times, trees).
   Find what grew in the startup bundle and lazy-load it with `import()` until `node scripts/perf-check.mjs T33` passes. Don't raise the limit.
 - [ ] T34 · S · Family invites: hide the "kid" (under 13) role while sign-up is 13+ (kids can't make accounts yet). Short note: "Kid accounts are coming later."
   `worker/family.js` should also refuse new `kid` invites with that message. Existing kid members stay as they are.
 
 ### Owner steps (not automated)
+- Cloudflare Workers Builds stopped deploying after Oct 31 21:34 UTC (pushes to main don't go live). Check Workers & Pages → drivez → Settings → Builds.
 - Android build: compileSdk/targetSdk 36 (Play requires API 36 since Aug 31 2026). Test edge-to-edge (Android 15+ draws under the status bar), then build a signed **AAB** (Play doesn't take APKs) and turn on Play App Signing.
 - "Now playing" uses notification access (`MediaListenerService`). Play reviews this closely. Leave it out of the Play build, or justify it in the Console.
 - Play Console: verify identity, privacy policy URL `https://drivez.webb-home.workers.dev/privacy`, delete-account URL `.../delete-account`,

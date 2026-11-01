@@ -1,7 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 const ElevationChart = lazy(() => import('@/components/ElevationChart'));
+// The garage (3D bay, car builder, sharing) is big, so it loads on the first tap.
+const GarageDrawer = lazy(() => import('@/components/GarageDrawer'));
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles, Plus, ArrowUp, ArrowDown, GripVertical, Shuffle, Save, TrafficCone, Play, Bookmark, Trophy, Menu, Users } from 'lucide-react';
+import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles, Plus, ArrowUp, ArrowDown, GripVertical, Shuffle, Save, TrafficCone, Play, Bookmark, Trophy, Menu, Users, ChevronLeft } from 'lucide-react';
 import { ReportButton } from '@/components/MapBits';
 import MusicButton from '@/components/MusicButton';
 import { WeatherButton, WeatherTimeBadge } from '@/components/Weather';
@@ -11,7 +13,6 @@ import { suggestDrives } from '@/lib/predict';
 import ServiceDueCard from '@/components/ServiceDueCard';
 import ParkedCard from '@/components/ParkedCard';
 import TripCard from '@/components/TripCard';
-import GarageDrawer, { GarageTab } from '@/components/GarageDrawer';
 import LeftDrawer from '@/components/LeftDrawer';
 import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
@@ -31,6 +32,17 @@ const DRIVE_ERRORS = {
   unsupported: 'This browser does not support location tracking.',
   timeout: 'Could not get a GPS signal. Move somewhere with a clear view of the sky and try again.',
 };
+
+// Edge tab that opens the garage drawer.
+function GarageTab({ onOpen }) {
+  return (
+    <button onClick={onOpen} aria-label="Open garage"
+      className="pointer-events-auto absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-card/95 backdrop-blur border border-r-0 border-border rounded-l-xl shadow-xl py-3 pl-1 pr-1.5 flex flex-col items-center gap-1 text-primary">
+      <ChevronLeft className="w-3.5 h-3.5" />
+      <span className="text-[10px] font-black tracking-[0.2em]" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>GARAGE</span>
+    </button>
+  );
+}
 
 // Everything you see on the map before a drive: search, Home/Work, suggestions, and the
 // route preview with Go. It sits on top of the drive map; the map itself lives in LiveDrive.
@@ -62,6 +74,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [garageOpen, setGarageOpen] = useState(false);
+  const [garageUsed, setGarageUsed] = useState(false); // load the garage on first open, then keep it
   const [menuOpen, setMenuOpen] = useState(false);
   const touchY = useRef(0);
   const [friends, setFriends] = useState([]);
@@ -569,8 +582,8 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
           </div>
         </div>
       )}
-      {scene && !route && !routing && !routeErr && !showResults && <GarageTab onOpen={() => setGarageOpen(true)} />}
-      <GarageDrawer open={garageOpen} onClose={() => setGarageOpen(false)} />
+      {scene && !route && !routing && !routeErr && !showResults && <GarageTab onOpen={() => { setGarageUsed(true); setGarageOpen(true); }} />}
+      {garageUsed && <Suspense fallback={null}><GarageDrawer open={garageOpen} onClose={() => setGarageOpen(false)} /></Suspense>}
       <LeftDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
       {addingStop && <PlaceSearchSheet title={`Add stop ${allStops.length + 1}`} pos={pos} onPick={addStop} onClose={() => setAddingStop(false)} />}
       {savingPlan && route && (
