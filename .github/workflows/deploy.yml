@@ -1,7 +1,7 @@
 name: Deploy to Cloudflare
 
 # Every push to main goes live. Needs one repo secret: CLOUDFLARE_API_TOKEN
-# (the "API token for external CI/CD" from the drivez worker's Settings -> Builds page).
+# (a Cloudflare API token made from the "Edit Cloudflare Workers" template).
 # The account id is in wrangler.toml.
 on:
   push:
@@ -44,13 +44,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         # wrangler.toml's [build] runs "npm run build" first.
-        # The deploy token can only upload and release this worker, so upload a
-        # version and then send 100% of traffic to it (plain "deploy" needs more access).
-        run: |
-          npx wrangler versions upload --message "${GITHUB_SHA::7}" | tee upload.log
-          id=$(grep -oE 'Worker Version ID: [0-9a-f-]+' upload.log | awk '{print $4}')
-          if [ -z "$id" ]; then echo "::error::Upload didn't return a version id."; exit 1; fi
-          npx wrangler versions deploy "$id@100%" --yes --message "${GITHUB_SHA::7}"
+        run: npx wrangler deploy
 
       - name: Report the live version
         run: |
