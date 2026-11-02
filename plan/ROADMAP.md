@@ -64,7 +64,7 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
   location explanation before Android's prompt (`MainActivity.java`, needs a test build).
 - [x] T33 · S · Speed check is red on main: startup is ~16 KB over `perf/baseline` since the Oct 27-31 commits (address search, usual times, trees).
   Find what grew in the startup bundle and lazy-load it with `import()` until `node scripts/perf-check.mjs T33` passes. Don't raise the limit.
-- [ ] T34 · S · Family invites: hide the "kid" (under 13) role while sign-up is 13+ (kids can't make accounts yet). Short note: "Kid accounts are coming later."
+- [x] T34 · S · Family invites: hide the "kid" (under 13) role while sign-up is 13+ (kids can't make accounts yet). Short note: "Kid accounts are coming later."
   `worker/family.js` should also refuse new `kid` invites with that message. Existing kid members stay as they are.
 
 ### Owner steps (not automated)
