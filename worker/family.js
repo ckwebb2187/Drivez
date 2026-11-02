@@ -117,6 +117,7 @@ async function route({ path, method, body, me, db, url, json }) {
   if (path === "/family/invite" && method === "POST") {
     need();
     const role = ROLES.includes(body.role) ? body.role : "adult";
+    if (role === "kid") throw new FamilyError(400, "Kid accounts are coming later.");
     if (!isParent && role !== "adult") throw new FamilyError(403, "Only a parent can add teen or kid accounts.");
     if (role === "parent" && !isParent) throw new FamilyError(403, "Only a parent can add another parent.");
     const code = code6();

@@ -253,10 +253,10 @@ function Invite({ parent }) {
   return (
     <Section title="Add someone">
       <div className="rounded-2xl bg-card border border-border p-3 space-y-2">
-        <div className="grid grid-cols-4 gap-1">
-          {(parent ? ['adult', 'parent', 'teen', 'kid'] : ['adult']).map((r) => <button key={r} onClick={() => make(r)} className="text-[11px] py-2 rounded-lg bg-secondary text-foreground font-semibold">{ROLE_LABEL[r]}</button>)}
+        <div className="grid grid-cols-3 gap-1">
+          {(parent ? ['adult', 'parent', 'teen'] : ['adult']).map((r) => <button key={r} onClick={() => make(r)} className="text-[11px] py-2 rounded-lg bg-secondary text-foreground font-semibold">{ROLE_LABEL[r]}</button>)}
         </div>
-        {parent && <p className="text-[10px] text-muted-foreground">Teen and kid accounts: open Kaido Maps on their phone, sign them up, then enter the code in Family. Kids start with meets, social, group drives and map visibility off.</p>}
+        {parent && <p className="text-[10px] text-muted-foreground">Teen accounts: open Kaido Maps on their phone, sign them up, then enter the code in Family. Kid accounts are coming later.</p>}
         {inv && (
           <div className="rounded-xl bg-secondary/50 p-3 text-center">
             <div className="text-[11px] text-muted-foreground">{ROLE_LABEL[inv.role]} code · lasts 7 days</div>
