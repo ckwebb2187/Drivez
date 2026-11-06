@@ -2,7 +2,8 @@ name: Deploy to Cloudflare
 
 # Every push to main goes live. Needs one repo secret: CLOUDFLARE_API_TOKEN
 # (a Cloudflare API token made from the "Edit Cloudflare Workers" template).
-# The account id is in wrangler.toml.
+# The account id is in wrangler.toml. Optional secret ANDROID_KEYSTORE_B64 (the app signing key)
+# makes it also build the Android app and publish it as /drivez.apk.
 on:
   push:
     branches: [main]
@@ -39,6 +40,22 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Build the Android app (when the signing key secret is set)
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then echo "No ANDROID_KEYSTORE_B64 secret: keeping the current public/drivez.apk."; exit 0; fi
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "build-tools;35.0.0" "platforms;android-34" > /dev/null
+          echo "$KEYSTORE_B64" | base64 -d > android/kaido-release.jks
+          printf 'storeFile=kaido-release.jks\nstorePassword=kaidomaps\nkeyAlias=kaido\nkeyPassword=kaidomaps\n' > android/keystore.properties
+          ANDROID_HOME="$ANDROID_HOME" bash android/build-apk.sh
+          cp android/build/manual/drivez.apk public/drivez.apk
+          code=$(grep versionCode android/app/build.gradle | grep -o '[0-9]\+')
+          name=$(grep versionName android/app/build.gradle | grep -o "'[^']*'" | tr -d "'")
+          printf '{"versionCode":%s,"versionName":"%s"}\n' "$code" "$name" > public/android-version.json
+          rm -f android/kaido-release.jks android/keystore.properties
+          echo "Built Android app $name ($code): $(du -h public/drivez.apk | cut -f1)"
 
       - name: Build and deploy
         env:

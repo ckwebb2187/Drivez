@@ -3,7 +3,7 @@
 # Needs the Android SDK (platform 34 + build-tools 34) and keystore.properties.
 set -euo pipefail
 cd "$(dirname "$0")"
-SDK=${ANDROID_HOME:-/opt/android-sdk}
+SDK=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/opt/android-sdk}}
 BT=$SDK/build-tools/35.0.0
 JAR=$SDK/platforms/android-34/android.jar
 VERSION_NAME=$(grep versionName app/build.gradle | grep -o "'[^']*'" | tr -d "'")
