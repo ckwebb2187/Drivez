@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { lazy, Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { useTrafficEta } from '@/lib/traffic';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,7 +17,7 @@ import MusicButton from '@/components/MusicButton';
 import { WeatherButton } from '@/components/Weather';
 import TripPlanner from '@/components/TripPlanner';
 import { useSpeedLimit } from '@/lib/speedLimit';
-import { useActiveLook, speedStyle } from '@/lib/mapTheme';
+import { useActiveLook, speedStyle, isLite } from '@/lib/mapTheme';
 import { LEGENDS } from '@/lib/legends';
 const LEGEND_PINS = LEGENDS.map((l) => ({ ...l, label: l.name, legend: true }));
 import DriverSheet from '@/components/DriverSheet';
@@ -28,6 +28,7 @@ import PushToTalk from '@/components/PushToTalk';
 import FriendsHub from '@/components/FriendsHub';
 import MeetRadar from '@/components/MeetRadar';
 import AskGemini from '@/components/AskGemini';
+import { useObdPrefs } from '@/lib/obd';
 import { say, getVoiceSettings, recapText, tripFacts } from '@/lib/voice';
 import { searchPlaces, getRoute } from '@/lib/nav';
 import { learnedRoute } from '@/lib/learned';
@@ -47,6 +48,9 @@ async function reverseGeocode(lat, lng) {
   if (data.display_name) return data.display_name.split(', ').slice(0, 2).join(', ');
   return `${lat.toFixed(3)}, ${lng.toFixed(3)}`;
 }
+
+// Engine gauge bubbles (OBD-II) load only when turned on.
+const EngineBubbles = lazy(() => import('@/components/EngineBubbles'));
 
 export default function LiveDrive({ active = true, peek = false }) {
   const navigate = useNavigate();
@@ -136,6 +140,7 @@ export default function LiveDrive({ active = true, peek = false }) {
   }, [drive.status, nav.active, nav.arrived]); // eslint-disable-line react-hooks/exhaustive-deps
   const roadReports = useReports(drive.currentPosition || herePos);
   const { look, key: themeKey } = useActiveLook();
+  const obdPrefs = useObdPrefs();
   // Shared with the voice so it can follow your speed (speed-linked audio).
   useEffect(() => { window.__dzSpeed = drive.status === 'driving' ? drive.currentSpeed : 0; }, [drive.currentSpeed, drive.status]);
   const speedLimit = useSpeedLimit(drive.status === 'driving' ? drive.currentPosition : null, drive.heading, drive.status === 'driving');
@@ -733,6 +738,12 @@ export default function LiveDrive({ active = true, peek = false }) {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 z-[500] pointer-events-none"
           >
+            {/* Engine gauge bubbles (OBD-II), themed to the map. Locked while moving. */}
+            {obdPrefs.show && (
+              <Suspense fallback={null}>
+                <EngineBubbles themeKey={themeKey} moving={(drive.currentSpeed || 0) > 5} calm={isLite(look)} />
+              </Suspense>
+            )}
             {/* Turn card: tap it for every turn of the trip; the arrow folds it into a small pill. */}
             {nav.active && (() => {
               // Themed looks get the black animated wireframe header; Standard keeps the plain green card.

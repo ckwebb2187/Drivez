@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Eye, EyeOff, Palette, AudioLines, Flame, Navigation, MessageCircle, ShieldCheck, Smartphone, LogOut, Loader2, X, Gauge } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
@@ -12,6 +12,9 @@ import AppUpdate from '@/components/AppUpdate';
 import { useUnits, setUnits } from '@/lib/units';
 import { useFamilyBrief } from '@/lib/family';
 import { api } from '@/api/base44Client';
+
+// Engine gauges (OBD-II) settings load only when opened.
+const EngineSettings = lazy(() => import('@/components/EngineSettings'));
 
 let unlockedFor = null; // family id unlocked with the parent PIN this session
 
@@ -53,6 +56,9 @@ export default function SettingsList() {
       </div>
       <Collapsible id="look" icon={Palette} title="Map look" subtitle="World theme, battery saver, Japanese names">
         <MapLookSettings />
+      </Collapsible>
+      <Collapsible id="engine" icon={Gauge} title="Engine gauges (OBD-II)" subtitle="Boost, temps and more as glowing map bubbles">
+        <Suspense fallback={null}><EngineSettings /></Suspense>
       </Collapsible>
       <Collapsible id="voice" icon={AudioLines} title="Voice & narration" subtitle="Co-driver callouts, drive recaps, Gemini voice">
         <VoiceSettings />

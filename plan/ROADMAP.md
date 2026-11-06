@@ -76,6 +76,13 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - Closed test: 12 testers opted in for 14 days in a row before you can apply for production.
 - Trademark search on "Kaido Maps" before the listing goes up.
 
+## Engine gauges (from the WRX Logger app)
+- [x] T35 · M · OBD-II engine bubbles (done by hand Nov 6): ELM327 Bluetooth link + polling + CSV log in the Android app (`ObdLink.java`,
+  `DrivezNative.obd*`); glowing draggable gauge bubbles on the drive map, themed to the world theme or WRX Logger colors; settings under
+  Settings → Engine gauges; demo mode; locked while moving. Needs a new Android build to read a real adapter.
+- [ ] T36 · S · Engine gauges, part 2: when a drive ends with the adapter connected, save peak boost, max coolant and max intake temp
+  on the trip (records entity) and show them on the trip detail page. Read-only, no new permissions.
+
 ## Done before automation
 - [x] Family & parental controls (shared location, places, check-in, SOS, teen alerts, parent controls) (done before automation)
 
@@ -83,7 +90,6 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - [?] Crash detection: check patents first.
 - [?] Gas prices: no free data source.
 - [?] EV chargers: needs a free Open Charge Map API key added by the owner.
-- [?] OBD-II gauges: needs a Bluetooth OBD adapter plan for the Android app.
 - [?] Featured landmarks / sponsored pins / premium: replace the non-commercial 3D WRX model before charging money.
 - [?] Push-to-talk inside the app (vs. using Discord voice from T19).
 - [?] Routing at launch: the free OSRM demo and FOSSGIS Valhalla servers forbid heavy/commercial use. Pay for hosted routing or self-host?

@@ -34,6 +34,7 @@ public class MainActivity extends Activity {
     private MediaWatcher media;
     private CarBluetooth bt;
     private CarAuto auto;
+    private ObdLink obd;
     private String pendingGeoOrigin;
     private GeolocationPermissions.Callback pendingGeo;
     private ValueCallback<Uri[]> pendingFiles;
@@ -60,6 +61,7 @@ public class MainActivity extends Activity {
         bt = new CarBluetooth(this, json -> runOnUiThread(() ->
             web.evaluateJavascript("window.dispatchEvent(new CustomEvent('drivez-bt',{detail:" + json + "}))", null)));
         bt.start();
+        obd = new ObdLink(this);
         auto = new CarAuto(this, json -> runOnUiThread(() ->
             web.evaluateJavascript("window.dispatchEvent(new CustomEvent('drivez-auto',{detail:" + json + "}))", null)));
         auto.start();
@@ -212,6 +214,7 @@ public class MainActivity extends Activity {
         media.stop();
         bt.stop();
         auto.stop();
+        obd.disconnect();
         super.onDestroy();
     }
 
@@ -237,6 +240,7 @@ public class MainActivity extends Activity {
                 o.put("mediaAccess", media.hasAccess());
                 o.put("bluetooth", true);
                 o.put("androidAuto", true);
+                o.put("obd", true);
                 // Installed from Google Play? Then Play handles updates, not the in-app APK link.
                 String inst = null;
                 try { inst = getPackageManager().getInstallerPackageName(getPackageName()); } catch (Exception ignored) { }
@@ -286,6 +290,14 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> startActivity(go));
             return true;
         }
+
+        // OBD-II engine gauges (ELM327 Bluetooth adapter). Poll obdState() for live values.
+        @JavascriptInterface public String obdDevices() { return obd.devices(); }
+        @JavascriptInterface public void obdConnect(String address, String name) { obd.connect(address, name); }
+        @JavascriptInterface public void obdDisconnect() { obd.disconnect(); }
+        @JavascriptInterface public String obdState() { return obd.state(); }
+        @JavascriptInterface public String obdLog(boolean on) { return obd.setLogging(on); }
+        @JavascriptInterface public void obdResetPeak() { obd.resetPeak(); }
 
         @JavascriptInterface public void keepScreenOn(boolean on) {
             runOnUiThread(() -> {
