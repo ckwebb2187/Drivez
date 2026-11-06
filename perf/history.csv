@@ -62,3 +62,4 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-11-01T19:59,T33,build,559.3,969.2,,,pass
 2026-11-02T13:29,T34,build,559.3,969.2,,,pass
 2026-11-02T13:29,T34,live,,,199,392,pass
+2026-11-06T13:09,T36,build,563.5,980.2,,,pass

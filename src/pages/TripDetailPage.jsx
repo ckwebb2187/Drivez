@@ -205,6 +205,20 @@ export default function TripDetailPage() {
           <DiscordShareButton tripId={trip.id} />
         </div>
 
+        {trip.engine_peaks && (
+          <div className="bg-card rounded-2xl p-4 border border-border mt-3">
+            <div className="text-sm font-semibold text-foreground mb-3">Engine peaks</div>
+            <div className="grid grid-cols-3 gap-2">
+              {[['boost', 'Peak boost', 'psi'], ['coolant', 'Max coolant', '°F'], ['iat', 'Max intake temp', '°F']].map(([k, label, u]) => (
+                <div key={k} className="bg-secondary/50 rounded-xl p-2.5 text-center">
+                  <div className="text-lg font-bold speed-font text-foreground">{trip.engine_peaks[k] != null ? `${trip.engine_peaks[k]} ${u}` : '—'}</div>
+                  <div className="text-[10px] text-muted-foreground">{label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Personal drive stats (just for you, no leaderboard) */}
         {scene && (trip.smoothness != null || trip.max_g || trip.best_0_60) && (
           <div className="bg-card rounded-2xl p-4 border border-border mt-3">

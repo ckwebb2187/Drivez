@@ -29,6 +29,7 @@ import FriendsHub from '@/components/FriendsHub';
 import MeetRadar from '@/components/MeetRadar';
 import AskGemini from '@/components/AskGemini';
 import { useObdPrefs, useObdDemo } from '@/lib/obdPrefs';
+import { samplePeaks, takePeaks } from '@/lib/obd';
 import { say, getVoiceSettings, recapText, tripFacts } from '@/lib/voice';
 import { searchPlaces, getRoute } from '@/lib/nav';
 import { learnedRoute } from '@/lib/learned';
@@ -142,6 +143,13 @@ export default function LiveDrive({ active = true, peek = false }) {
   const { look, key: themeKey } = useActiveLook();
   const obdPrefs = useObdPrefs();
   const obdDemo = useObdDemo();
+  // Engine peaks for the trip record (only with a real adapter).
+  useEffect(() => {
+    if (drive.status !== 'driving') return undefined;
+    takePeaks();
+    const t = setInterval(samplePeaks, 3000);
+    return () => clearInterval(t);
+  }, [drive.status]);
   // Shared with the voice so it can follow your speed (speed-linked audio).
   useEffect(() => { window.__dzSpeed = drive.status === 'driving' ? drive.currentSpeed : 0; }, [drive.currentSpeed, drive.status]);
   const speedLimit = useSpeedLimit(drive.status === 'driving' ? drive.currentPosition : null, drive.heading, drive.status === 'driving');
@@ -527,6 +535,8 @@ export default function LiveDrive({ active = true, peek = false }) {
       return;
     }
     const step = Math.ceil(route.length / MAX_POINTS) || 1;
+    samplePeaks();
+    const enginePeaks = takePeaks();
     const trip = {
       title: navPlan ? `Drive to ${navPlan.dest.name}` : `Drive — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`,
       start_time: new Date(Date.now() - drive.elapsedTime * 1000).toISOString(),
@@ -545,6 +555,7 @@ export default function LiveDrive({ active = true, peek = false }) {
       hard_brakes: drive.stats.hardBrakes,
       hard_accels: drive.stats.hardAccels,
       smoothness: drive.stats.smoothness,
+      ...(enginePeaks ? { engine_peaks: enginePeaks } : {}),
       ...(driveMode !== 'cruise' ? { mode: driveMode } : {}),
       ...(convoy ? { convoy: convoy.code } : {}),
       ...(driveMode === 'toge' ? { corners: corners.current.n } : {}),

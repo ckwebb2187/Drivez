@@ -140,6 +140,19 @@ function demoState() {
     peakBoost: demoPeak,
   };
 }
+// Peaks for the trip record (real adapter only): sampled every few seconds while driving.
+let tripPeaks = null;
+export function samplePeaks() {
+  if (!hasNativeObd()) return;
+  const s = parse(nat().obdState(), { status: 'off' });
+  if (!s.values || !Object.keys(s.values).length) return; // not connected / no readings
+  const v = s.values || {};
+  tripPeaks = tripPeaks || {};
+  const up = (k, x) => { if (typeof x === 'number' && isFinite(x) && (tripPeaks[k] == null || x > tripPeaks[k])) tripPeaks[k] = Math.round(x * 10) / 10; };
+  up('boost', s.peakBoost); up('coolant', v.coolant); up('iat', v.iat);
+}
+export function takePeaks() { const p = tripPeaks; tripPeaks = null; return p && Object.keys(p).length ? p : null; }
+
 export const resetPeak = () => { demoPeak = null; try { nat()?.obdResetPeak(); } catch { /* ignore */ } };
 
 // Gauges worked out on the phone from the raw readings.
