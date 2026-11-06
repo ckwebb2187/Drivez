@@ -28,7 +28,7 @@ import PushToTalk from '@/components/PushToTalk';
 import FriendsHub from '@/components/FriendsHub';
 import MeetRadar from '@/components/MeetRadar';
 import AskGemini from '@/components/AskGemini';
-import { useObdPrefs } from '@/lib/obd';
+import { useObdPrefs, useObdDemo } from '@/lib/obdPrefs';
 import { say, getVoiceSettings, recapText, tripFacts } from '@/lib/voice';
 import { searchPlaces, getRoute } from '@/lib/nav';
 import { learnedRoute } from '@/lib/learned';
@@ -141,6 +141,7 @@ export default function LiveDrive({ active = true, peek = false }) {
   const roadReports = useReports(drive.currentPosition || herePos);
   const { look, key: themeKey } = useActiveLook();
   const obdPrefs = useObdPrefs();
+  const obdDemo = useObdDemo();
   // Shared with the voice so it can follow your speed (speed-linked audio).
   useEffect(() => { window.__dzSpeed = drive.status === 'driving' ? drive.currentSpeed : 0; }, [drive.currentSpeed, drive.status]);
   const speedLimit = useSpeedLimit(drive.status === 'driving' ? drive.currentPosition : null, drive.heading, drive.status === 'driving');
@@ -731,6 +732,14 @@ export default function LiveDrive({ active = true, peek = false }) {
           </motion.div>
         )}
 
+        {/* Engine gauge bubbles (OBD-II), themed to the map: during a drive, or any time in demo mode. Locked while moving. */}
+        {obdPrefs.show && (drive.status === 'driving' || obdDemo) && (
+          <div className="absolute inset-0 z-[450] pointer-events-none">
+            <Suspense fallback={null}>
+              <EngineBubbles themeKey={themeKey} moving={(drive.currentSpeed || 0) > 5} calm={isLite(look)} />
+            </Suspense>
+          </div>
+        )}
         {/* Driving */}
         {drive.status === 'driving' && (
           <motion.div
@@ -738,12 +747,6 @@ export default function LiveDrive({ active = true, peek = false }) {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 z-[500] pointer-events-none"
           >
-            {/* Engine gauge bubbles (OBD-II), themed to the map. Locked while moving. */}
-            {obdPrefs.show && (
-              <Suspense fallback={null}>
-                <EngineBubbles themeKey={themeKey} moving={(drive.currentSpeed || 0) > 5} calm={isLite(look)} />
-              </Suspense>
-            )}
             {/* Turn card: tap it for every turn of the trip; the arrow folds it into a small pill. */}
             {nav.active && (() => {
               // Themed looks get the black animated wireframe header; Standard keeps the plain green card.

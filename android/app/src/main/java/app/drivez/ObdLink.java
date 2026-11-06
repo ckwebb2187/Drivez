@@ -30,7 +30,9 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -43,12 +45,21 @@ import java.util.UUID;
 public class ObdLink {
     private static final UUID SPP = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
-    // Mode 01 PIDs: key, code, bytes. Fast ones every cycle, slow ones every 10th.
-    private static final Object[][] FAST = {
-        {"rpm", 0x0C, 2}, {"map", 0x0B, 1}, {"timing", 0x0E, 1}, {"load", 0x04, 1},
-        {"maf", 0x10, 2}, {"throttle", 0x11, 1}, {"speed", 0x0D, 1},
+    // Standard Mode 01 PIDs: key, code, bytes, slow (read every 10th cycle). Only the ones the car
+    // reports as supported, and that a shown bubble (or the log) needs, are read: fewer reads = less battery.
+    private static final Object[][] PIDS = {
+        {"load", 0x04, 1, false}, {"coolant", 0x05, 1, true}, {"stft1", 0x06, 1, false}, {"ltft1", 0x07, 1, true},
+        {"stft2", 0x08, 1, false}, {"ltft2", 0x09, 1, true}, {"fuelPress", 0x0A, 1, false}, {"map", 0x0B, 1, false},
+        {"rpm", 0x0C, 2, false}, {"speed", 0x0D, 1, false}, {"timing", 0x0E, 1, false}, {"iat", 0x0F, 1, true},
+        {"maf", 0x10, 2, false}, {"throttle", 0x11, 1, false}, {"runtime", 0x1F, 2, true}, {"milDist", 0x21, 2, true},
+        {"railRel", 0x22, 2, false}, {"railPress", 0x23, 2, false}, {"lambda", 0x24, 4, false}, {"egr", 0x2C, 1, true},
+        {"evap", 0x2E, 1, true}, {"fuelLevel", 0x2F, 1, true}, {"clearDist", 0x31, 2, true}, {"baro", 0x33, 1, true},
+        {"lambdaW", 0x34, 4, false}, {"catTemp", 0x3C, 2, true}, {"voltage", 0x42, 2, true}, {"absLoad", 0x43, 2, false},
+        {"cmdLambda", 0x44, 2, false}, {"relThrottle", 0x45, 1, false}, {"ambient", 0x46, 1, true}, {"pedal", 0x49, 1, false},
+        {"cmdThrottle", 0x4C, 1, false}, {"ethanol", 0x52, 1, true}, {"oil", 0x5C, 1, true}, {"fuelRate", 0x5E, 2, false},
+        {"demandTorque", 0x61, 1, false}, {"actualTorque", 0x62, 1, false},
     };
-    private static final Object[][] SLOW = { {"coolant", 0x05, 1}, {"iat", 0x0F, 1}, {"baro", 0x33, 1} };
+    private static final String DEFAULT_WATCH = "rpm,map,baro,timing,load,maf,throttle,speed,coolant,iat";
     private static final String[] CSV_COLS = {"map", "timing", "load", "maf", "throttle", "speed", "coolant", "iat", "baro"};
 
     private final Context ctx;
@@ -66,6 +77,9 @@ public class ObdLink {
     private volatile double peakBoost = Double.NaN;
     private volatile double rate;
     private volatile long updated;
+    private volatile Set<String> watch = new HashSet<>(Arrays.asList(DEFAULT_WATCH.split(",")));
+    private volatile Set<Integer> supported; // null until the car answers the "which PIDs" question
+    private volatile long lastRead; // when the web app last asked for values (asleep = slow down)
 
     private BufferedWriter csv;
     private Uri csvUri;
@@ -114,7 +128,16 @@ public class ObdLink {
         return s.contains("OBD") || s.contains("ELM") || s.contains("VLINK") || s.contains("V-LINK") || s.contains("KONNWEI") || s.contains("VGATE") || s.contains("ICAR");
     }
 
+    // Which values to read, as a comma list of keys (e.g. "rpm,map,baro,coolant").
+    public void watch(String keys) {
+        Set<String> w = new HashSet<>();
+        for (String k : (keys == null ? "" : keys).split(",")) if (!k.trim().isEmpty()) w.add(k.trim());
+        if (w.contains("boost")) { w.add("map"); w.add("baro"); }
+        watch = w;
+    }
+
     public String state() {
+        lastRead = SystemClock.elapsedRealtime();
         JSONObject o = new JSONObject();
         try {
             o.put("status", status);
@@ -131,6 +154,12 @@ public class ObdLink {
             o.put("logging", csvName != null);
             o.put("logFile", csvName == null ? "" : csvName);
             o.put("lastSaved", lastSaved);
+            Set<Integer> sup = supported;
+            if (sup != null) {
+                JSONArray a = new JSONArray();
+                for (Object[] p : PIDS) if (sup.contains((Integer) p[1])) a.put(p[0]);
+                o.put("supported", a);
+            }
         } catch (Exception ignored) { }
         return o.toString();
     }
@@ -152,6 +181,7 @@ public class ObdLink {
         boost = null;
         peakBoost = Double.NaN;
         rate = 0;
+        supported = null;
         new Thread(() -> {
             try {
                 open(a, address);
@@ -221,7 +251,28 @@ public class ObdLink {
         List<String> probe = send("0100", 8000); // first request starts the protocol search
         for (String l : probe) if (l.startsWith("4100")) ok = true;
         if (!ok) throw new IOException("The car didn't answer. Is the ignition on?");
+        supported = readSupported(probe);
         adapterInfo = version + " · protocol " + join(send("ATDPN", 1500));
+    }
+
+    // Asks the car which Mode 01 PIDs it answers (bitmaps from 0100, 0120, 0140, 0160).
+    private Set<Integer> readSupported(List<String> first) {
+        Set<Integer> sup = new HashSet<>();
+        List<String> lines = first;
+        for (int base = 0; base <= 0x60; base += 0x20) {
+            try {
+                if (base > 0) lines = send(String.format(Locale.US, "01%02X", base), 1500);
+                String prefix = String.format(Locale.US, "41%02X", base);
+                long bits = -1;
+                for (String l : lines) if (l.startsWith(prefix) && l.length() >= prefix.length() + 8) bits = Long.parseLong(l.substring(prefix.length(), prefix.length() + 8), 16);
+                if (bits < 0) break;
+                for (int i = 0; i < 32; i++) if ((bits & (1L << (31 - i))) != 0) sup.add(base + i + 1);
+                if (!sup.contains(base + 0x20)) break; // the car has no next block
+            } catch (Exception e) {
+                break;
+            }
+        }
+        return sup.isEmpty() ? null : sup;
     }
 
     private void pollLoop() throws IOException {
@@ -232,9 +283,20 @@ public class ObdLink {
         long windowStart = SystemClock.elapsedRealtime();
         int windowCycles = 0;
         while (running) {
+            boolean logging = csv != null;
+            Set<String> w = watch;
+            Set<Integer> sup = supported;
             List<Object[]> pids = new ArrayList<>();
-            for (Object[] p : FAST) pids.add(p);
-            if (cycle % 10 == 0) for (Object[] p : SLOW) pids.add(p);
+            for (Object[] p : PIDS) {
+                String k = (String) p[0];
+                boolean wanted = w.contains(k) || (logging && Arrays.asList(CSV_COLS).contains(k)) || (logging && k.equals("rpm"));
+                if (!wanted || (sup != null && !sup.contains((Integer) p[1]))) continue;
+                if ((Boolean) p[3] && cycle % 10 != 0) continue;
+                pids.add(p);
+            }
+            // Nobody looking (app in the background) and not logging: slow right down.
+            if (!logging && SystemClock.elapsedRealtime() - lastRead > 3000) sleep(700);
+            if (pids.isEmpty()) sleep(250);
             for (Object[] p : pids) {
                 if (!running) return;
                 try {
@@ -295,6 +357,20 @@ public class ObdLink {
             case "speed": return b[0] * 0.621371; // mph
             case "timing": return b[0] / 2.0 - 64.0;
             case "maf": return (b[0] * 256 + b[1]) / 100.0;
+            case "stft1": case "ltft1": case "stft2": case "ltft2": return (b[0] - 128) * 100.0 / 128.0;
+            case "fuelPress": return b[0] * 3 * 0.145038; // psi
+            case "runtime": return (double) (b[0] * 256 + b[1]); // seconds
+            case "milDist": case "clearDist": return (b[0] * 256 + b[1]) * 0.621371; // miles
+            case "railRel": return (b[0] * 256 + b[1]) * 0.079 * 0.145038; // psi
+            case "railPress": return (b[0] * 256 + b[1]) * 10 * 0.145038; // psi (direct injection)
+            case "lambda": case "lambdaW": case "cmdLambda": return (b[0] * 256 + b[1]) * 2.0 / 65536.0;
+            case "egr": case "evap": case "fuelLevel": case "relThrottle": case "pedal": case "cmdThrottle": case "ethanol": return b[0] * 100.0 / 255.0;
+            case "catTemp": return ((b[0] * 256 + b[1]) / 10.0 - 40) * 9.0 / 5.0 + 32.0; // F
+            case "voltage": return (b[0] * 256 + b[1]) / 1000.0;
+            case "absLoad": return (b[0] * 256 + b[1]) * 100.0 / 255.0;
+            case "ambient": case "oil": return (b[0] - 40) * 9.0 / 5.0 + 32.0; // F
+            case "fuelRate": return (b[0] * 256 + b[1]) / 20.0 * 0.264172; // US gal/h
+            case "demandTorque": case "actualTorque": return (double) (b[0] - 125);
             default: return null;
         }
     }

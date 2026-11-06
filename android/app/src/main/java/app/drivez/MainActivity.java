@@ -298,6 +298,7 @@ public class MainActivity extends Activity {
         @JavascriptInterface public String obdState() { return obd.state(); }
         @JavascriptInterface public String obdLog(boolean on) { return obd.setLogging(on); }
         @JavascriptInterface public void obdResetPeak() { obd.resetPeak(); }
+        @JavascriptInterface public void obdWatch(String keys) { obd.watch(keys); }
 
         @JavascriptInterface public void keepScreenOn(boolean on) {
             runOnUiThread(() -> {

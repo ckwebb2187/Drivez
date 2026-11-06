@@ -80,6 +80,9 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - [x] T35 · M · OBD-II engine bubbles (done by hand Nov 6): ELM327 Bluetooth link + polling + CSV log in the Android app (`ObdLink.java`,
   `DrivezNative.obd*`); glowing draggable gauge bubbles on the drive map, themed to the world theme or WRX Logger colors; settings under
   Settings → Engine gauges; demo mode; locked while moving. Needs a new Android build to read a real adapter.
+- [x] T35b · M · Engine gauges, more (done by hand Nov 6): all standard Mode 01 readings (~40, grouped), car's supported-PID check,
+  app reads only shown gauges and slows when hidden; 7 themeable bubble animations + 4 number effects; bubbles show offline and in demo
+  anytime; temps always °F; collapsible settings. Battery: CSS-only animations, no blur filters, 4 updates/s, pauses in battery saver.
 - [ ] T36 · S · Engine gauges, part 2: when a drive ends with the adapter connected, save peak boost, max coolant and max intake temp
   on the trip (records entity) and show them on the trip detail page. Read-only, no new permissions.
 
