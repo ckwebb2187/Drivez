@@ -83,7 +83,7 @@ Source notes: Obsidian vault (Google Drive), "Kaido Maps - Development Updates" 
 - [x] T35b · M · Engine gauges, more (done by hand Nov 6): all standard Mode 01 readings (~40, grouped), car's supported-PID check,
   app reads only shown gauges and slows when hidden; 7 themeable bubble animations + 4 number effects; bubbles show offline and in demo
   anytime; temps always °F; collapsible settings. Battery: CSS-only animations, no blur filters, 4 updates/s, pauses in battery saver.
-- [ ] T36 · S · Engine gauges, part 2: when a drive ends with the adapter connected, save peak boost, max coolant and max intake temp
+- [x] T36 · S · Engine gauges, part 2: when a drive ends with the adapter connected, save peak boost, max coolant and max intake temp
   on the trip (records entity) and show them on the trip detail page. Read-only, no new permissions.
 
 ## Done before automation
