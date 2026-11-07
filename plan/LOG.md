@@ -63,3 +63,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-11-07 · - · done by hand · Style button moved: palette icon by the profile picture (map) and above the Tōge button (driving); off the gauges
 2026-11-07 · - · done by hand · Drive buttons glow FX now on every right-column button (Gemini, style, weather, music, report, end drive)
 2026-11-07 · - · done by hand · garage: less bloom/glare, car faces front, realistic shop lighting, Garage look (wall styles/colors, graffiti, car-brand + mod-brand text banners)
+2026-11-07 · - · done by hand · garage: 12 floors, 10 wall styles + custom color, 10 lighting moods, shadows, 10 mix-and-match effects, 6 graffiti styles + own word, car-type banners, checkered flags, 10 presets; all folded under Garage look

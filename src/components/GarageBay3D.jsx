@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { CAR_MODELS } from '@/lib/carModels';
-import { WALL_COLORS, MOD_BRANDS, MAKE_STYLE } from '@/lib/garageLook';
+import { WALL_COLORS, MOD_BRANDS, MAKE_STYLE, FLOOR_COLORS, CAR_TYPES } from '@/lib/garageLook';
+import { drawFloor, drawWall, drawGraffiti, LIGHT_MOODS } from '@/lib/garageScene';
 
 // The garage showroom: your car on a lift, a neon social wall, and shop props you can tap
 // (tool chest = mods & service, engine stand = specs, QR board = window sticker, wall = socials).
@@ -48,79 +49,63 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 0.95;
         box.current.appendChild(renderer.domElement);
+        const fx = garage.fx || {};
+        const mood = LIGHT_MOODS[garage.light] || LIGHT_MOODS.shop;
+        const B = [0.65, 1, 1.4][garage.bright ?? 1] ?? 1;
+        const glow = garage.neon || accent;
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color('#0b0c10');
-        scene.fog = new THREE.Fog('#0b0c10', 14, 26);
+        scene.background = new THREE.Color(mood.bg);
+        scene.fog = fx.haze ? new THREE.FogExp2(mood.bg, 0.045) : new THREE.Fog(mood.bg, 14, 26);
         const camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 100);
 
-        // Shop lighting: soft fill, a front key on the car, ceiling strips, and spots washing the back wall.
-        scene.add(new THREE.HemisphereLight('#d8e0ff', '#18181d', 0.55));
-        const key = new THREE.DirectionalLight('#fff6ea', 1.5); key.position.set(3, 7, 7); scene.add(key);
-        const rim = new THREE.DirectionalLight('#9fb6ff', 0.6); rim.position.set(-5, 4, -6); scene.add(rim);
-        const neon = new THREE.PointLight(accent, 6, 6, 1.8); neon.position.set(0, 0.35, 0); scene.add(neon);
-        const shop = new THREE.PointLight('#ffe2b8', 6, 12, 1.5); shop.position.set(0, 5.2, 1.5); scene.add(shop);
+        // Lighting mood: soft fill, a key on the car, ceiling strips, and spots washing the back wall.
+        scene.add(new THREE.HemisphereLight(mood.hemi[0], mood.hemi[1], mood.hemi[2] * B));
+        const key = new THREE.DirectionalLight(mood.key[0], mood.key[1] * B); key.position.set(3, 7, 7); scene.add(key);
+        const rim = new THREE.DirectionalLight(mood.rim[0], mood.rim[1] * B); rim.position.set(-5, 4, -6); scene.add(rim);
+        const neon = new THREE.PointLight(glow, mood.neon, 6, 1.8); neon.position.set(0, 0.35, 0); scene.add(neon);
+        const shop = new THREE.PointLight(mood.strip, 6 * B, 12, 1.5); shop.position.set(0, 5.2, 1.5); scene.add(shop);
         for (const x of [-4.5, 0, 4.5]) {
-          const spot = new THREE.SpotLight('#ffeedd', 22, 9, 0.62, 0.85, 1.6);
+          const spot = new THREE.SpotLight(mood.spot[0], mood.spot[1] * B, 9, 0.62, 0.85, 1.6);
           spot.position.set(x, 5.7, -2.0); spot.target.position.set(x, 2.2, -4.2);
           scene.add(spot); scene.add(spot.target);
         }
-        const stripMat = new THREE.MeshBasicMaterial({ color: '#fff4e2' });
+        if (mood.carSpot) { const cs = new THREE.SpotLight('#ffffff', mood.carSpot * B, 14, 0.42, 0.5, 1.4); cs.position.set(0, 7.5, 1.5); cs.target.position.set(0, 0.6, -0.4); scene.add(cs); scene.add(cs.target); }
+        const stripMat = new THREE.MeshBasicMaterial({ color: mood.strip });
         for (const x of [-3.2, 0, 3.2]) { const strip = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.05, 0.18), stripMat); strip.position.set(x, 5.95, -0.6); scene.add(strip); }
+        // Shadows (optional): the key light casts onto the floor.
+        if (garage.shadows && garage.shadows !== 'off') {
+          renderer.shadowMap.enabled = true;
+          renderer.shadowMap.type = garage.shadows === 'soft' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+          key.castShadow = true; key.shadow.mapSize.set(1024, 1024);
+          Object.assign(key.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6, near: 1, far: 25 }); key.shadow.bias = -0.0005;
+          if (garage.shadows === 'soft') key.shadow.radius = 4;
+        }
+        // Light sweep: a moving spotlight across the car.
+        let sweep = null;
+        if (fx.sweep) { sweep = new THREE.SpotLight('#ffffff', 40 * B, 14, 0.25, 0.4, 1.3); sweep.position.set(0, 6.5, 3); sweep.target.position.set(0, 0.6, -0.4); scene.add(sweep); scene.add(sweep.target); }
 
-        // Floor: dark epoxy with a faint grid.
-        const floorTex = canvasTex(THREE, 512, 512, (g, W, H) => {
-          g.fillStyle = '#15161c'; g.fillRect(0, 0, W, H);
-          g.strokeStyle = 'rgba(255,255,255,0.06)'; g.lineWidth = 2;
-          for (let i = 0; i <= W; i += 64) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, H); g.stroke(); g.beginPath(); g.moveTo(0, i); g.lineTo(W, i); g.stroke(); }
-        });
-        floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(4, 4);
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(18, 14), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.62, metalness: 0.08 }));
-        floor.rotation.x = -Math.PI / 2; scene.add(floor);
+        // Floor (12 kinds, two colors for patterned ones).
+        const fc = (id, d) => (FLOOR_COLORS.find((c) => c.id === id) || FLOOR_COLORS.find((c) => c.id === d)).hex;
+        let floorOpts = {};
+        const floorTex = canvasTex(THREE, 512, 512, (g, W, H) => { floorOpts = drawFloor(g, W, H, garage.floor || 'epoxy', fc(garage.floorColor, 'black'), fc(garage.floorColor2, 'gray')); });
+        floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(floorOpts.repeat, floorOpts.repeat);
+        const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: floorOpts.rough, metalness: floorOpts.metal });
+        if (floorOpts.glow) { floorMat.emissiveMap = floorTex; floorMat.emissive = new THREE.Color('#ffffff'); floorMat.emissiveIntensity = 0.6; }
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(18, 14), floorMat);
+        floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
 
-        // Back wall (brick-ish) and side wall.
-        const base = (WALL_COLORS.find((c) => c.id === garage.color) || WALL_COLORS[0]).hex;
-        const shade = (hex, k) => `#${[1, 3, 5].map((i) => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * k))).toString(16).padStart(2, '0')).join('')}`;
-        const wallTex = canvasTex(THREE, 512, 256, (g, W, H) => {
-          g.fillStyle = shade(base, 0.85); g.fillRect(0, 0, W, H);
-          if (garage.wall === 'concrete') {
-            for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? '255,255,255' : '0,0,0'},${Math.random() * 0.06})`; g.fillRect(Math.random() * W, Math.random() * H, 2, 2); }
-            g.strokeStyle = shade(base, 0.6); g.lineWidth = 2; for (let x = 0; x <= W; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
-          } else if (garage.wall === 'panel') {
-            for (let x = 0; x < W; x += 64) { const gr = g.createLinearGradient(x, 0, x + 64, 0); gr.addColorStop(0, shade(base, 1.15)); gr.addColorStop(0.5, shade(base, 0.95)); gr.addColorStop(1, shade(base, 0.75)); g.fillStyle = gr; g.fillRect(x, 0, 62, H); }
-            g.fillStyle = shade(base, 0.5); for (let x = 8; x < W; x += 64) for (let y = 12; y < H; y += 60) g.fillRect(x, y, 3, 3);
-          } else {
-            g.fillStyle = shade(base, 1.0);
-            for (let y = 0; y < H; y += 24) for (let x = (y / 24) % 2 ? -32 : 0; x < W; x += 64) { g.fillStyle = shade(base, 0.95 + Math.random() * 0.15); g.fillRect(x + 2, y + 2, 60, 20); }
-          }
-        });
-        wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.repeat.set(3, 2);
-        const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 });
-        const back = new THREE.Mesh(new THREE.PlaneGeometry(18, 6), wallMat); back.position.set(0, 3, -4.2); scene.add(back);
+        // Back wall (10 styles, any color).
+        const base = /^#[0-9a-f]{6}$/i.test(garage.customWall || '') ? garage.customWall : (WALL_COLORS.find((c) => c.id === garage.color) || WALL_COLORS[0]).hex;
+        let wallOpts = {};
+        const wallTex = canvasTex(THREE, 512, 256, (g, W, H) => { wallOpts = drawWall(g, W, H, garage.wall || 'brick', base, glow); });
+        wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.repeat.set(garage.wall === 'stripe' ? 1 : 3, garage.wall === 'stripe' ? 1 : 2);
+        const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: wallOpts.rough ?? 0.9, metalness: wallOpts.metal ?? 0 });
+        if (wallOpts.glow) { wallMat.emissiveMap = wallTex; wallMat.emissive = new THREE.Color('#ffffff'); wallMat.emissiveIntensity = 0.5; }
+        const back = new THREE.Mesh(new THREE.PlaneGeometry(18, 6), wallMat); back.position.set(0, 3, -4.2); back.receiveShadow = true; scene.add(back);
 
-        // Graffiti (optional): big bubble letters, tags, drips and spray, painted on the wall.
-        if (garage.graffiti) {
-          const pal = ['#ff2d95', '#00e5ff', '#7cff3c', '#ffd400', '#a855ff', '#ff6a13'];
-          const pick = () => pal[Math.floor(Math.random() * pal.length)];
-          const graf = canvasTex(THREE, 2048, 683, (g, W, H) => {
-            g.clearRect(0, 0, W, H);
-            const bubble = (text, x, y, size, rot) => {
-              g.save(); g.translate(x, y); g.rotate(rot);
-              g.font = `900 ${size}px "Arial Black", Impact, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-              const c1 = pick(), c2 = pick();
-              g.lineJoin = 'round'; g.lineWidth = size * 0.22; g.strokeStyle = '#0a0a0a'; g.strokeText(text, 0, 0);
-              g.lineWidth = size * 0.1; g.strokeStyle = '#ffffff'; g.strokeText(text, 0, 0);
-              const gr = g.createLinearGradient(0, -size / 2, 0, size / 2); gr.addColorStop(0, c1); gr.addColorStop(1, c2);
-              g.fillStyle = gr; g.fillText(text, 0, 0);
-              for (let i = 0; i < 9; i++) { const dx = (Math.random() - 0.5) * size * text.length * 0.55; g.fillStyle = c2; g.fillRect(dx, size * 0.35, 6, 30 + Math.random() * 90); }
-              g.restore();
-            };
-            const tag = (x, y) => { g.strokeStyle = pick(); g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.moveTo(x, y); for (let i = 0; i < 9; i++) g.quadraticCurveTo(x + i * 22 + Math.random() * 30, y - 50 + Math.random() * 100, x + (i + 1) * 26, y + (Math.random() - 0.5) * 40); g.stroke(); };
-            const spray = (x, y, r, col) => { for (let i = 0; i < 500; i++) { const a = Math.random() * Math.PI * 2, d = Math.random() * r; g.fillStyle = col; g.globalAlpha = Math.random() * 0.5; g.fillRect(x + Math.cos(a) * d, y + Math.sin(a) * d, 3, 3); } g.globalAlpha = 1; };
-            spray(250, 470, 150, pick()); spray(1800, 430, 170, pick()); spray(1020, 600, 120, pick());
-            bubble('KAIDO', 360, 470, 190, -0.08);
-            bubble('BOOST', 1700, 440, 160, 0.06);
-            tag(820, 600); tag(1150, 140); tag(120, 150); tag(1500, 640);
-          });
+        // Graffiti (6 styles, your own word).
+        if (garage.graffiti && garage.graffiti !== 'off') {
+          const graf = canvasTex(THREE, 2048, 683, (g, W, H) => drawGraffiti(g, W, H, garage.graffiti, garage.grafText));
           const gm = new THREE.Mesh(new THREE.PlaneGeometry(18, 6), new THREE.MeshStandardMaterial({ map: graf, transparent: true, roughness: 0.85 }));
           gm.position.set(0, 3, -4.19); scene.add(gm);
         }
@@ -128,7 +113,7 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
         // Lift platform with a neon edge, posts and arms.
         const plat = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.3, 2.9), new THREE.MeshStandardMaterial({ color: '#1d1f26', metalness: 0.7, roughness: 0.35 }));
         plat.position.y = 0.15; scene.add(plat);
-        const edge = new THREE.Mesh(new THREE.BoxGeometry(5.7, 0.05, 3.0), new THREE.MeshBasicMaterial({ color: accent }));
+        const edge = new THREE.Mesh(new THREE.BoxGeometry(5.7, 0.05, 3.0), new THREE.MeshBasicMaterial({ color: glow }));
         edge.position.y = 0.04; scene.add(edge);
         const postMat = new THREE.MeshStandardMaterial({ color: '#3b3f4a', metalness: 0.6, roughness: 0.4 });
         const armMat = new THREE.MeshStandardMaterial({ color: '#e0b11a', metalness: 0.3, roughness: 0.5 });
@@ -175,9 +160,9 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
             if (carModel) { g.font = `700 ${Math.round(H * 0.16)}px Arial`; g.fillStyle = ms.stripe; g.fillText(`${carModel.toUpperCase()} · RACE TEAM`, W / 2, H * 0.78); }
           });
         }
-        const mods = (garage.mods || []).map((id) => MOD_BRANDS.find((b) => b.id === id)).filter(Boolean).slice(0, 6);
-        // Mod banners hang in a row up near the ceiling, centered.
-        const bw = 1.5, gap = 0.12, row = mods.length * bw + (mods.length - 1) * gap;
+        const mods = [...(garage.types || []).map((id) => CAR_TYPES.find((b) => b.id === id)), ...(garage.mods || []).map((id) => MOD_BRANDS.find((b) => b.id === id))].filter(Boolean).slice(0, 8);
+        // Car-type and mod banners hang in a row up near the ceiling, centered (narrower when there are many).
+        const gap = 0.12, bw = Math.min(1.5, (10.6 - gap * (mods.length - 1)) / Math.max(1, mods.length)), row = mods.length * bw + (mods.length - 1) * gap;
         mods.forEach((b, i) => {
           hang(bw, 0.46, -row / 2 + bw / 2 + i * (bw + gap), 5.3, (g, W, H) => {
             g.fillStyle = b.bg; g.fillRect(0, 0, W, H);
@@ -186,6 +171,13 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
             g.strokeStyle = b.fg; g.globalAlpha = 0.35; g.lineWidth = 4; g.strokeRect(5, 5, W - 10, H - 10); g.globalAlpha = 1;
           });
         });
+        if (garage.flags) {
+          hang(2.3, 0.7, 3.55, 4.45, (g, W, H) => {
+            const n = 16, s2 = H / 4;
+            for (let y = 0; y < 4; y++) for (let x = 0; x < n * 2; x++) { g.fillStyle = (x + y) % 2 ? '#0a0a0a' : '#f2f2f2'; g.fillRect(x * s2, y * s2, s2, s2); }
+            g.fillStyle = 'rgba(0,0,0,.25)'; for (let x = 0; x < W; x += 40) g.fillRect(x, 0, 6, H);
+          });
+        }
 
         // Tool chest (left): sticker-bombed cabinet -> mods & service.
         const chestTex = canvasTex(THREE, 256, 256, (g, W, H) => {
@@ -249,7 +241,31 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
         car.rotation.y = Math.PI - 0.5; // nose toward the camera
         // No road headlight beams indoors (they'd shine straight into the camera as glare).
         car.traverse((o) => { if (o.isMesh && o.material?.blending === THREE.AdditiveBlending && o.geometry?.parameters?.height === 6) o.visible = false; });
+        if (renderer.shadowMap.enabled) car.traverse((o) => { if (o.isMesh) o.castShadow = true; });
         scene.add(car);
+
+        // Animated extras (mix and match). Skipped in battery saver.
+        const extras = [];
+        const pts = (n, size, color, spread) => {
+          const geo = new THREE.BufferGeometry(); const arr = new Float32Array(n * 3);
+          for (let k = 0; k < n; k++) { arr[k * 3] = (Math.random() - 0.5) * spread[0]; arr[k * 3 + 1] = Math.random() * spread[1]; arr[k * 3 + 2] = (Math.random() - 0.5) * spread[2]; }
+          geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+          const p = new THREE.Points(geo, new THREE.PointsMaterial({ color, size, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }));
+          scene.add(p); return p;
+        };
+        const dust = fx.dust ? pts(260, 0.05, '#fff6e0', [14, 6, 9]) : null;
+        const sparks = fx.sparks ? pts(60, 0.08, '#ffb340', [0.6, 0.6, 0.6]) : null;
+        if (sparks) sparks.position.set(-4.6, 1.6, -2.3);
+        let scanner = null;
+        if (fx.scanner) {
+          scanner = new THREE.Group();
+          scanner.add(new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.2), new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })));
+          for (const y of [-1.1, 1.1]) { const line = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 3.4), new THREE.MeshBasicMaterial({ color: '#ffffff' })); line.position.y = y; line.rotation.y = Math.PI / 2; scanner.add(line); }
+          scanner.children[0].rotation.y = Math.PI / 2; scanner.position.set(0, 1.2, -0.4); scene.add(scanner);
+        }
+        extras.push(dust, sparks, scanner);
+        const strips = [];
+        scene.traverse((o) => { if (o.isMesh && o.material === stripMat) strips.push(o); });
 
         // Drag to look around; tap a prop to open it.
         let angle = 0.35, drag = null, moved = false, idleAt = 0;
@@ -257,7 +273,7 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
         el.style.touchAction = 'pan-y';
         const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
         const down = (e) => { drag = { x: e.clientX, a: angle }; moved = false; };
-        const move = (e) => { if (drag) { if (Math.abs(e.clientX - drag.x) > 6) moved = true; angle = Math.max(-0.9, Math.min(0.9, drag.a - (e.clientX - drag.x) * 0.006)); idleAt = performance.now(); } };
+        const move = (e) => { if (drag) { if (Math.abs(e.clientX - drag.x) > 6) moved = true; const lim = fx.orbit ? 1.35 : 0.9; angle = Math.max(-lim, Math.min(lim, drag.a - (e.clientX - drag.x) * 0.006)); idleAt = performance.now(); } };
         const up = (e) => {
           if (drag && !moved) {
             const r = el.getBoundingClientRect();
@@ -287,9 +303,20 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
         setLoading(false);
         const tick = (t) => {
           raf = requestAnimationFrame(tick);
-          if (!drag && t - idleAt > 2500) angle = 0.35 * Math.sin(t / 6000);
-          neon.intensity = 5.5 + Math.sin(t / 700) * 1;
-          camera.position.set(Math.sin(angle) * 10.5, 3.6, Math.cos(angle) * 10.5 + 1);
+          const idle = !drag && t - idleAt > 2500;
+          const calm = lite; // battery saver: no extra animation
+          if (idle) angle = fx.orbit && !calm ? 1.25 * Math.sin(t / 7000) : 0.35 * Math.sin(t / 6000); // orbit = wide sweep (the back wall stays behind the car)
+          neon.intensity = mood.neon * (fx.pulse && !calm ? 0.55 + 0.9 * (0.5 + 0.5 * Math.sin(t / 380)) : 0.92 + 0.08 * Math.sin(t / 700));
+          if (fx.pulse && !calm) edge.material.color.set(glow).multiplyScalar(0.6 + 0.4 * (0.5 + 0.5 * Math.sin(t / 380)));
+          if (fx.rainbow && !calm) { const hue = (t / 4000) % 1; neon.color.setHSL(hue, 1, 0.55); edge.material.color.setHSL(hue, 1, 0.55); }
+          if (fx.turntable && !calm) car.rotation.y = Math.PI - 0.5 + t / 5000;
+          if (sweep && !calm) { sweep.position.x = Math.sin(t / 1600) * 5; sweep.target.position.x = Math.sin(t / 1600) * 1.5; }
+          if (fx.flicker && !calm) { const on = Math.sin(t / 97) + Math.sin(t / 53) > -1.6; stripMat.color.set(on ? mood.strip : '#222222'); shop.intensity = (on ? 6 : 1) * B; }
+          if (dust && !calm) { dust.rotation.y = t / 40000; dust.position.y = Math.sin(t / 3000) * 0.15; }
+          if (sparks && !calm) { const ph = (t % 1400) / 1400; sparks.visible = ph < 0.35; sparks.scale.setScalar(0.4 + ph * 3); sparks.material.opacity = 1 - ph * 2.5; }
+          if (scanner && !calm) scanner.position.x = Math.sin(t / 1100) * 2.8;
+          const r = fx.orbit ? 11 : 10.5;
+          camera.position.set(Math.sin(angle) * r, 3.6, Math.cos(angle) * r + 1);
           camera.lookAt(0, 1.2, -0.8);
           car.userData.tick?.(t);
           post.render();

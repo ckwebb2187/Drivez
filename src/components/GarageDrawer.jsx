@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Wrench, Cpu, QrCode, Users, Sparkles, Hand, Paintbrush, ChevronDown } from 'lucide-react';
+import { X, Wrench, Cpu, QrCode, Users, Sparkles, Hand, Paintbrush, ChevronDown, Shuffle } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import GarageBay3D from '@/components/GarageBay3D';
 import VehicleDetail from '@/components/VehicleDetail';
 import ProfileSharing, { QrSheet, profileUrl, SOCIAL_LINKS } from '@/components/ProfileSharing';
 import { carLook, displayMode } from '@/lib/carCatalog';
 import { odometer } from '@/lib/maintenance';
-import { WALL_STYLES, WALL_COLORS, MOD_BRANDS, useGarageLook, setGarageLook } from '@/lib/garageLook';
+import { WALL_STYLES, WALL_COLORS, MOD_BRANDS, FLOORS, FLOOR_COLORS, LIGHTS, NEON_COLORS, EFFECTS, GRAFFITI, CAR_TYPES, GARAGE_PRESETS, useGarageLook, setGarageLook } from '@/lib/garageLook';
 
 // The theme's accent color as something three.js understands.
 const accentColor = () => {
@@ -121,51 +121,108 @@ function Action({ icon: Icon, title, text, onClick }) {
   );
 }
 
-// Garage look: wall style and color, graffiti, and banners (your car's brand + mod brands). Text banners, no logos.
+// Garage look: presets, floor, walls, lighting, effects, graffiti and banners, each folded away.
+// Banners are brand names in brand-ish colors (text only, no logos).
 function GarageLookControls({ make }) {
   const g = useGarageLook();
   const [open, setOpen] = useState(false);
+  const [text, setText] = useState(g.grafText || 'KAIDO');
   const Chip = ({ on, onClick, children }) => (
     <button onClick={onClick} className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${on ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-foreground border-border'}`}>{children}</button>
   );
-  const toggleMod = (id) => setGarageLook((p) => {
-    const cur = p.mods || [];
-    return { mods: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id].slice(-6) };
+  const Dot = ({ hex, on, onClick }) => (
+    <button onClick={onClick} aria-label={hex} className={`w-7 h-7 rounded-full border-2 ${on ? 'border-primary scale-110' : 'border-white/20'}`} style={{ background: hex, boxShadow: on ? `0 0 8px ${hex}` : undefined }} />
+  );
+  const Label = ({ children }) => <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">{children}</div>;
+  const toggleIn = (key, id, max) => setGarageLook((p) => {
+    const cur = p[key] || [];
+    return { [key]: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id].slice(-max) };
   });
+  const fxOn = EFFECTS.filter((x) => g.fx?.[x.id]).length;
+  const surprise = () => {
+    const pick = (a) => a[Math.floor(Math.random() * a.length)];
+    setGarageLook({
+      wall: pick(WALL_STYLES).id, color: pick(WALL_COLORS).id, customWall: '', floor: pick(FLOORS).id, floorColor: pick(FLOOR_COLORS).id, floorColor2: pick(FLOOR_COLORS).id,
+      light: pick(LIGHTS).id, neon: pick(NEON_COLORS), graffiti: pick(GRAFFITI).id,
+      fx: Object.fromEntries(EFFECTS.filter(() => Math.random() < 0.3).map((x) => [x.id, true])),
+      types: CAR_TYPES.filter(() => Math.random() < 0.25).map((x) => x.id).slice(0, 2), flags: Math.random() < 0.4,
+    });
+  };
   return (
     <div className="rounded-2xl border border-border bg-card">
       <button onClick={() => setOpen(!open)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left">
         <Paintbrush className="w-4 h-4 text-primary" />
         <span className="flex-1 text-sm font-semibold text-foreground">Garage look</span>
-        <span className="text-[11px] text-muted-foreground">Walls, graffiti, banners</span>
+        <span className="text-[11px] text-muted-foreground">Floor, walls, lights, effects</span>
         <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="px-3 pb-3 space-y-3">
-          <div>
-            <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">WALLS</div>
-            <div className="flex flex-wrap gap-1.5">{WALL_STYLES.map((w) => <Chip key={w.id} on={g.wall === w.id} onClick={() => setGarageLook({ wall: w.id })}>{w.title}</Chip>)}</div>
-          </div>
-          <div>
-            <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">WALL COLOR</div>
+        <div className="px-3 pb-3 space-y-2">
+          <Fold title="PRESETS" hint="One-tap garages" start>
             <div className="flex flex-wrap gap-1.5">
-              {WALL_COLORS.map((c) => (
-                <Chip key={c.id} on={g.color === c.id} onClick={() => setGarageLook({ color: c.id })}>
-                  <span className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle border border-white/30" style={{ background: c.hex }} />{c.title}
-                </Chip>
-              ))}
+              <button onClick={surprise} className="px-3 py-1.5 rounded-full text-xs font-bold bg-primary text-primary-foreground flex items-center gap-1"><Shuffle className="w-3.5 h-3.5" />Surprise me</button>
+              {GARAGE_PRESETS.map((x) => <Chip key={x.name} onClick={() => setGarageLook(x.p)}>{x.name}</Chip>)}
             </div>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            <Chip on={!!g.graffiti} onClick={() => setGarageLook({ graffiti: !g.graffiti })}>Graffiti</Chip>
-            {make && <Chip on={g.makeBanner !== false} onClick={() => setGarageLook({ makeBanner: g.makeBanner === false })}>{make} banner</Chip>}
-          </div>
-          <div>
-            <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">MOD BRAND BANNERS (UP TO 6)</div>
-            <div className="flex flex-wrap gap-1.5">{MOD_BRANDS.map((b) => <Chip key={b.id} on={(g.mods || []).includes(b.id)} onClick={() => toggleMod(b.id)}>{b.name}</Chip>)}</div>
-          </div>
+          </Fold>
+          <Fold title="FLOOR" hint={FLOORS.find((f) => f.id === g.floor)?.title}>
+            <div className="flex flex-wrap gap-1.5">{FLOORS.map((f) => <Chip key={f.id} on={g.floor === f.id} onClick={() => setGarageLook({ floor: f.id })}>{f.title}</Chip>)}</div>
+            <div><Label>COLOR</Label><div className="flex flex-wrap gap-2">{FLOOR_COLORS.map((c) => <Dot key={c.id} hex={c.hex} on={g.floorColor === c.id} onClick={() => setGarageLook({ floorColor: c.id })} />)}</div></div>
+            {['checker', 'racedeck', 'resin'].includes(g.floor) && (
+              <div><Label>SECOND COLOR</Label><div className="flex flex-wrap gap-2">{FLOOR_COLORS.map((c) => <Dot key={c.id} hex={c.hex} on={g.floorColor2 === c.id} onClick={() => setGarageLook({ floorColor2: c.id })} />)}</div></div>
+            )}
+          </Fold>
+          <Fold title="WALLS" hint={WALL_STYLES.find((w) => w.id === g.wall)?.title}>
+            <div className="flex flex-wrap gap-1.5">{WALL_STYLES.map((w) => <Chip key={w.id} on={g.wall === w.id} onClick={() => setGarageLook({ wall: w.id })}>{w.title}</Chip>)}</div>
+            <div>
+              <Label>COLOR</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                {WALL_COLORS.map((c) => <Dot key={c.id} hex={c.hex} on={!g.customWall && g.color === c.id} onClick={() => setGarageLook({ color: c.id, customWall: '' })} />)}
+                <label className="text-[11px] text-muted-foreground flex items-center gap-1">Custom <input type="color" value={g.customWall || '#23242b'} onChange={(e) => setGarageLook({ customWall: e.target.value })} className="w-7 h-7 rounded-full bg-transparent" /></label>
+              </div>
+            </div>
+          </Fold>
+          <Fold title="LIGHTING" hint={LIGHTS.find((l) => l.id === g.light)?.title}>
+            <div className="flex flex-wrap gap-1.5">{LIGHTS.map((l) => <Chip key={l.id} on={g.light === l.id} onClick={() => setGarageLook({ light: l.id })}>{l.title}</Chip>)}</div>
+            <div><Label>BRIGHTNESS</Label><div className="flex gap-1.5">{['Dim', 'Normal', 'Bright'].map((l, i) => <Chip key={l} on={(g.bright ?? 1) === i} onClick={() => setGarageLook({ bright: i })}>{l}</Chip>)}</div></div>
+            <div><Label>NEON COLOR</Label><div className="flex flex-wrap gap-2"><Chip on={!g.neon} onClick={() => setGarageLook({ neon: '' })}>App color</Chip>{NEON_COLORS.map((c) => <Dot key={c} hex={c} on={g.neon === c} onClick={() => setGarageLook({ neon: c })} />)}</div></div>
+            <div><Label>SHADOWS</Label><div className="flex gap-1.5">{[['off', 'Off'], ['soft', 'Soft'], ['sharp', 'Sharp']].map(([id, l]) => <Chip key={id} on={(g.shadows || 'off') === id} onClick={() => setGarageLook({ shadows: id })}>{l}</Chip>)}</div></div>
+          </Fold>
+          <Fold title="EFFECTS" hint={fxOn ? `${fxOn} on` : 'Off'}>
+            <p className="text-[11px] text-muted-foreground">Mix and match. Paused in battery saver.</p>
+            <div className="flex flex-wrap gap-1.5">{EFFECTS.map((x) => <Chip key={x.id} on={!!g.fx?.[x.id]} onClick={() => setGarageLook((p) => ({ fx: { ...p.fx, [x.id]: !p.fx?.[x.id] } }))}>{x.title}</Chip>)}</div>
+          </Fold>
+          <Fold title="GRAFFITI" hint={GRAFFITI.find((x) => x.id === (g.graffiti || 'off'))?.title}>
+            <div className="flex flex-wrap gap-1.5">{GRAFFITI.map((x) => <Chip key={x.id} on={(g.graffiti || 'off') === x.id} onClick={() => setGarageLook({ graffiti: x.id })}>{x.title}</Chip>)}</div>
+            <label className="block">
+              <Label>YOUR WORD</Label>
+              <input value={text} maxLength={10} onChange={(e) => setText(e.target.value)} onBlur={() => setGarageLook({ grafText: text })}
+                className="w-full bg-secondary rounded-lg px-3 h-10 text-sm outline-none" placeholder="KAIDO" />
+            </label>
+          </Fold>
+          <Fold title="BANNERS" hint={`${(g.mods || []).length + (g.types || []).length} up`}>
+            <div className="flex flex-wrap gap-1.5">
+              {make && <Chip on={g.makeBanner !== false} onClick={() => setGarageLook({ makeBanner: g.makeBanner === false })}>{make} banner</Chip>}
+              <Chip on={!!g.flags} onClick={() => setGarageLook({ flags: !g.flags })}>Checkered flags</Chip>
+            </div>
+            <div><Label>CAR TYPE</Label><div className="flex flex-wrap gap-1.5">{CAR_TYPES.map((b) => <Chip key={b.id} on={(g.types || []).includes(b.id)} onClick={() => toggleIn('types', b.id, 3)}>{b.name}</Chip>)}</div></div>
+            <div><Label>MOD BRANDS (UP TO 6)</Label><div className="flex flex-wrap gap-1.5">{MOD_BRANDS.map((b) => <Chip key={b.id} on={(g.mods || []).includes(b.id)} onClick={() => toggleIn('mods', b.id, 6)}>{b.name}</Chip>)}</div></div>
+          </Fold>
         </div>
       )}
+    </div>
+  );
+}
+
+function Fold({ title, hint, start = false, children }) {
+  const [open, setOpen] = useState(start);
+  return (
+    <div className="rounded-xl border border-border bg-secondary/40">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center gap-2 px-3 py-2 text-left">
+        <span className="flex-1 text-xs font-bold tracking-wider text-foreground">{title}</span>
+        {hint && <span className="text-[11px] text-muted-foreground">{hint}</span>}
+        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && <div className="px-3 pb-3 space-y-2.5">{children}</div>}
     </div>
   );
 }
