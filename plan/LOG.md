@@ -56,3 +56,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-11-06 · T36 · done · startup +4.2 KB · engine peaks (boost, coolant, intake) saved on trip + shown on trip detail; live (1.1.34), load 150 ms
 2026-11-07 · - · done by hand · Where to? button mid-drive (passenger double-tap while moving); engine bubbles can stay on when parked
 2026-11-07 · - · done by hand · engine bubbles: 8 more animations, glow strength, 12 stackable extras, 3 more number effects
+2026-11-07 · - · done by hand · engine gauge shapes (hex, octagon, diamond, cyber square, shield, bar) with edge-tracing progress + 4 new animations

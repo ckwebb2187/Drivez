@@ -64,6 +64,15 @@ const CSS = `
 .dz-b .a-tip{animation:dzTip 1.2s ease-in-out infinite}
 .dz-b .a-shift{animation:dzShift .25s steps(1) infinite}
 .dz-b .a-pop{animation:dzPop .35s ease-out}
+@keyframes dzTrace{from{offset-distance:0%}to{offset-distance:100%}}
+@keyframes dzMarch{to{stroke-dashoffset:-100}}
+@keyframes dzLattice{to{transform:translate(18px,31.5px)}}
+@keyframes dzCharge{0%{transform:translateY(480%);opacity:0}20%{opacity:1}100%{transform:translateY(-120%);opacity:0}}
+.dz-b .a-trace{animation:dzTrace 3.6s linear infinite}
+.dz-b .a-march{animation:dzMarch 2.4s linear infinite}
+.dz-b .a-march-slow{animation:dzMarch 6s linear infinite}
+.dz-b .a-lattice{animation:dzLattice 6s linear infinite}
+.dz-b .a-charge{animation:dzCharge 1.8s ease-in infinite}
 .dz-calm *,.dz-paused *{animation-play-state:paused!important}
 @media (prefers-reduced-motion:reduce){.dz-b *{animation:none!important}}
 `;
@@ -152,6 +161,8 @@ function Fx({ fx, col, col2, size, calm }) {
           <div className="absolute inset-[4%] rounded-full opacity-20" style={{ background: `repeating-linear-gradient(0deg, ${col} 0 1px, transparent 1px 3px)` }} />
         </>
       );
+    case 'tracer': case 'stream': case 'lattice': case 'charge':
+      return <ShapeFx fx={fx} col={col} col2={col2} w={size} h={size} def={SHAPE_DEF.circle} calm={calm} />;
     default:
       return null;
   }
@@ -159,6 +170,155 @@ function Fx({ fx, col, col2, size, calm }) {
 
 const GLOW_MULT = [0.5, 1, 1.6, 2.4];
 const hex2 = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
+
+// ---------------------------------------------------------------- shapes
+// Outlines as points in a viewBox (100x100, the bar is 180x64). The point order is the
+// direction the progress glow travels around the edge (starts bottom-left, goes clockwise).
+const CIRCLE_PTS = Array.from({ length: 36 }, (_, i) => { const a = (135 + i * 10) * Math.PI / 180; return [50 + 46 * Math.cos(a), 50 + 46 * Math.sin(a)]; });
+const SHAPE_DEF = {
+  circle: { vb: [100, 100], pts: CIRCLE_PTS },
+  hex: { vb: [100, 100], pts: [[27, 94], [4, 50], [27, 6], [73, 6], [96, 50], [73, 94]] },
+  octagon: { vb: [100, 100], pts: [[31, 96], [4, 69], [4, 31], [31, 4], [69, 4], [96, 31], [96, 69], [69, 96]] },
+  diamond: { vb: [100, 100], pts: [[50, 97], [3, 50], [50, 3], [97, 50]], text: 0.8 },
+  cyber: { vb: [100, 100], pts: [[16, 96], [4, 84], [4, 16], [16, 4], [84, 4], [96, 16], [96, 84], [84, 96]] },
+  shield: { vb: [100, 100], pts: [[50, 97], [12, 76], [6, 18], [50, 4], [94, 18], [88, 76]] },
+  bar: { vb: [180, 64], pts: [[12, 60], [4, 52], [4, 12], [12, 4], [168, 4], [176, 12], [176, 52], [168, 60]], bar: true },
+};
+const shapeDims = (shape, s) => (shape === 'bar' ? { w: Math.round(s * 1.9), h: Math.round(s * 0.66) } : { w: s, h: s });
+const pathOf = (pts, sx = 1, sy = 1) => `M${pts.map(([x, y]) => `${(x * sx).toFixed(1)} ${(y * sy).toFixed(1)}`).join(' L')} Z`;
+const shrink = (pts, [cx, cy], k) => pts.map(([x, y]) => [cx + (x - cx) * k, cy + (y - cy) * k]);
+const clipOf = (pts, [W, H]) => `polygon(${pts.map(([x, y]) => `${(x / W * 100).toFixed(1)}% ${(y / H * 100).toFixed(1)}%`).join(',')})`;
+const latticeUrl = (col) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='24' height='42' viewBox='0 0 24 42'><path d='M12 0 L24 7 L24 21 L12 28 L0 21 L0 7 Z M12 28 L12 42' fill='none' stroke='${col}' stroke-width='1'/></svg>`)}")`;
+
+// Animations that work on any shape: drawn along the outline or clipped inside it.
+function ShapeFx({ fx, col, col2, w, h, def, calm }) {
+  if (calm || fx === 'none') return null;
+  const { vb, pts } = def;
+  const d = pathOf(pts);
+  const px = pathOf(pts, w / vb[0], h / vb[1]);
+  const clip = clipOf(pts, vb);
+  const outline = (cls, props = {}, key) => (
+    <svg key={key} viewBox={`0 0 ${vb[0]} ${vb[1]}`} width={w} height={h} className={`absolute inset-0 overflow-visible ${cls}`}>
+      <path d={d} fill="none" stroke={col} strokeLinejoin="round" {...props} />
+    </svg>
+  );
+  const inside = (children) => <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: clip }}>{children}</div>;
+  const dot = (i, sz, op) => (
+    <div key={i} className="absolute left-0 top-0 rounded-full a-trace" style={{ width: sz, height: sz, offsetPath: `path('${px}')`, offsetRotate: '0deg', animationDelay: `${-i * 0.07}s`, opacity: op, background: i ? col : '#fff', boxShadow: `0 0 ${sz + 4}px ${sz / 2}px ${col}` }} />
+  );
+  switch (fx) {
+    case 'breathe': return outline('a-breathe', { strokeWidth: 8, strokeOpacity: 0.5 });
+    case 'heartbeat': return outline('a-heart', { strokeWidth: 7, strokeOpacity: 0.6 });
+    case 'ripple': return <>{outline('a-ripple', { strokeWidth: 1.6 }, 1)}{outline('a-ripple2', { strokeWidth: 1.6 }, 2)}</>;
+    case 'sonar': return <>{outline('a-sonar', { strokeWidth: 1 }, 1)}{outline('a-sonar2', { strokeWidth: 1 }, 2)}{outline('a-sonar3', { strokeWidth: 1 }, 3)}</>;
+    case 'orbit': case 'tracer': return dot(0, 6, 1);
+    case 'comet': return <>{[0, 1, 2, 3, 4, 5].map((i) => dot(i, 7 - i, 1 - i * 0.15))}</>;
+    case 'reactor': case 'circuit': case 'stream':
+      return outline('', { pathLength: 100, strokeWidth: fx === 'stream' ? 2.4 : 1.6, strokeDasharray: fx === 'circuit' ? '1 2 5 2' : '6 6', strokeOpacity: 0.85, className: fx === 'reactor' ? 'a-march-slow' : 'a-march' });
+    case 'radar': return inside(<div className="absolute -inset-1/4 a-radar opacity-60" style={{ background: `conic-gradient(from 0deg, transparent 0deg 290deg, ${col}88 358deg, transparent 360deg)` }} />);
+    case 'plasma': case 'aurora':
+      return inside(<div className={`absolute -inset-1/4 ${fx === 'plasma' ? 'a-plasma' : 'a-aurora'} opacity-60`} style={{ background: `conic-gradient(${col}, ${col2}55, transparent, ${col}, ${col2}55, transparent, ${col})` }} />);
+    case 'holo':
+      return inside(<div className="absolute inset-0 a-holo"><div className="absolute inset-0 opacity-25" style={{ background: `repeating-linear-gradient(0deg, ${col}55 0 1px, transparent 1px 4px)` }} /><div className="absolute inset-x-0 h-1/3 a-scan" style={{ background: `linear-gradient(180deg, transparent, ${col}55, transparent)` }} /></div>);
+    case 'starfield':
+      return inside(<svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">{[[22, 30], [74, 26], [30, 72], [70, 74], [50, 14], [86, 52], [14, 52], [58, 88]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r={i % 3 ? 0.9 : 1.3} fill={i % 2 ? '#fff' : col} className="a-twinkle" style={{ animationDelay: `${(i * 0.37) % 2.2}s` }} />)}</svg>);
+    case 'glitch':
+      return <>{outline('a-glitch', { strokeWidth: 2, style: { filter: 'none' } })}{inside(<div className="absolute inset-0 opacity-20" style={{ background: `repeating-linear-gradient(0deg, ${col} 0 1px, transparent 1px 3px)` }} />)}</>;
+    case 'lattice':
+      return inside(<div className="absolute -inset-[30%] a-lattice opacity-35" style={{ backgroundImage: latticeUrl(col), backgroundSize: '18px 31.5px' }} />);
+    case 'charge':
+      return inside(<>{[0, 1, 2].map((i) => <div key={i} className="absolute inset-x-0 h-[22%] a-charge" style={{ animationDelay: `${i * 0.6}s`, background: `linear-gradient(0deg, transparent, ${col}66, transparent)` }} />)}</>);
+    default: return null;
+  }
+}
+
+// A gauge in any non-round shape: the progress glow runs around its edge (or fills the bar).
+function ShapeBubble({ shape, m, v, peak, best, size, c, opacity, fx, valueFx, glow = 1, ex = {}, shift = false, calm, live }) {
+  const def = SHAPE_DEF[shape] || SHAPE_DEF.hex;
+  const [W, H] = def.vb;
+  const { w, h } = shapeDims(shape, size);
+  const lv = level(m, v);
+  const f = fraction(m, v);
+  const col = lv === 2 ? HOT : lv === 1 ? WARN : ex.colorShift ? mix(c.accent, c.label.length === 7 ? c.label : '#ffffff', f * 0.85) : c.accent;
+  const col2 = c.label.length === 7 ? c.label : '#ffffff';
+  const d = display(m, v);
+  const alpha = Math.round(255 * opacity / 100).toString(16).padStart(2, '0');
+  const g = GLOW_MULT[glow] ?? 1;
+  const react = ex.reactive && live ? 0.6 + f * 1.4 : 1;
+  const body = pathOf(def.pts);
+  const inner = pathOf(shrink(def.pts, [W / 2, H / 2], def.bar ? 1 : 0.86));
+  const prev = useRef(v);
+  const [flashN, setFlashN] = useState(0);
+  useEffect(() => {
+    const jump = v != null && prev.current != null && Math.abs(v - prev.current) > (m.max - m.min) * 0.04;
+    if ((valueFx === 'flash' || valueFx === 'pulse') && jump) setFlashN((n) => n + 1);
+    if (v != null && (prev.current == null || jump)) prev.current = v;
+  }, [v, valueFx, m.max, m.min]);
+  const tk = def.text || 1;
+  const big = (d.text.length > 4 ? 21 : 26) * tk;
+  // Text spots: centered for shapes, label/unit left + number right for the bar.
+  const T = shape === 'diamond' ? { lx: 50, ly: 40, la: 'middle', vx: 50, vy: 60, va: 'middle', ux: 50, uy: 72, ua: 'middle', by: 88 } : def.bar ? { lx: 14, ly: 22, la: 'start', vx: 166, vy: 38, va: 'end', ux: 14, uy: 36, ua: 'start', by: 50 } : { lx: 50, ly: 35, la: 'middle', vx: 50, vy: 60, va: 'middle', ux: 50, uy: 77, ua: 'middle', by: 88 };
+  const valueText = ({ key, ...props }) => <text key={key} x={T.vx} y={T.vy} textAnchor={T.va} fontSize={def.bar ? 28 : big} fontWeight="800" className="speed-font" {...props}>{d.text}</text>;
+  const barW = 152 * f;
+  return (
+    <div className={`relative ${live ? '' : 'opacity-80'}`} style={{ width: w, height: h }}>
+      {live && <ShapeFx fx={fx} col={col} col2={col2} w={w} h={h} def={def} calm={calm} />}
+      <svg viewBox={`0 0 ${W} ${H}`} width={w} height={h} className="relative overflow-visible" aria-label={`${m.label} ${d.text} ${d.unit}`}>
+        {/* Glow: wide faint strokes of the outline (no blur filters). */}
+        <path d={body} fill="none" stroke={col} strokeOpacity={Math.min(0.35, 0.1 * g * react)} strokeWidth={14 * g * react} strokeLinejoin="round" />
+        <path d={body} fill="none" stroke={col} strokeOpacity={Math.min(0.5, 0.18 * g * react)} strokeWidth={6 * g} strokeLinejoin="round" />
+        {lv === 2 && !calm && <path d={body} fill="none" stroke={HOT} strokeWidth={10 * g} strokeOpacity=".7" strokeLinejoin="round" className="a-hot" />}
+        {shift && !calm && <path d={body} fill="none" stroke={HOT} strokeWidth="5" strokeLinejoin="round" className="a-shift" />}
+        {ex.halo && <path d={pathOf(shrink(def.pts, [W / 2, H / 2], 1.08))} fill="none" stroke={col} strokeOpacity=".45" strokeWidth="1" strokeLinejoin="round" />}
+        <path d={body} fill={`${c.bg}${alpha}`} stroke={ex.neonRim ? col : `${col}55`} strokeWidth={ex.neonRim ? 2.2 : 1.2} strokeLinejoin="round" />
+        {ex.innerGlow && <path d={inner} fill="none" stroke={col} strokeOpacity=".18" strokeWidth="10" strokeLinejoin="round" />}
+        {!def.bar && (
+          <>
+            <path d={inner} fill="none" stroke={c.track} strokeOpacity=".5" strokeWidth="5" strokeLinejoin="round" pathLength="100" />
+            {live && f > 0.002 && (
+              <>
+                <path d={inner} fill="none" stroke={col} strokeOpacity={Math.min(0.6, 0.25 * g * react)} strokeWidth={9 + 3 * g} strokeLinejoin="round" strokeLinecap="round" pathLength="100" strokeDasharray={`${f * 100} 100`} />
+                <path d={inner} fill="none" stroke={col} strokeWidth="5" strokeLinejoin="round" strokeLinecap="round" pathLength="100" strokeDasharray={`${f * 100} 100`} style={{ transition: calm ? undefined : 'stroke-dasharray .25s linear' }} />
+                {glow >= 2 && <path d={inner} fill="none" stroke="#fff" strokeOpacity=".55" strokeWidth="1.4" strokeLinejoin="round" pathLength="100" strokeDasharray={`${f * 100} 100`} />}
+              </>
+            )}
+            {!live && <path d={inner} fill="none" stroke={c.accent} strokeOpacity=".55" strokeWidth="3" pathLength="100" strokeDasharray="10 90" className="a-march" />}
+          </>
+        )}
+        {def.bar && (
+          <>
+            <rect x="14" y="46" width="152" height="7" rx="3.5" fill={c.track} fillOpacity=".5" />
+            {live && f > 0.002 && <>
+              <rect x="14" y="44" width={barW} height="11" rx="5.5" fill={col} fillOpacity={Math.min(0.5, 0.2 * g * react)} />
+              <rect x="14" y="46" width={barW} height="7" rx="3.5" fill={col} style={{ transition: calm ? undefined : 'width .25s linear' }} />
+              {glow >= 2 && <rect x="14" y="49" width={barW} height="1.2" fill="#fff" fillOpacity=".6" />}
+              {ex.tipSpark && <circle cx={14 + barW} cy="49.5" r="4" fill="#fff" className={calm ? '' : 'a-tip'} />}
+            </>}
+            {ex.ticks && Array.from({ length: 11 }, (_, i) => <line key={i} x1={14 + i * 15.2} y1="57" x2={14 + i * 15.2} y2={i % 5 ? 59 : 61} stroke={live && i / 10 <= f ? col : c.track} strokeWidth="1" />)}
+            {!live && <rect x="14" y="46" width="40" height="7" rx="3.5" fill={c.accent} fillOpacity=".5" className="a-idle2" />}
+          </>
+        )}
+        <text x={T.lx} y={T.ly} textAnchor={T.la} fontSize={10.5 * (def.bar ? 1.05 : tk)} fontWeight="600" letterSpacing="1.2" fill={c.label}>{m.label.toUpperCase()}</text>
+        {valueFx === 'glow' && live && valueText({ fill: 'none', stroke: col, strokeWidth: 4 + g, strokeOpacity: 0.9, strokeLinejoin: 'round', opacity: 0.3, className: `speed-font ${calm ? '' : 'a-vglow'}` })}
+        {valueFx === 'chroma' && live && <>{valueText({ x: T.vx - 1.2, fill: '#ff2bd6', opacity: 0.55 })}{valueText({ x: T.vx + 1.2, fill: '#2bf0ff', opacity: 0.55 })}</>}
+        {valueFx === 'outline' && live
+          ? <>{valueText({ fill: 'none', stroke: col, strokeWidth: 3 + g, opacity: 0.35, strokeLinejoin: 'round' })}{valueText({ fill: 'none', stroke: lv ? col : c.text, strokeWidth: 1.2 })}</>
+          : valueText({ key: valueFx === 'pulse' ? flashN : 0, fill: lv ? col : c.text, className: `speed-font ${valueFx === 'flicker' && live && !calm ? 'a-flicker' : ''} ${valueFx === 'pulse' && flashN && !calm ? 'a-pop' : ''}` })}
+        {valueFx === 'flash' && flashN > 0 && !calm && valueText({ key: flashN, fill: col, className: 'speed-font a-flash' })}
+        <text x={T.ux} y={T.uy} textAnchor={T.ua} fontSize={9.5 * (def.bar ? 1 : tk)} fill={c.label}>{live ? d.unit : 'no signal'}</text>
+        {ex.peaks && live && best != null && m.kind !== 'time' && !def.bar && shape !== 'diamond' && <text x="50" y={T.by} textAnchor="middle" fontSize="7" fill={c.label} opacity=".85">▲ {display(m, best).text}</text>}
+        {ex.peaks && live && best != null && def.bar && <text x="44" y="36" textAnchor="start" fontSize="8" fill={c.label} opacity=".85">▲ {display(m, best).text}</text>}
+        {m.id === 'boost' && peak != null && live && def.bar && <rect x={14 + 152 * fraction(m, peak) - 1} y="43" width="2" height="13" fill={c.text} />}
+      </svg>
+      {(ex.scanlines || ex.shine) && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: clipOf(def.pts, def.vb) }}>
+          {ex.scanlines && <div className="absolute inset-0 opacity-25" style={{ background: `repeating-linear-gradient(0deg, ${col}66 0 1px, transparent 1px 3px)` }} />}
+          {ex.shine && !calm && <div className="absolute inset-y-0 w-1/3 a-shine" style={{ background: 'linear-gradient(100deg, transparent, rgba(255,255,255,.28), transparent)' }} />}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Bubble({ m, v, peak, best, size, c, opacity, fx, valueFx, glow = 1, ex = {}, shift = false, calm, live }) {
   const lv = level(m, v);
@@ -290,6 +450,7 @@ export default function EngineBubbles({ themeKey, moving = false, calm = false }
   const base = SIZES[prefs.size] || SIZES[1];
   const locked = prefs.locked || moving; // nothing to tap or drag while the car is moving
 
+  const shape = prefs.shape || 'circle';
   const sizeOf = (m) => (m.big ? Math.round(base * 1.25) : base);
   const posOf = (m, i) => {
     const p = prefs.pos[m.id];
@@ -297,7 +458,8 @@ export default function EngineBubbles({ themeKey, moving = false, calm = false }
     // Default: columns down the left side (the boost bubble is bigger), wrapping when full.
     const top = dim.h * 0.2, room = Math.max(base, dim.h * 0.72);
     let x = 10, y = top;
-    for (let k = 0; k < i; k++) { y += sizeOf(shown[k]) + 10; if (y + sizeOf(shown[k + 1] || m) > top + room) { y = top; x += base * 1.25 + 10; } }
+    const hOf = (x2) => shapeDims(shape, sizeOf(x2)).h, colW = shapeDims(shape, Math.round(base * 1.25)).w;
+    for (let k = 0; k < i; k++) { y += hOf(shown[k]) + 10; if (y + hOf(shown[k + 1] || m) > top + room) { y = top; x += colW + 10; } }
     return { x, y };
   };
 
@@ -316,11 +478,12 @@ export default function EngineBubbles({ themeKey, moving = false, calm = false }
     bump((n) => n + 1);
   };
   const up = (m, size) => {
+    const sd = shapeDims(shape, size);
     const d = drag.current;
     drag.current = null;
     if (!d) return;
     if (!d.moved) { if (m.id === 'boost') resetPeak(); return; }
-    const x = Math.max(0, Math.min(dim.w - size, d.cx)), y = Math.max(0, Math.min(dim.h - size, d.cy));
+    const x = Math.max(0, Math.min(dim.w - sd.w, d.cx)), y = Math.max(0, Math.min(dim.h - sd.h, d.cy));
     setObdPrefs((p) => ({ pos: { ...p.pos, [m.id]: { x: x / dim.w, y: y / dim.h } } }));
   };
 
@@ -337,13 +500,14 @@ export default function EngineBubbles({ themeKey, moving = false, calm = false }
       {dim.w > 0 && shown.map((m, i) => {
         const size = sizeOf(m);
         const p = posOf(m, i);
+        const G = shape === 'circle' ? Bubble : ShapeBubble;
         const d = drag.current?.id === m.id && drag.current.moved ? { x: drag.current.cx, y: drag.current.cy } : p;
         return (
           <div key={m.id} className={`absolute touch-none select-none ${locked ? 'pointer-events-none' : 'pointer-events-auto cursor-grab'}`}
             style={{ left: d.x, top: d.y }}
             onPointerDown={(e) => down(e, m, p.x, p.y)} onPointerMove={move} onPointerUp={() => up(m, size)} onPointerCancel={() => { drag.current = null; }}>
             <div className={ex.float && !calm ? 'a-float' : ''} style={ex.float ? { animationDelay: `${(i * 0.53) % 4}s` } : undefined}>
-              <Bubble m={m} v={live ? s.values?.[m.id] : null} peak={s.peakBoost} best={best.current[m.id]} size={size} c={c} opacity={prefs.opacity}
+              <G shape={shape} m={m} v={live ? s.values?.[m.id] : null} peak={s.peakBoost} best={best.current[m.id]} size={size} c={c} opacity={prefs.opacity}
                 fx={fx} valueFx={prefs.valueFx} glow={prefs.glow ?? 1} ex={ex} shift={shift} calm={calm} live={live} />
             </div>
           </div>

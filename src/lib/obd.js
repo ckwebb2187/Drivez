@@ -83,6 +83,10 @@ export const BUBBLE_FX = [
   { id: 'heartbeat', title: 'Heartbeat' },
   { id: 'starfield', title: 'Starfield' },
   { id: 'glitch', title: 'Glitch' },
+  { id: 'tracer', title: 'Edge tracer' },
+  { id: 'stream', title: 'Data stream' },
+  { id: 'lattice', title: 'Hex lattice' },
+  { id: 'charge', title: 'Charge up' },
   { id: 'none', title: 'Still' },
 ];
 export const VALUE_FX = [
@@ -95,6 +99,16 @@ export const VALUE_FX = [
   { id: 'plain', title: 'Plain' },
 ];
 export const GLOWS = ['Soft', 'Normal', 'Bright', 'Max'];
+// Gauge shapes. Non-round ones trace their progress glow around their own edge.
+export const SHAPES = [
+  { id: 'circle', title: 'Bubble' },
+  { id: 'hex', title: 'Hexagon' },
+  { id: 'octagon', title: 'Octagon' },
+  { id: 'diamond', title: 'Diamond' },
+  { id: 'cyber', title: 'Cyber square' },
+  { id: 'shield', title: 'Shield' },
+  { id: 'bar', title: 'Bar' },
+];
 // Stackable extras: each can be on with any animation style.
 export const EXTRAS = [
   { id: 'neonRim', title: 'Neon rim' },

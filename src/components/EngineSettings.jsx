@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Bluetooth, Loader2, RefreshCw, Play, Square, Circle, Lock, Unlock, RotateCcw, ChevronDown } from 'lucide-react';
-import { METRICS, GROUPS, BUBBLE_THEMES, BUBBLE_FX, VALUE_FX, GLOWS, EXTRAS, useObd, useObdPrefs, setObdPrefs, hasNativeObd, obdDevices, obdConnect, obdDisconnect, obdLog, obdAskBluetooth, useObdDemo, setObdDemo, resetPeak } from '@/lib/obd';
+import { METRICS, GROUPS, BUBBLE_THEMES, BUBBLE_FX, VALUE_FX, GLOWS, EXTRAS, SHAPES, useObd, useObdPrefs, setObdPrefs, hasNativeObd, obdDevices, obdConnect, obdDisconnect, obdLog, obdAskBluetooth, useObdDemo, setObdDemo, resetPeak } from '@/lib/obd';
 
 const Chip = ({ on, off, onClick, children }) => (
   <button onClick={onClick} className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${on ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-foreground border-border'} ${off ? 'opacity-40' : ''}`}>{children}</button>
@@ -134,7 +134,11 @@ export default function EngineSettings() {
           </div>
         </div>
         <div>
-          <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">BUBBLE ANIMATION</div>
+          <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">SHAPE</div>
+          <div className="flex flex-wrap gap-1.5">{SHAPES.map((x) => <Chip key={x.id} on={(prefs.shape || 'circle') === x.id} onClick={() => setObdPrefs({ shape: x.id, pos: {} })}>{x.title}</Chip>)}</div>
+        </div>
+        <div>
+          <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">ANIMATION</div>
           <div className="flex flex-wrap gap-1.5">{BUBBLE_FX.map((f) => <Chip key={f.id} on={prefs.fx === f.id} onClick={() => setObdPrefs({ fx: f.id })}>{f.title}</Chip>)}</div>
         </div>
         <div>

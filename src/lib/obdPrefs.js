@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from 'react';
 
 const KEY = 'dz-obd';
-const DEFAULTS = { show: false, theme: 'map', fx: 'auto', valueFx: 'glow', glow: 1, extras: { neonRim: true, tipSpark: true }, size: 1, opacity: 85, locked: false, metrics: { boost: true, coolant: true, iat: true, timing: true }, pos: {} };
+const DEFAULTS = { show: false, theme: 'map', fx: 'auto', valueFx: 'glow', shape: 'circle', glow: 1, extras: { neonRim: true, tipSpark: true }, size: 1, opacity: 85, locked: false, metrics: { boost: true, coolant: true, iat: true, timing: true }, pos: {} };
 let prefs = load();
 const subs = new Set();
 function load() {
