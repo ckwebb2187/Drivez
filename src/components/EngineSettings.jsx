@@ -54,6 +54,11 @@ export default function EngineSettings() {
         <input type="checkbox" className="w-5 h-5 accent-primary" checked={prefs.show} onChange={(e) => setObdPrefs({ show: e.target.checked })} />
       </label>
 
+      <label className="flex items-center justify-between gap-3 text-sm font-semibold text-foreground px-1">
+        <span>Keep them on when parked<span className="block text-[11px] font-normal text-muted-foreground">Bubbles stay on the map with no drive running. Uses a bit more battery.</span></span>
+        <input type="checkbox" className="w-5 h-5 accent-primary shrink-0" checked={!!prefs.always} onChange={(e) => setObdPrefs({ always: e.target.checked, show: e.target.checked || prefs.show })} />
+      </label>
+
       <button onClick={() => { setObdDemo(!demo); if (!demo) setObdPrefs({ show: true }); }}
         className="w-full h-10 rounded-xl bg-secondary text-sm font-semibold text-foreground flex items-center justify-center gap-2">
         {demo ? <><Square className="w-4 h-4" /> Stop demo</> : <><Play className="w-4 h-4" /> Preview with demo values</>}
