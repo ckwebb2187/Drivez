@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { Palette } from 'lucide-react';
 import { speedStyle } from '@/lib/mapTheme';
+import { useStylePanel, openStylePanel } from '@/lib/obdPrefs';
 import { FX_CSS, ShapeFx, SHAPE_DEF, shapeDims, pathOf, shrink, clipOf } from '@/components/GlowFx';
 import { METRICS, BUBBLE_THEMES, SIZES, WARN, HOT, fxListOf, useObd, useObdPrefs, setObdPrefs, obdWatch, display, level, fraction, resetPeak } from '@/lib/obd';
 
@@ -289,11 +291,16 @@ function Bubble({ m, v, peak, best, size, c, opacity, fx, valueFx, glow = 1, ex 
   );
 }
 
+// The on-map style switcher loads only when opened.
+const GaugeStylePanel = lazy(() => import('@/components/GaugeStylePanel'));
+
 const STATUS = { off: 'OBD not connected', none: 'OBD needs the Android app', connecting: 'OBD connecting…', error: 'OBD connection lost' };
 
 export default function EngineBubbles({ themeKey, moving = false, calm = false }) {
   const prefs = useObdPrefs();
   const s = useObd(true, calm ? 500 : 250);
+  const panelOpen = useStylePanel();
+  const [styleArmed, setStyleArmed] = useState(false);
   const box = useRef(null);
   const [dim, setDim] = useState({ w: 0, h: 0 });
   const drag = useRef(null);
@@ -366,11 +373,28 @@ export default function EngineBubbles({ themeKey, moving = false, calm = false }
   return (
     <div ref={box} className={`absolute inset-0 pointer-events-none z-[5] dz-b ${calm ? 'dz-calm' : ''}`}>
       <style>{FX_CSS}</style>
-      {!live && first && (
-        <div className="absolute rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ left: first.x, top: Math.max(4, first.y - 22), background: `${c.bg}cc`, color: c.label, border: `1px solid ${c.accent}55` }}>
-          {s.status === 'error' && s.message ? s.message : STATUS[s.status] || 'OBD not connected'}
+      {first && (
+        <div className="absolute flex items-center gap-1.5" style={{ left: first.x, top: Math.max(4, first.y - 34) }}>
+          {/* Style switcher. Moving: first tap asks for a second tap (meant for passengers). */}
+          {!panelOpen && (
+            <button onClick={() => {
+                if (!moving || styleArmed) { setStyleArmed(false); openStylePanel(live); return; }
+                setStyleArmed(true); setTimeout(() => setStyleArmed(false), 3500);
+              }}
+              className="pointer-events-auto h-7 rounded-full flex items-center gap-1 px-2 text-[11px] font-bold"
+              style={{ background: `${c.bg}e6`, color: c.text, border: `1px solid ${c.accent}`, boxShadow: `0 0 8px ${c.accent}88` }}
+              aria-label="Gauge style">
+              <Palette className="w-3.5 h-3.5" style={{ color: c.accent }} />{styleArmed ? 'Passenger? Tap' : 'Style'}
+            </button>
+          )}
+          {!live && (
+            <div className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: `${c.bg}cc`, color: c.label, border: `1px solid ${c.accent}55` }}>
+              {s.status === 'error' && s.message ? s.message : STATUS[s.status] || 'OBD not connected'}
+            </div>
+          )}
         </div>
       )}
+      {panelOpen && <Suspense fallback={null}><GaugeStylePanel /></Suspense>}
       {dim.w > 0 && shown.map((m, i) => {
         const size = sizeOf(m);
         const p = posOf(m, i);

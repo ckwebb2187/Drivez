@@ -29,7 +29,7 @@ import FriendsHub from '@/components/FriendsHub';
 import MeetRadar from '@/components/MeetRadar';
 import AskGemini from '@/components/AskGemini';
 import PlaceSearchSheet from '@/components/PlaceSearchSheet';
-import { useObdPrefs, useObdDemo, useAppFx } from '@/lib/obdPrefs';
+import { useObdPrefs, useObdDemo, useAppFx, useStylePanel } from '@/lib/obdPrefs';
 import { samplePeaks, takePeaks } from '@/lib/obd';
 import { say, getVoiceSettings, recapText, tripFacts } from '@/lib/voice';
 import { searchPlaces, getRoute } from '@/lib/nav';
@@ -146,6 +146,7 @@ export default function LiveDrive({ active = true, peek = false }) {
   const { look, key: themeKey } = useActiveLook();
   const obdPrefs = useObdPrefs();
   const obdDemo = useObdDemo();
+  const obdPanel = useStylePanel();
   const fxSpeed = useAppFx('speed', themeKey), fxButtons = useAppFx('buttons', themeKey), fxTurn = useAppFx('turn', themeKey), fxRun = useAppFx('run', themeKey);
   const fxCalm = isLite(look);
   const fxSt = speedStyle(themeKey);
@@ -753,7 +754,7 @@ export default function LiveDrive({ active = true, peek = false }) {
         )}
 
         {/* Engine gauge bubbles (OBD-II), themed to the map: during a drive, when parked if "always" is on, or in demo mode. Locked while moving. */}
-        {obdPrefs.show && (drive.status === 'driving' || obdDemo || obdPrefs.always) && (
+        {obdPrefs.show && (drive.status === 'driving' || obdDemo || obdPrefs.always || obdPanel) && (
           <div className="absolute inset-0 z-[450] pointer-events-none">
             <Suspense fallback={null}>
               <EngineBubbles themeKey={themeKey} moving={(drive.currentSpeed || 0) > 5} calm={isLite(look)} />

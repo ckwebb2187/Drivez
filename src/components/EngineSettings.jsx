@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Bluetooth, Loader2, RefreshCw, Play, Square, Circle, Lock, Unlock, RotateCcw, ChevronDown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { openStylePanel } from '@/lib/obdPrefs';
+import { Bluetooth, Loader2, RefreshCw, Play, Square, Circle, Lock, Unlock, RotateCcw, ChevronDown, Palette } from 'lucide-react';
 import { METRICS, GROUPS, BUBBLE_THEMES, BUBBLE_FX, VALUE_FX, GLOWS, EXTRAS, SHAPES, FX_TARGETS, useObd, useObdPrefs, setObdPrefs, hasNativeObd, obdDevices, obdConnect, obdDisconnect, obdLog, obdAskBluetooth, useObdDemo, setObdDemo, resetPeak } from '@/lib/obd';
 
 const Chip = ({ on, off, onClick, children }) => (
@@ -41,6 +43,7 @@ export default function EngineSettings() {
   const toggleLog = () => { const err = obdLog(!s.logging); setMsg(err || ''); };
   const toggle = (id) => setObdPrefs((p) => ({ metrics: { ...p.metrics, [id]: !p.metrics[id] } }));
   const onCount = METRICS.filter((m) => prefs.metrics[m.id]).length;
+  const navigate = useNavigate();
   // Animation mix: "auto" and "still" are on their own; anything else stacks.
   const fxSel = prefs.fxList?.length ? prefs.fxList : [prefs.fx || 'auto'];
   const pickFx = (id) => {
@@ -66,6 +69,11 @@ export default function EngineSettings() {
         <span>Keep them on when parked<span className="block text-[11px] font-normal text-muted-foreground">Bubbles stay on the map with no drive running. Uses a bit more battery.</span></span>
         <input type="checkbox" className="w-5 h-5 accent-primary shrink-0" checked={!!prefs.always} onChange={(e) => setObdPrefs({ always: e.target.checked, show: e.target.checked || prefs.show })} />
       </label>
+
+      <button onClick={() => { openStylePanel(s.status === 'live'); navigate('/'); }}
+        className="w-full h-11 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2">
+        <Palette className="w-4 h-4" /> Style them on the map
+      </button>
 
       <button onClick={() => { setObdDemo(!demo); if (!demo) setObdPrefs({ show: true }); }}
         className="w-full h-10 rounded-xl bg-secondary text-sm font-semibold text-foreground flex items-center justify-center gap-2">

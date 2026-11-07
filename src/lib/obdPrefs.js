@@ -39,3 +39,20 @@ export function useAppFx(target, themeKey) {
   const p = useObdPrefs();
   return p.fxTargets?.[target] ? fxListOf(p, themeKey) : null;
 }
+
+// The on-map gauge style panel (open/closed; not saved).
+let panel = false;
+const panelSubs = new Set();
+export function setStylePanel(on) { panel = on; panelSubs.forEach((f) => f()); }
+export const useStylePanel = () => useSyncExternalStore((f) => { panelSubs.add(f); return () => panelSubs.delete(f); }, () => panel);
+// Open the panel; with no live adapter it turns on demo values (and turns them off again on close).
+let autoDemo = false;
+export function openStylePanel(live) {
+  if (!live && !demo) { autoDemo = true; setObdDemo(true); }
+  setObdPrefs({ show: true });
+  setStylePanel(true);
+}
+export function closeStylePanel() {
+  if (autoDemo) { autoDemo = false; setObdDemo(false); }
+  setStylePanel(false);
+}

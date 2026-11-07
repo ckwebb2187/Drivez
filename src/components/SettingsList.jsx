@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Eye, EyeOff, Palette, AudioLines, Flame, Navigation, MessageCircle, ShieldCheck, Smartphone, LogOut, Loader2, X, Gauge } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
@@ -12,6 +12,7 @@ import AppUpdate from '@/components/AppUpdate';
 import { useUnits, setUnits } from '@/lib/units';
 import { useFamilyBrief } from '@/lib/family';
 import { api } from '@/api/base44Client';
+import { useStylePanel } from '@/lib/obdPrefs';
 
 // Engine gauges (OBD-II) settings load only when opened.
 const EngineSettings = lazy(() => import('@/components/EngineSettings'));
@@ -92,6 +93,9 @@ export default function SettingsList() {
 
 // Settings as a sheet over whatever screen you're on (one tap from the menu).
 export function SettingsSheet({ onClose }) {
+  // Leave the way when the gauge style panel opens on the map.
+  const panelOpen = useStylePanel();
+  useEffect(() => { if (panelOpen) onClose(); }, [panelOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   return createPortal(
     <div className="fixed inset-0 z-[1600] bg-black/50 flex items-end justify-center" onClick={onClose}>
       <div className="w-full max-w-md max-h-[88vh] overflow-y-auto overscroll-contain bg-background rounded-t-3xl border-t border-border px-4 pb-[max(20px,env(safe-area-inset-bottom))] dz-pop-in" onClick={(e) => e.stopPropagation()}>
