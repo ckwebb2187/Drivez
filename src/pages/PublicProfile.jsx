@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Loader2, MapPin, Users, Gauge, Route as RouteIcon, Lock, ArrowLeft } from 'lucide-react';
 import { api } from '@/api/base44Client';
 import { CarPic } from '@/components/GarageManager';
-import { SOCIAL_LINKS } from '@/components/ProfileSharing';
+import { SOCIAL_LINKS } from '@/lib/socialLinks';
 import CarPhotos from '@/components/CarPhotos';
 import { getInitials } from '@/lib/helpers';
 import UserTags from '@/components/UserTags';

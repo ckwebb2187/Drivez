@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { X, Loader2, Users, Lock, ChevronRight } from 'lucide-react';
 import { api } from '@/api/base44Client';
-import { SOCIAL_LINKS } from '@/components/ProfileSharing';
+import { SOCIAL_LINKS } from '@/lib/socialLinks';
 import CarPreview3D from '@/components/CarPreview3D';
 import { carLook, displayMode } from '@/lib/carCatalog';
 import { getInitials } from '@/lib/helpers';

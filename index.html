@@ -8,6 +8,9 @@
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="preload" as="image" href="/logo-text.webp" />
+    <!-- Open the map tile connection while the app code loads (first map paints sooner). -->
+    <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
+    <link rel="dns-prefetch" href="https://tiles.openfreemap.org" />
     <title>Kaido Maps</title>
   </head>
   <body>

@@ -63,3 +63,17 @@ export function closeStylePanel() {
 export const fxTargetOn = (p, id) => (id === 'gauges' ? p.fxTargets?.gauges !== false : !!p.fxTargets?.[id]);
 export const toggleFxTarget = (id) => setObdPrefs((p) => ({ fxTargets: { ...p.fxTargets, [id]: !fxTargetOn(p, id) } }));
 export const setAllFxTargets = (ids, on) => setObdPrefs((p) => ({ fxTargets: { ...p.fxTargets, ...Object.fromEntries(ids.map((id) => [id, on])) } }));
+
+// Engine peaks for the trip (peak boost, max coolant and intake temps), sampled during a drive.
+// Lives here (not obd.js) so the drive screen doesn't load the whole gauge list at startup.
+let tripPeaks = null;
+export function samplePeaks() {
+  let s;
+  try { if (!window.DrivezNative?.obdState) return; s = JSON.parse(window.DrivezNative.obdState()); } catch { return; }
+  const v = s?.values;
+  if (!v || !Object.keys(v).length) return; // not connected / no readings
+  tripPeaks = tripPeaks || {};
+  const up = (k, x) => { if (typeof x === 'number' && isFinite(x) && (tripPeaks[k] == null || x > tripPeaks[k])) tripPeaks[k] = Math.round(x * 10) / 10; };
+  up('boost', s.peakBoost); up('coolant', v.coolant); up('iat', v.iat);
+}
+export function takePeaks() { const p = tripPeaks; tripPeaks = null; return p && Object.keys(p).length ? p : null; }

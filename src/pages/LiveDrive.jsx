@@ -2,7 +2,6 @@ import { createPortal } from 'react-dom';
 import { lazy, Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { useTrafficEta } from '@/lib/traffic';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X, ChevronUp, Navigation2, SkipForward, MapPin, Settings, Headphones, Mic, MicOff, Search, Palette } from 'lucide-react';
 import { SettingsSheet } from '@/components/SettingsList';
 import DriveMap from '@/components/DriveMap';
@@ -29,8 +28,7 @@ import FriendsHub from '@/components/FriendsHub';
 import MeetRadar from '@/components/MeetRadar';
 import AskGemini from '@/components/AskGemini';
 import PlaceSearchSheet from '@/components/PlaceSearchSheet';
-import { useObdPrefs, useObdDemo, useAppFx, useStylePanel, openStylePanel } from '@/lib/obdPrefs';
-import { samplePeaks, takePeaks } from '@/lib/obd';
+import { useObdPrefs, useObdDemo, useAppFx, useStylePanel, openStylePanel, samplePeaks, takePeaks } from '@/lib/obdPrefs';
 import { say, getVoiceSettings, recapText, tripFacts } from '@/lib/voice';
 import { searchPlaces, getRoute } from '@/lib/nav';
 import { learnedRoute } from '@/lib/learned';
@@ -708,10 +706,11 @@ export default function LiveDrive({ active = true, peek = false }) {
         </div>
       )}
 
-      <AnimatePresence mode="wait">
+      {/* Screens swap instantly with a quick CSS fade-in (no waiting for the old one to fade out). */}
+      <>
         {/* Idle: the map is the home screen — search, plan and go from here */}
         {drive.status === 'idle' && (
-          <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-[500] pointer-events-none">
+          <div key="idle" className="absolute inset-0 z-[500] pointer-events-none dz-fade-in">
             <TripPlanner
               pos={herePos}
               locError={locError}
@@ -725,15 +724,14 @@ export default function LiveDrive({ active = true, peek = false }) {
               guideRoute={guideRoute}
               onClearGuide={() => { setRouteId(null); navigate('/', { replace: true }); }}
             />
-          </motion.div>
+          </div>
         )}
 
         {/* Acquiring GPS */}
         {drive.status === 'acquiring' && (
-          <motion.div
+          <div
             key="acquiring"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 flex flex-col items-center justify-end pb-28 z-[500]"
+            className="absolute inset-0 flex flex-col items-center justify-end pb-28 z-[500] dz-fade-in"
           >
             <div className="glass rounded-3xl p-6 mx-5 w-full max-w-md border border-border text-center">
               <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-3" />
@@ -751,7 +749,7 @@ export default function LiveDrive({ active = true, peek = false }) {
                 Cancel
               </button>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* Engine gauge bubbles (OBD-II), themed to the map: during a drive, when parked if "always" is on, or in demo mode. Locked while moving. */}
@@ -764,10 +762,9 @@ export default function LiveDrive({ active = true, peek = false }) {
         )}
         {/* Driving */}
         {drive.status === 'driving' && (
-          <motion.div
+          <div
             key="driving"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[500] pointer-events-none"
+            className="absolute inset-0 z-[500] pointer-events-none dz-fade-in"
           >
             {/* Turn card: tap it for every turn of the trip; the arrow folds it into a small pill. */}
             {nav.active && (() => {
@@ -1081,10 +1078,10 @@ export default function LiveDrive({ active = true, peek = false }) {
                 )}
               </div>
             </div>}
-          </motion.div>
+          </div>
         )}
 
-      </AnimatePresence>
+      </>
 
       {openDriver && active && <DriverSheet driver={openDriver} moving={drive.status === 'driving' && drive.currentSpeed > 8} onClose={() => setOpenDriver(null)} />}
 
