@@ -60,3 +60,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-11-07 · - · done by hand · mix several animations; same glow FX optional on speed gauge, drive buttons, turn card, Tōge/Wangan card, Go buttons (shared GlowFx.jsx, lazy)
 2026-11-07 · - · done by hand · on-map gauge Style panel (presets, Surprise me, every look option live; passenger tap while moving)
 2026-11-07 · - · done by hand · gauge animations: run with no adapter, drawn on top of the face (were hidden), faint ones strengthened; Use animations on: Engine gauges + All/None
+2026-11-07 · - · done by hand · Style button moved: palette icon by the profile picture (map) and above the Tōge button (driving); off the gauges

@@ -3,7 +3,7 @@ import { lazy, Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { useTrafficEta } from '@/lib/traffic';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X, ChevronUp, Navigation2, SkipForward, MapPin, Settings, Headphones, Mic, MicOff, Search } from 'lucide-react';
+import { ChevronDown, Play, Square, Check, Clock, TrendingUp, Gauge, Route, Bookmark, MapPinOff, Loader2, Volume2, VolumeX, X, ChevronUp, Navigation2, SkipForward, MapPin, Settings, Headphones, Mic, MicOff, Search, Palette } from 'lucide-react';
 import { SettingsSheet } from '@/components/SettingsList';
 import DriveMap from '@/components/DriveMap';
 import { useGpsDrive, pendingDrive, clearPendingDrive } from '@/lib/useGpsDrive';
@@ -29,7 +29,7 @@ import FriendsHub from '@/components/FriendsHub';
 import MeetRadar from '@/components/MeetRadar';
 import AskGemini from '@/components/AskGemini';
 import PlaceSearchSheet from '@/components/PlaceSearchSheet';
-import { useObdPrefs, useObdDemo, useAppFx, useStylePanel } from '@/lib/obdPrefs';
+import { useObdPrefs, useObdDemo, useAppFx, useStylePanel, openStylePanel } from '@/lib/obdPrefs';
 import { samplePeaks, takePeaks } from '@/lib/obd';
 import { say, getVoiceSettings, recapText, tripFacts } from '@/lib/voice';
 import { searchPlaces, getRoute } from '@/lib/nav';
@@ -423,6 +423,7 @@ export default function LiveDrive({ active = true, peek = false }) {
   const [settingsArmed, setSettingsArmed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [whereOpen, setWhereOpen] = useState(false);
+  const [styleArmed, setStyleArmed] = useState(false);
   const [legend, setLegend] = useState(null); // tapped Local legend pin
   // Free drive (no route): end and save on its own after 10 minutes parked.
   const lastMoving = useRef(Date.now());
@@ -980,6 +981,15 @@ export default function LiveDrive({ active = true, peek = false }) {
               </button>
               {whereOpen && <PlaceSearchSheet title={navPlan ? 'Change destination' : 'Where to?'} pos={drive.currentPosition || herePos} moving={(drive.currentSpeed || 0) >= 5} onPick={radarGo} onClose={() => setWhereOpen(false)} />}
               <AskGemini size={50} context={askContext} onAction={onAskAction} />
+              {/* Gauge & glow style. Moving: first tap asks for a second tap (meant for passengers). */}
+              <button onClick={() => {
+                  if ((drive.currentSpeed || 0) < 5 || styleArmed) { setStyleArmed(false); openStylePanel(); return; }
+                  setStyleArmed(true); setTimeout(() => setStyleArmed(false), 3500);
+                }}
+                className={`relative h-[50px] rounded-full shadow-xl border flex items-center justify-center gap-1.5 transition-all self-end ${styleArmed ? 'w-[150px] bg-primary border-primary text-primary-foreground' : 'w-[50px] bg-card border-border text-foreground'}`}
+                aria-label="Gauge style">
+                <Palette className="w-5 h-5" />{styleArmed && <span className="text-xs font-bold">Passenger? Tap</span>}
+              </button>
               <button onClick={cycleMode} aria-label="Drive mode"
                 className={`relative w-[50px] h-[50px] rounded-full shadow-xl border flex flex-col items-center justify-center leading-none ${driveMode === 'cruise' ? 'bg-card border-border text-muted-foreground' : 'bg-primary border-primary text-primary-foreground'}`}>
                 {fxOn(fxButtons)}

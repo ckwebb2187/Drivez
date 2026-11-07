@@ -47,7 +47,9 @@ export function setStylePanel(on) { panel = on; panelSubs.forEach((f) => f()); }
 export const useStylePanel = () => useSyncExternalStore((f) => { panelSubs.add(f); return () => panelSubs.delete(f); }, () => panel);
 // Open the panel; with no live adapter it turns on demo values (and turns them off again on close).
 let autoDemo = false;
-export function openStylePanel(live) {
+// Is the OBD adapter streaming right now? (cheap check of the Android app)
+const liveNow = () => { try { return JSON.parse(window.DrivezNative?.obdState?.() || '{}').status === 'live'; } catch { return false; } };
+export function openStylePanel(live = liveNow()) {
   if (!live && !demo) { autoDemo = true; setObdDemo(true); }
   setObdPrefs({ show: true });
   setStylePanel(true);

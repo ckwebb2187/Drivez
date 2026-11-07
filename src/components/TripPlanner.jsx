@@ -5,7 +5,7 @@ const GarageDrawer = lazy(() => import('@/components/GarageDrawer'));
 // Glow animations on the Go buttons (Settings → Engine gauges → Look & animations).
 const FxLayer = lazy(() => import('@/components/GlowFx'));
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles, Plus, ArrowUp, ArrowDown, GripVertical, Shuffle, Save, TrafficCone, Play, Bookmark, Trophy, Menu, Users, ChevronLeft } from 'lucide-react';
+import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles, Plus, ArrowUp, ArrowDown, GripVertical, Shuffle, Save, TrafficCone, Play, Bookmark, Trophy, Menu, Users, ChevronLeft, Palette } from 'lucide-react';
 import { ReportButton } from '@/components/MapBits';
 import MusicButton from '@/components/MusicButton';
 import { WeatherButton, WeatherTimeBadge } from '@/components/Weather';
@@ -20,7 +20,7 @@ import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
 import { searchPlaces, getRoute, optimizeStops, getAvoid, setAvoid, MAX_STOPS, formatEta, arrivalTime, formatNavDistance, distM } from '@/lib/nav';
 import PlaceSearchSheet from '@/components/PlaceSearchSheet';
-import { useAppFx } from '@/lib/obdPrefs';
+import { useAppFx, openStylePanel } from '@/lib/obdPrefs';
 import { useActiveLook, speedStyle, isLite } from '@/lib/mapTheme';
 import { AlertsBanner, RouteConditions } from '@/components/WeatherAlerts';
 import { useWeatherAlerts } from '@/lib/alerts';
@@ -292,6 +292,11 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
               <X className="w-5 h-5 text-muted-foreground" />
             </button>
           ) : (
+            <>
+            {/* Gauge & glow style switcher (opens a panel low on the screen so the gauges stay visible). */}
+            <button onClick={() => openStylePanel()} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-muted-foreground" aria-label="Gauge style">
+              <Palette className="w-5 h-5" />
+            </button>
             <Link to="/profile" className="shrink-0" aria-label="Profile">
               {user?.avatarUrl ? (
                 <img src={user.avatarUrl} alt="" className="w-9 h-9 rounded-full object-cover" />
@@ -301,6 +306,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
                 </div>
               )}
             </Link>
+            </>
           )}
         </div>
 
