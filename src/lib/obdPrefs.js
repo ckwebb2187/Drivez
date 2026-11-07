@@ -56,3 +56,8 @@ export function closeStylePanel() {
   if (autoDemo) { autoDemo = false; setObdDemo(false); }
   setStylePanel(false);
 }
+
+// Where the animation mix shows. Engine gauges are on unless switched off; the rest start off.
+export const fxTargetOn = (p, id) => (id === 'gauges' ? p.fxTargets?.gauges !== false : !!p.fxTargets?.[id]);
+export const toggleFxTarget = (id) => setObdPrefs((p) => ({ fxTargets: { ...p.fxTargets, [id]: !fxTargetOn(p, id) } }));
+export const setAllFxTargets = (ids, on) => setObdPrefs((p) => ({ fxTargets: { ...p.fxTargets, ...Object.fromEntries(ids.map((id) => [id, on])) } }));

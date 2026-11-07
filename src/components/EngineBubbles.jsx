@@ -35,7 +35,7 @@ function Fx({ fx, col, col2, size, calm }) {
   const ring = (cls, extra = {}) => <div className={`absolute inset-0 rounded-full ${cls}`} style={{ border: `1.5px solid ${col}`, ...extra }} />;
   switch (fx) {
     case 'breathe':
-      return <div className="absolute -inset-1 rounded-full a-breathe" style={{ boxShadow: `0 0 ${Math.round(size / 4)}px ${col}, inset 0 0 ${Math.round(size / 8)}px ${col}55` }} />;
+      return <div className="absolute -inset-1 rounded-full a-breathe pointer-events-none" style={{ border: `2px solid ${col}`, boxShadow: `0 0 ${Math.round(size / 3)}px ${col}, 0 0 ${Math.round(size / 8)}px ${col}, inset 0 0 ${Math.round(size / 5)}px ${col}88` }} />;
     case 'orbit':
       return (
         <div className="absolute inset-0 a-orbit">
@@ -47,7 +47,7 @@ function Fx({ fx, col, col2, size, calm }) {
         <div className="absolute -inset-[3px] rounded-full a-orbit" style={{ background: `conic-gradient(from 0deg, transparent 0deg 250deg, ${col}00 250deg, ${col}cc 350deg, #fff 358deg, transparent 360deg)`, WebkitMask: 'radial-gradient(circle, transparent 62%, #000 64%)', mask: 'radial-gradient(circle, transparent 62%, #000 64%)' }} />
       );
     case 'radar':
-      return <div className="absolute inset-[3%] rounded-full a-radar opacity-60" style={{ background: `conic-gradient(from 0deg, transparent 0deg 290deg, ${col}00 290deg, ${col}88 358deg, transparent 360deg)` }} />;
+      return <div className="absolute inset-[3%] rounded-full a-radar opacity-60 pointer-events-none" style={{ background: `conic-gradient(from 0deg, transparent 0deg 270deg, ${col}00 270deg, ${col}cc 356deg, #ffffffaa 359deg, transparent 360deg)` }} />;
     case 'ripple':
       return <>{ring('a-ripple')}{ring('a-ripple2')}</>;
     case 'sonar':
@@ -138,7 +138,6 @@ function ShapeBubble({ shape, m, v, peak, best, size, c, opacity, fx, valueFx, g
   const barW = 152 * f;
   return (
     <div className={`relative ${live ? '' : 'opacity-80'}`} style={{ width: w, height: h }}>
-      {live && fx.map((x) => <ShapeFx key={x} fx={x} col={col} col2={col2} w={w} h={h} def={def} calm={calm} />)}
       <svg viewBox={`0 0 ${W} ${H}`} width={w} height={h} className="relative overflow-visible" aria-label={`${m.label} ${d.text} ${d.unit}`}>
         {/* Glow: wide faint strokes of the outline (no blur filters). */}
         <path d={body} fill="none" stroke={col} strokeOpacity={Math.min(0.35, 0.1 * g * react)} strokeWidth={14 * g * react} strokeLinejoin="round" />
@@ -186,6 +185,7 @@ function ShapeBubble({ shape, m, v, peak, best, size, c, opacity, fx, valueFx, g
         {ex.peaks && live && best != null && def.bar && <text x="44" y="36" textAnchor="start" fontSize="8" fill={c.label} opacity=".85">▲ {display(m, best).text}</text>}
         {m.id === 'boost' && peak != null && live && def.bar && <rect x={14 + 152 * fraction(m, peak) - 1} y="43" width="2" height="13" fill={c.text} />}
       </svg>
+      {fx.map((x) => <ShapeFx key={x} fx={x} col={col} col2={col2} w={w} h={h} def={def} calm={calm} />)}
       {(ex.scanlines || ex.shine) && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none" style={{ clipPath: clipOf(def.pts, def.vb) }}>
           {ex.scanlines && <div className="absolute inset-0 opacity-25" style={{ background: `repeating-linear-gradient(0deg, ${col}66 0 1px, transparent 1px 3px)` }} />}
@@ -227,7 +227,6 @@ function Bubble({ m, v, peak, best, size, c, opacity, fx, valueFx, glow = 1, ex 
       {ex.neonRim && <div className="absolute -inset-[1px] rounded-full" style={{ border: `2px solid ${col}`, boxShadow: `0 0 ${Math.round(6 * g)}px ${col}, inset 0 0 ${Math.round(4 * g)}px ${col}88` }} />}
       {lv === 2 && !calm && <div className="absolute -inset-1 rounded-full a-hot" style={{ boxShadow: `0 0 ${Math.round(size / 3 * g)}px ${HOT}, 0 0 ${Math.round(size / 8)}px ${HOT}` }} />}
       {shift && !calm && <div className="absolute -inset-1 rounded-full a-shift" style={{ border: `3px solid ${HOT}`, boxShadow: `0 0 ${Math.round(size / 3)}px ${HOT}` }} />}
-      {live && fx.map((x) => <Fx key={x} fx={x} col={col} col2={col2} size={size} calm={calm} />)}
       <svg viewBox="0 0 100 100" width={size} height={size} className="relative" aria-label={`${m.label} ${d.text} ${d.unit}`}>
         <circle cx="50" cy="50" r="47" fill={`${c.bg}${alpha}`} stroke={`${col}55`} strokeWidth="1.2" />
         {ex.ticks && Array.from({ length: 19 }, (_, i) => {
@@ -281,6 +280,8 @@ function Bubble({ m, v, peak, best, size, c, opacity, fx, valueFx, glow = 1, ex 
         <text x="50" y="77" textAnchor="middle" fontSize="9.5" fill={c.label}>{live ? d.unit : 'no signal'}</text>
         {showBest && <text x="50" y="88" textAnchor="middle" fontSize="7" fill={c.label} opacity=".85">▲ {display(m, best).text}</text>}
       </svg>
+      {/* Effects sit on top of the gauge face (faint inside, so the numbers stay readable). */}
+      {fx.map((x) => <Fx key={x} fx={x} col={col} col2={col2} size={size} calm={calm} />)}
       {ex.scanlines && <div className="absolute inset-[4%] rounded-full pointer-events-none opacity-25" style={{ background: `repeating-linear-gradient(0deg, ${col}66 0 1px, transparent 1px 3px)` }} />}
       {ex.shine && !calm && (
         <div className="absolute inset-[3%] rounded-full overflow-hidden pointer-events-none">
@@ -320,7 +321,8 @@ export default function EngineBubbles({ themeKey, moving = false, calm = false }
 
   const live = s.status === 'live' || s.status === 'demo';
   const c = colors(prefs, themeKey);
-  const fx = fxListOf(prefs, themeKey); // one or more animations, mixed
+  // One or more animations, mixed. They run with or without an adapter; off if you switch Engine gauges off under "Use animations on".
+  const fx = prefs.fxTargets?.gauges === false ? [] : fxListOf(prefs, themeKey);
   const ex = prefs.extras || {};
   // Highest value of each gauge this session (for the "show highest" extra).
   const best = useRef({});

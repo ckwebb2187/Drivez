@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom';
 import { X, Shuffle, Play, Square } from 'lucide-react';
-import { BUBBLE_THEMES, BUBBLE_FX, VALUE_FX, GLOWS, SHAPES, EXTRAS, useObdPrefs, setObdPrefs, useObdDemo, setObdDemo } from '@/lib/obd';
-import { closeStylePanel } from '@/lib/obdPrefs';
+import { BUBBLE_THEMES, BUBBLE_FX, VALUE_FX, GLOWS, SHAPES, EXTRAS, FX_TARGETS, useObdPrefs, setObdPrefs, useObdDemo, setObdDemo } from '@/lib/obd';
+import { closeStylePanel, fxTargetOn, toggleFxTarget, setAllFxTargets } from '@/lib/obdPrefs';
 
 // One-tap looks. Each sets shape, colors, animation mix, number effect, glow and extras together.
 const PRESETS = [
@@ -61,6 +61,11 @@ export default function GaugeStylePanel() {
           <button onClick={closeStylePanel} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center" aria-label="Close"><X className="w-4 h-4" /></button>
         </div>
         <Row label="PRESETS">{PRESETS.map((x) => <Chip key={x.name} onClick={() => applyPreset(x.p)}>{x.name}</Chip>)}</Row>
+        <Row label="USE ANIMATIONS ON">
+          <Chip on={FX_TARGETS.every((t) => fxTargetOn(prefs, t.id))} onClick={() => setAllFxTargets(FX_TARGETS.map((t) => t.id), true)}>All</Chip>
+          <Chip on={FX_TARGETS.every((t) => !fxTargetOn(prefs, t.id))} onClick={() => setAllFxTargets(FX_TARGETS.map((t) => t.id), false)}>None</Chip>
+          {FX_TARGETS.map((t) => <Chip key={t.id} on={fxTargetOn(prefs, t.id)} onClick={() => toggleFxTarget(t.id)}>{t.title}</Chip>)}
+        </Row>
         <Row label="SHAPE">{SHAPES.map((x) => <Chip key={x.id} on={(prefs.shape || 'circle') === x.id} onClick={() => setObdPrefs({ shape: x.id, pos: {} })}>{x.title}</Chip>)}</Row>
         <Row label="ANIMATIONS (TAP SEVERAL TO MIX)">{BUBBLE_FX.map((f) => <Chip key={f.id} on={fxSel.includes(f.id)} onClick={() => pickFx(f.id)}>{f.title}</Chip>)}</Row>
         <Row label="COLORS">

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { openStylePanel } from '@/lib/obdPrefs';
+import { openStylePanel, fxTargetOn, toggleFxTarget, setAllFxTargets } from '@/lib/obdPrefs';
 import { Bluetooth, Loader2, RefreshCw, Play, Square, Circle, Lock, Unlock, RotateCcw, ChevronDown, Palette } from 'lucide-react';
 import { METRICS, GROUPS, BUBBLE_THEMES, BUBBLE_FX, VALUE_FX, GLOWS, EXTRAS, SHAPES, FX_TARGETS, useObd, useObdPrefs, setObdPrefs, hasNativeObd, obdDevices, obdConnect, obdDisconnect, obdLog, obdAskBluetooth, useObdDemo, setObdDemo, resetPeak } from '@/lib/obd';
 
@@ -166,11 +166,13 @@ export default function EngineSettings() {
           <div className="flex flex-wrap gap-1.5">{GLOWS.map((l, i) => <Chip key={l} on={(prefs.glow ?? 1) === i} onClick={() => setObdPrefs({ glow: i })}>{l}</Chip>)}</div>
         </div>
         <div>
-          <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">ALSO USE AROUND THE APP</div>
+          <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">USE ANIMATIONS ON</div>
           <div className="flex flex-wrap gap-1.5">
-            {FX_TARGETS.map((t) => <Chip key={t.id} on={!!prefs.fxTargets?.[t.id]} onClick={() => setObdPrefs((p) => ({ fxTargets: { ...p.fxTargets, [t.id]: !p.fxTargets?.[t.id] } }))}>{t.title}</Chip>)}
+            <Chip on={FX_TARGETS.every((t) => fxTargetOn(prefs, t.id))} onClick={() => setAllFxTargets(FX_TARGETS.map((t) => t.id), true)}>All</Chip>
+            <Chip on={FX_TARGETS.every((t) => !fxTargetOn(prefs, t.id))} onClick={() => setAllFxTargets(FX_TARGETS.map((t) => t.id), false)}>None</Chip>
+            {FX_TARGETS.map((t) => <Chip key={t.id} on={fxTargetOn(prefs, t.id)} onClick={() => toggleFxTarget(t.id)}>{t.title}</Chip>)}
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1">Puts your animation mix (in your map theme's colors) on these too. Works without an OBD adapter.</p>
+          <p className="text-[11px] text-muted-foreground mt-1">Tap All, None, or pick just the spots you want. Gauges animate even with no adapter connected; the rest use your map theme's colors.</p>
         </div>
         <Section title="EXTRAS" hint={`${EXTRAS.filter((x) => prefs.extras?.[x.id]).length} on`}>
           <p className="text-[11px] text-muted-foreground">Mix and match. Each one stacks on top of any animation.</p>

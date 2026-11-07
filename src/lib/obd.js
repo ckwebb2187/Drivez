@@ -101,6 +101,7 @@ export const VALUE_FX = [
 export const GLOWS = ['Soft', 'Normal', 'Bright', 'Max'];
 // Other parts of the app that can wear the same animation mix.
 export const FX_TARGETS = [
+  { id: 'gauges', title: 'Engine gauges' },
   { id: 'speed', title: 'Speed gauge' },
   { id: 'buttons', title: 'Drive buttons' },
   { id: 'turn', title: 'Turn card' },

@@ -3,27 +3,27 @@ import { useEffect, useRef, useState } from 'react';
 // Shared futuristic glow animations (engine gauges and other parts of the app).
 // Battery: CSS transform/opacity/offset animations only, no blur filters, no per-frame JS.
 export const FX_CSS = `
-@keyframes dzBreathe{0%,100%{opacity:.35}50%{opacity:.9}}
+@keyframes dzBreathe{0%,100%{opacity:.15}50%{opacity:1}}
 @keyframes dzSpin{to{transform:rotate(360deg)}}
 @keyframes dzSpinBack{to{transform:rotate(-360deg)}}
 @keyframes dzRipple{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.4);opacity:0}}
 @keyframes dzScan{0%{transform:translateY(-100%)}100%{transform:translateY(100%)}}
-@keyframes dzHoloFlick{0%,92%,100%{opacity:1}93%{opacity:.55}95%{opacity:.95}96%{opacity:.6}}
+@keyframes dzHoloFlick{0%,60%,100%{opacity:1}62%{opacity:.4}64%{opacity:.9}66%{opacity:.5}68%{opacity:1}}
 @keyframes dzHot{0%,100%{opacity:.4}50%{opacity:1}}
 @keyframes dzVGlow{0%,100%{opacity:.18}50%{opacity:.55}}
 @keyframes dzFlash{0%{opacity:1;transform:scale(1.08)}100%{opacity:0;transform:scale(1)}}
 @keyframes dzFlicker{0%,88%,100%{opacity:1}89%{opacity:.4}90%{opacity:1}92%{opacity:.6}93%{opacity:1}}
 @keyframes dzIdle{0%,100%{opacity:.25}50%{opacity:.6}}
 .dz-b [class*="a-"]{transform-origin:center;transform-box:fill-box}
-.dz-b .a-breathe{animation:dzBreathe 3.2s ease-in-out infinite}
+.dz-b .a-breathe{animation:dzBreathe 2.4s ease-in-out infinite}
 .dz-b .a-orbit{animation:dzSpin 4.5s linear infinite}
 .dz-b .a-radar{animation:dzSpin 3s linear infinite}
 .dz-b .a-ripple{animation:dzRipple 2.6s ease-out infinite}
 .dz-b .a-ripple2{animation:dzRipple 2.6s ease-out 1.3s infinite}
-.dz-b .a-scan{animation:dzScan 2.8s linear infinite}
-.dz-b .a-holo{animation:dzHoloFlick 6s steps(1) infinite}
-.dz-b .a-reactor{animation:dzSpin 9s linear infinite}
-.dz-b .a-reactor2{animation:dzSpinBack 14s linear infinite}
+.dz-b .a-scan{animation:dzScan 2s linear infinite}
+.dz-b .a-holo{animation:dzHoloFlick 3s steps(1) infinite}
+.dz-b .a-reactor{animation:dzSpin 5s linear infinite}
+.dz-b .a-reactor2{animation:dzSpinBack 7s linear infinite}
 .dz-b .a-hot{animation:dzHot .9s ease-in-out infinite}
 .dz-b .a-vglow{animation:dzVGlow 2.4s ease-in-out infinite}
 .dz-b .a-flash{animation:dzFlash .5s ease-out forwards}
@@ -32,8 +32,8 @@ export const FX_CSS = `
 .dz-b .a-idle2{animation:dzIdle 2.4s ease-in-out infinite}
 @keyframes dzSonar{0%{transform:scale(.55);opacity:0}30%{opacity:.8}100%{transform:scale(1.25);opacity:0}}
 @keyframes dzHeart{0%,100%{opacity:.3;transform:scale(1)}12%{opacity:1;transform:scale(1.05)}24%{opacity:.45;transform:scale(1)}36%{opacity:.9;transform:scale(1.035)}55%{opacity:.3}}
-@keyframes dzGlitch{0%,90%,100%{transform:translate(0,0)}91%{transform:translate(2px,-1px)}93%{transform:translate(-2px,1px)}95%{transform:translate(1px,1px)}}
-@keyframes dzTwinkle{0%,100%{opacity:.15}50%{opacity:1}}
+@keyframes dzGlitch{0%,40%,48%,84%,100%{transform:translate(0,0);opacity:1}41%{transform:translate(3px,-1px);opacity:.6}44%{transform:translate(-3px,1px)}46%{transform:translate(2px,2px);opacity:.8}85%{transform:translate(-2px,0);opacity:.5}88%{transform:translate(3px,-2px)}}
+@keyframes dzTwinkle{0%,100%{opacity:0;transform:scale(.5)}50%{opacity:1;transform:scale(1.6)}}
 @keyframes dzShine{0%,70%{transform:translateX(-120%) skewX(-15deg)}100%{transform:translateX(320%) skewX(-15deg)}}
 @keyframes dzFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 @keyframes dzTip{0%,100%{opacity:.6}50%{opacity:1}}
@@ -42,15 +42,15 @@ export const FX_CSS = `
 @keyframes dzBlink{0%,100%{opacity:.2}50%{opacity:1}}
 .dz-b .a-comet,.dz-b .a-plasma{animation:dzSpin 3.2s linear infinite}
 .dz-b .a-plasma{animation-duration:5s}
-.dz-b .a-aurora{animation:dzSpin 12s linear infinite}
-.dz-b .a-circuit{animation:dzSpinBack 16s linear infinite}
+.dz-b .a-aurora{animation:dzSpin 6s linear infinite}
+.dz-b .a-circuit{animation:dzSpinBack 8s linear infinite}
 .dz-b .a-blink{animation:dzBlink 1.4s ease-in-out infinite}
 .dz-b .a-sonar{animation:dzSonar 3s ease-out infinite}
 .dz-b .a-sonar2{animation:dzSonar 3s ease-out 1s infinite}
 .dz-b .a-sonar3{animation:dzSonar 3s ease-out 2s infinite}
 .dz-b .a-heart{animation:dzHeart 1.6s ease-in-out infinite}
-.dz-b .a-glitch{animation:dzGlitch 4s steps(1) infinite}
-.dz-b .a-twinkle{animation:dzTwinkle 2.2s ease-in-out infinite}
+.dz-b .a-glitch{animation:dzGlitch 1.8s steps(1) infinite}
+.dz-b .a-twinkle{animation:dzTwinkle 1.6s ease-in-out infinite}
 .dz-b .a-shine{animation:dzShine 5s ease-in-out infinite}
 .dz-b .a-float{animation:dzFloat 4s ease-in-out infinite}
 .dz-b .a-tip{animation:dzTip 1.2s ease-in-out infinite}
@@ -60,10 +60,10 @@ export const FX_CSS = `
 @keyframes dzMarch{to{stroke-dashoffset:-100}}
 @keyframes dzLattice{to{transform:translate(18px,31.5px)}}
 @keyframes dzCharge{0%{transform:translateY(480%);opacity:0}20%{opacity:1}100%{transform:translateY(-120%);opacity:0}}
-.dz-b .a-trace{animation:dzTrace 3.6s linear infinite}
-.dz-b .a-march{animation:dzMarch 2.4s linear infinite}
-.dz-b .a-march-slow{animation:dzMarch 6s linear infinite}
-.dz-b .a-lattice{animation:dzLattice 6s linear infinite}
+.dz-b .a-trace{animation:dzTrace 2.6s linear infinite}
+.dz-b .a-march{animation:dzMarch 1.6s linear infinite}
+.dz-b .a-march-slow{animation:dzMarch 3.5s linear infinite}
+.dz-b .a-lattice{animation:dzLattice 3s linear infinite}
 .dz-b .a-charge{animation:dzCharge 1.8s ease-in infinite}
 .dz-calm *,.dz-paused *{animation-play-state:paused!important}
 @media (prefers-reduced-motion:reduce){.dz-b *{animation:none!important}}
@@ -86,7 +86,7 @@ export const shapeDims = (shape, s) => (shape === 'bar' ? { w: Math.round(s * 1.
 export const pathOf = (pts, sx = 1, sy = 1) => `M${pts.map(([x, y]) => `${(x * sx).toFixed(1)} ${(y * sy).toFixed(1)}`).join(' L')} Z`;
 export const shrink = (pts, [cx, cy], k) => pts.map(([x, y]) => [cx + (x - cx) * k, cy + (y - cy) * k]);
 export const clipOf = (pts, [W, H]) => `polygon(${pts.map(([x, y]) => `${(x / W * 100).toFixed(1)}% ${(y / H * 100).toFixed(1)}%`).join(',')})`;
-const latticeUrl = (col) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='24' height='42' viewBox='0 0 24 42'><path d='M12 0 L24 7 L24 21 L12 28 L0 21 L0 7 Z M12 28 L12 42' fill='none' stroke='${col}' stroke-width='1'/></svg>`)}")`;
+const latticeUrl = (col) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='24' height='42' viewBox='0 0 24 42'><path d='M12 0 L24 7 L24 21 L12 28 L0 21 L0 7 Z M12 28 L12 42' fill='none' stroke='${col}' stroke-width='1.6'/></svg>`)}")`;
 
 // Animations that work on any shape: drawn along the outline or clipped inside it.
 export function ShapeFx({ fx, col, col2, w, h, def, calm }) {
@@ -113,19 +113,19 @@ export function ShapeFx({ fx, col, col2, w, h, def, calm }) {
     case 'comet': return <>{[0, 1, 2, 3, 4, 5].map((i) => dot(i, 7 - i, 1 - i * 0.15))}</>;
     case 'reactor': case 'circuit': case 'stream':
       return outline('', { pathLength: 100, strokeWidth: fx === 'stream' ? 2.4 : 1.6, strokeDasharray: fx === 'circuit' ? '1 2 5 2' : '6 6', strokeOpacity: 0.85, className: fx === 'reactor' ? 'a-march-slow' : 'a-march' });
-    case 'radar': return inside(<div className="absolute -inset-1/4 a-radar opacity-60" style={{ background: `conic-gradient(from 0deg, transparent 0deg 290deg, ${col}88 358deg, transparent 360deg)` }} />);
+    case 'radar': return inside(<div className="absolute -inset-1/4 a-radar opacity-60" style={{ background: `conic-gradient(from 0deg, transparent 0deg 270deg, ${col}cc 356deg, #ffffffaa 359deg, transparent 360deg)` }} />);
     case 'plasma': case 'aurora':
       return inside(<div className={`absolute -inset-1/4 ${fx === 'plasma' ? 'a-plasma' : 'a-aurora'} opacity-60`} style={{ background: `conic-gradient(${col}, ${col2}55, transparent, ${col}, ${col2}55, transparent, ${col})` }} />);
     case 'holo':
       return inside(<div className="absolute inset-0 a-holo"><div className="absolute inset-0 opacity-25" style={{ background: `repeating-linear-gradient(0deg, ${col}55 0 1px, transparent 1px 4px)` }} /><div className="absolute inset-x-0 h-1/3 a-scan" style={{ background: `linear-gradient(180deg, transparent, ${col}55, transparent)` }} /></div>);
     case 'starfield':
-      return inside(<svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">{[[22, 30], [74, 26], [30, 72], [70, 74], [50, 14], [86, 52], [14, 52], [58, 88]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r={i % 3 ? 0.9 : 1.3} fill={i % 2 ? '#fff' : col} className="a-twinkle" style={{ animationDelay: `${(i * 0.37) % 2.2}s` }} />)}</svg>);
+      return inside(<svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full">{[[22, 30], [74, 26], [30, 72], [70, 74], [50, 14], [86, 52], [14, 52], [58, 88]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r={i % 3 ? 1.3 : 1.9} fill={i % 2 ? '#fff' : col} className="a-twinkle" style={{ animationDelay: `${(i * 0.37) % 2.2}s` }} />)}</svg>);
     case 'glitch':
       return <>{outline('a-glitch', { strokeWidth: 2, style: { filter: 'none' } })}{inside(<div className="absolute inset-0 opacity-20" style={{ background: `repeating-linear-gradient(0deg, ${col} 0 1px, transparent 1px 3px)` }} />)}</>;
     case 'lattice':
-      return inside(<div className="absolute -inset-[30%] a-lattice opacity-35" style={{ backgroundImage: latticeUrl(col), backgroundSize: '18px 31.5px' }} />);
+      return inside(<div className="absolute -inset-[30%] a-lattice opacity-60" style={{ backgroundImage: latticeUrl(col), backgroundSize: '18px 31.5px' }} />);
     case 'charge':
-      return inside(<>{[0, 1, 2].map((i) => <div key={i} className="absolute inset-x-0 h-[22%] a-charge" style={{ animationDelay: `${i * 0.6}s`, background: `linear-gradient(0deg, transparent, ${col}66, transparent)` }} />)}</>);
+      return inside(<>{[0, 1, 2].map((i) => <div key={i} className="absolute inset-x-0 h-[22%] a-charge" style={{ animationDelay: `${i * 0.6}s`, background: `linear-gradient(0deg, transparent, ${col}aa, #ffffff55, ${col}aa, transparent)` }} />)}</>);
     default: return null;
   }
 }
