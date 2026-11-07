@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Bluetooth, Loader2, RefreshCw, Play, Square, Circle, Lock, Unlock, RotateCcw, ChevronDown } from 'lucide-react';
-import { METRICS, GROUPS, BUBBLE_THEMES, BUBBLE_FX, VALUE_FX, useObd, useObdPrefs, setObdPrefs, hasNativeObd, obdDevices, obdConnect, obdDisconnect, obdLog, obdAskBluetooth, useObdDemo, setObdDemo, resetPeak } from '@/lib/obd';
+import { METRICS, GROUPS, BUBBLE_THEMES, BUBBLE_FX, VALUE_FX, GLOWS, EXTRAS, useObd, useObdPrefs, setObdPrefs, hasNativeObd, obdDevices, obdConnect, obdDisconnect, obdLog, obdAskBluetooth, useObdDemo, setObdDemo, resetPeak } from '@/lib/obd';
 
 const Chip = ({ on, off, onClick, children }) => (
   <button onClick={onClick} className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${on ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-foreground border-border'} ${off ? 'opacity-40' : ''}`}>{children}</button>
@@ -141,6 +141,16 @@ export default function EngineSettings() {
           <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">NUMBERS</div>
           <div className="flex flex-wrap gap-1.5">{VALUE_FX.map((f) => <Chip key={f.id} on={prefs.valueFx === f.id} onClick={() => setObdPrefs({ valueFx: f.id })}>{f.title}</Chip>)}</div>
         </div>
+        <div>
+          <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">GLOW STRENGTH</div>
+          <div className="flex flex-wrap gap-1.5">{GLOWS.map((l, i) => <Chip key={l} on={(prefs.glow ?? 1) === i} onClick={() => setObdPrefs({ glow: i })}>{l}</Chip>)}</div>
+        </div>
+        <Section title="EXTRAS" hint={`${EXTRAS.filter((x) => prefs.extras?.[x.id]).length} on`}>
+          <p className="text-[11px] text-muted-foreground">Mix and match. Each one stacks on top of any animation.</p>
+          <div className="flex flex-wrap gap-1.5">
+            {EXTRAS.map((x) => <Chip key={x.id} on={!!prefs.extras?.[x.id]} onClick={() => setObdPrefs((p) => ({ extras: { ...p.extras, [x.id]: !p.extras?.[x.id] } }))}>{x.title}</Chip>)}
+          </div>
+        </Section>
         <div>
           <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">SIZE</div>
           <div className="flex gap-1.5">{['Small', 'Medium', 'Large'].map((l, i) => <Chip key={l} on={prefs.size === i} onClick={() => setObdPrefs({ size: i })}>{l}</Chip>)}</div>

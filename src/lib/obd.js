@@ -71,22 +71,50 @@ export const BUBBLE_FX = [
   { id: 'auto', title: 'Auto (by theme)' },
   { id: 'breathe', title: 'Breathe' },
   { id: 'orbit', title: 'Orbit' },
+  { id: 'comet', title: 'Comet trail' },
   { id: 'radar', title: 'Radar sweep' },
   { id: 'ripple', title: 'Ripple' },
+  { id: 'sonar', title: 'Sonar' },
   { id: 'holo', title: 'Hologram' },
   { id: 'reactor', title: 'Reactor' },
+  { id: 'plasma', title: 'Plasma ring' },
+  { id: 'aurora', title: 'Aurora' },
+  { id: 'circuit', title: 'Circuit' },
+  { id: 'heartbeat', title: 'Heartbeat' },
+  { id: 'starfield', title: 'Starfield' },
+  { id: 'glitch', title: 'Glitch' },
   { id: 'none', title: 'Still' },
 ];
 export const VALUE_FX = [
   { id: 'glow', title: 'Neon glow' },
+  { id: 'outline', title: 'Neon outline' },
+  { id: 'chroma', title: 'Chromatic' },
   { id: 'flash', title: 'Flash on change' },
+  { id: 'pulse', title: 'Pop on change' },
   { id: 'flicker', title: 'Flicker' },
   { id: 'plain', title: 'Plain' },
 ];
+export const GLOWS = ['Soft', 'Normal', 'Bright', 'Max'];
+// Stackable extras: each can be on with any animation style.
+export const EXTRAS = [
+  { id: 'neonRim', title: 'Neon rim' },
+  { id: 'halo', title: 'Double halo' },
+  { id: 'innerGlow', title: 'Inner glow' },
+  { id: 'reactive', title: 'Glow grows with value' },
+  { id: 'colorShift', title: 'Color shifts with value' },
+  { id: 'tipSpark', title: 'Arc tip spark' },
+  { id: 'ticks', title: 'Gauge ticks' },
+  { id: 'shine', title: 'Glass shine' },
+  { id: 'scanlines', title: 'Scanlines' },
+  { id: 'float', title: 'Gentle float' },
+  { id: 'shiftLight', title: 'Shift light (high RPM)' },
+  { id: 'peaks', title: 'Show highest this session' },
+];
 const AUTO_FX = {
-  kaido: 'orbit', tokyo: 'orbit', sakuranight: 'orbit', harajuku: 'orbit', cyberpunk: 'holo', matrix: 'holo', y2k: 'holo',
-  vapor: 'ripple', galaxy: 'ripple', kawaii: 'ripple', rose: 'ripple', bayshore: 'radar', daikoku: 'radar', shuto: 'radar',
-  dystopian: 'radar', wasteland: 'radar', risingsun: 'reactor', samurai: 'reactor', tougedawn: 'reactor',
+  kaido: 'orbit', tokyo: 'orbit', sakuranight: 'orbit', harajuku: 'orbit', cyberpunk: 'glitch', matrix: 'circuit', y2k: 'holo',
+  vapor: 'aurora', galaxy: 'starfield', kawaii: 'ripple', rose: 'ripple', bayshore: 'comet', daikoku: 'radar', shuto: 'sonar',
+  dystopian: 'radar', wasteland: 'radar', risingsun: 'plasma', samurai: 'reactor', tougedawn: 'heartbeat',
+  lavender: 'aurora', zen: 'breathe', minimal: 'breathe',
 };
 export const fxFor = (fx, themeKey) => (fx !== 'auto' ? fx : AUTO_FX[String(themeKey).split('@')[0]] || 'breathe');
 
