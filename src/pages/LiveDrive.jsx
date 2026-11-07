@@ -980,7 +980,7 @@ export default function LiveDrive({ active = true, peek = false }) {
                 <Search className="w-5 h-5" />
               </button>
               {whereOpen && <PlaceSearchSheet title={navPlan ? 'Change destination' : 'Where to?'} pos={drive.currentPosition || herePos} moving={(drive.currentSpeed || 0) >= 5} onPick={radarGo} onClose={() => setWhereOpen(false)} />}
-              <AskGemini size={50} context={askContext} onAction={onAskAction} />
+              <div className="relative w-[50px] h-[50px] self-end"><AskGemini size={50} context={askContext} onAction={onAskAction} />{fxOn(fxButtons)}</div>
               {/* Gauge & glow style. Moving: first tap asks for a second tap (meant for passengers). */}
               <button onClick={() => {
                   if ((drive.currentSpeed || 0) < 5 || styleArmed) { setStyleArmed(false); openStylePanel(); return; }
@@ -988,6 +988,7 @@ export default function LiveDrive({ active = true, peek = false }) {
                 }}
                 className={`relative h-[50px] rounded-full shadow-xl border flex items-center justify-center gap-1.5 transition-all self-end ${styleArmed ? 'w-[150px] bg-primary border-primary text-primary-foreground' : 'w-[50px] bg-card border-border text-foreground'}`}
                 aria-label="Gauge style">
+                {!styleArmed && fxOn(fxButtons)}
                 <Palette className="w-5 h-5" />{styleArmed && <span className="text-xs font-bold">Passenger? Tap</span>}
               </button>
               <button onClick={cycleMode} aria-label="Drive mode"
@@ -996,9 +997,9 @@ export default function LiveDrive({ active = true, peek = false }) {
                 <span className="text-base font-black">{driveMode === 'toge' ? '峠' : driveMode === 'wangan' ? '湾' : '巡'}</span>
                 <span className="text-[8px] font-bold mt-0.5">{driveMode === 'toge' ? 'TŌGE' : driveMode === 'wangan' ? 'WANGAN' : 'CRUISE'}</span>
               </button>
-              <WeatherButton className="!w-[50px] !h-[50px]" />
-              <MusicButton size={50} />
-              <ReportButton size={50} onReport={(type) => roadReports.report(type, drive.currentPosition)} disabled={!drive.currentPosition} />
+              <div className="relative w-[50px] h-[50px] self-end"><WeatherButton className="!w-[50px] !h-[50px]" />{fxOn(fxButtons)}</div>
+              <div className="relative w-[50px] h-[50px] self-end"><MusicButton size={50} />{fxOn(fxButtons)}</div>
+              <div className="relative w-[50px] h-[50px] self-end"><ReportButton size={50} onReport={(type) => roadReports.report(type, drive.currentPosition)} disabled={!drive.currentPosition} />{fxOn(fxButtons)}</div>
               {/* Settings mid-drive. Moving: first tap asks for a second tap (meant for passengers). */}
               <button onClick={() => {
                   if ((drive.currentSpeed || 0) < 5 || settingsArmed) { setSettingsArmed(false); setSettingsOpen(true); return; }
@@ -1012,8 +1013,9 @@ export default function LiveDrive({ active = true, peek = false }) {
               {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
               {!nav.active && (
                 <button onClick={() => { if (endArmed) { setEndArmed(false); drive.end(); } else { setEndArmed(true); setTimeout(() => setEndArmed(false), 3500); } }}
-                  className={`h-[50px] rounded-full shadow-xl border flex items-center justify-center gap-1.5 transition-all ${endArmed ? 'w-[128px] bg-destructive border-destructive text-white' : 'w-[50px] bg-card border-border text-destructive'}`}
+                  className={`relative h-[50px] rounded-full shadow-xl border flex items-center justify-center gap-1.5 transition-all ${endArmed ? 'w-[128px] bg-destructive border-destructive text-white' : 'w-[50px] bg-card border-border text-destructive'}`}
                   aria-label="End drive">
+                  {!endArmed && fxOn(fxButtons)}
                   <Square className="w-4 h-4 fill-current" />{endArmed && <span className="text-xs font-bold">Tap to end</span>}
                 </button>
               )}
