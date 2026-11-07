@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { CAR_MODELS } from '@/lib/carModels';
+import { WALL_COLORS, MOD_BRANDS, MAKE_STYLE } from '@/lib/garageLook';
 
 // The garage showroom: your car on a lift, a neon social wall, and shop props you can tap
 // (tool chest = mods & service, engine stand = specs, QR board = window sticker, wall = socials).
@@ -21,13 +22,14 @@ const SOCIAL_SIGNS = [
   { key: 'tiktok', label: '♪', color: '#25f4ee', font: '900 130px Arial' },
 ];
 
-export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qrUrl, height = 320, onProp }) {
+// `garage` = { wall, color, graffiti, makeBanner, mods } from garageLook; `make` names the car brand banner.
+export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qrUrl, height = 320, onProp, make = '', carModel = '', garage = {} }) {
   const box = useRef(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const tapRef = useRef(onProp);
   tapRef.current = onProp;
-  const key = JSON.stringify([look, accent, socials, qrUrl]);
+  const key = JSON.stringify([look, accent, socials, qrUrl, make, carModel, garage]);
 
   useEffect(() => {
     let alive = true, raf = 0, renderer, cleanup = () => {};
@@ -42,16 +44,28 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
         renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
         renderer.setSize(w, h);
         renderer.outputColorSpace = THREE.SRGBColorSpace;
+        // Filmic tone mapping keeps bright lights from blowing out (less glare).
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 0.95;
         box.current.appendChild(renderer.domElement);
         const scene = new THREE.Scene();
         scene.background = new THREE.Color('#0b0c10');
         scene.fog = new THREE.Fog('#0b0c10', 14, 26);
         const camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 100);
 
-        scene.add(new THREE.HemisphereLight('#c8d4ff', '#1a1a22', 0.9));
-        const key = new THREE.DirectionalLight('#ffffff', 2.2); key.position.set(-4, 8, 5); scene.add(key);
-        const neon = new THREE.PointLight(accent, 18, 9, 1.6); neon.position.set(0, 0.4, 0); scene.add(neon);
-        const shop = new THREE.PointLight('#ffd9a0', 10, 12, 1.4); shop.position.set(0, 4.6, 1.5); scene.add(shop);
+        // Shop lighting: soft fill, a front key on the car, ceiling strips, and spots washing the back wall.
+        scene.add(new THREE.HemisphereLight('#d8e0ff', '#18181d', 0.55));
+        const key = new THREE.DirectionalLight('#fff6ea', 1.5); key.position.set(3, 7, 7); scene.add(key);
+        const rim = new THREE.DirectionalLight('#9fb6ff', 0.6); rim.position.set(-5, 4, -6); scene.add(rim);
+        const neon = new THREE.PointLight(accent, 6, 6, 1.8); neon.position.set(0, 0.35, 0); scene.add(neon);
+        const shop = new THREE.PointLight('#ffe2b8', 6, 12, 1.5); shop.position.set(0, 5.2, 1.5); scene.add(shop);
+        for (const x of [-4.5, 0, 4.5]) {
+          const spot = new THREE.SpotLight('#ffeedd', 22, 9, 0.62, 0.85, 1.6);
+          spot.position.set(x, 5.7, -2.0); spot.target.position.set(x, 2.2, -4.2);
+          scene.add(spot); scene.add(spot.target);
+        }
+        const stripMat = new THREE.MeshBasicMaterial({ color: '#fff4e2' });
+        for (const x of [-3.2, 0, 3.2]) { const strip = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.05, 0.18), stripMat); strip.position.set(x, 5.95, -0.6); scene.add(strip); }
 
         // Floor: dark epoxy with a faint grid.
         const floorTex = canvasTex(THREE, 512, 512, (g, W, H) => {
@@ -60,18 +74,56 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
           for (let i = 0; i <= W; i += 64) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, H); g.stroke(); g.beginPath(); g.moveTo(0, i); g.lineTo(W, i); g.stroke(); }
         });
         floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(4, 4);
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(18, 14), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.35, metalness: 0.3 }));
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(18, 14), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.62, metalness: 0.08 }));
         floor.rotation.x = -Math.PI / 2; scene.add(floor);
 
         // Back wall (brick-ish) and side wall.
+        const base = (WALL_COLORS.find((c) => c.id === garage.color) || WALL_COLORS[0]).hex;
+        const shade = (hex, k) => `#${[1, 3, 5].map((i) => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * k))).toString(16).padStart(2, '0')).join('')}`;
         const wallTex = canvasTex(THREE, 512, 256, (g, W, H) => {
-          g.fillStyle = '#23242b'; g.fillRect(0, 0, W, H);
-          g.fillStyle = '#2b2c34';
-          for (let y = 0; y < H; y += 24) for (let x = (y / 24) % 2 ? -32 : 0; x < W; x += 64) g.fillRect(x + 2, y + 2, 60, 20);
+          g.fillStyle = shade(base, 0.85); g.fillRect(0, 0, W, H);
+          if (garage.wall === 'concrete') {
+            for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(${Math.random() < 0.5 ? '255,255,255' : '0,0,0'},${Math.random() * 0.06})`; g.fillRect(Math.random() * W, Math.random() * H, 2, 2); }
+            g.strokeStyle = shade(base, 0.6); g.lineWidth = 2; for (let x = 0; x <= W; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+          } else if (garage.wall === 'panel') {
+            for (let x = 0; x < W; x += 64) { const gr = g.createLinearGradient(x, 0, x + 64, 0); gr.addColorStop(0, shade(base, 1.15)); gr.addColorStop(0.5, shade(base, 0.95)); gr.addColorStop(1, shade(base, 0.75)); g.fillStyle = gr; g.fillRect(x, 0, 62, H); }
+            g.fillStyle = shade(base, 0.5); for (let x = 8; x < W; x += 64) for (let y = 12; y < H; y += 60) g.fillRect(x, y, 3, 3);
+          } else {
+            g.fillStyle = shade(base, 1.0);
+            for (let y = 0; y < H; y += 24) for (let x = (y / 24) % 2 ? -32 : 0; x < W; x += 64) { g.fillStyle = shade(base, 0.95 + Math.random() * 0.15); g.fillRect(x + 2, y + 2, 60, 20); }
+          }
         });
         wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping; wallTex.repeat.set(3, 2);
         const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.9 });
         const back = new THREE.Mesh(new THREE.PlaneGeometry(18, 6), wallMat); back.position.set(0, 3, -4.2); scene.add(back);
+
+        // Graffiti (optional): big bubble letters, tags, drips and spray, painted on the wall.
+        if (garage.graffiti) {
+          const pal = ['#ff2d95', '#00e5ff', '#7cff3c', '#ffd400', '#a855ff', '#ff6a13'];
+          const pick = () => pal[Math.floor(Math.random() * pal.length)];
+          const graf = canvasTex(THREE, 2048, 683, (g, W, H) => {
+            g.clearRect(0, 0, W, H);
+            const bubble = (text, x, y, size, rot) => {
+              g.save(); g.translate(x, y); g.rotate(rot);
+              g.font = `900 ${size}px "Arial Black", Impact, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+              const c1 = pick(), c2 = pick();
+              g.lineJoin = 'round'; g.lineWidth = size * 0.22; g.strokeStyle = '#0a0a0a'; g.strokeText(text, 0, 0);
+              g.lineWidth = size * 0.1; g.strokeStyle = '#ffffff'; g.strokeText(text, 0, 0);
+              const gr = g.createLinearGradient(0, -size / 2, 0, size / 2); gr.addColorStop(0, c1); gr.addColorStop(1, c2);
+              g.fillStyle = gr; g.fillText(text, 0, 0);
+              for (let i = 0; i < 9; i++) { const dx = (Math.random() - 0.5) * size * text.length * 0.55; g.fillStyle = c2; g.fillRect(dx, size * 0.35, 6, 30 + Math.random() * 90); }
+              g.restore();
+            };
+            const tag = (x, y) => { g.strokeStyle = pick(); g.lineWidth = 7; g.lineCap = 'round'; g.beginPath(); g.moveTo(x, y); for (let i = 0; i < 9; i++) g.quadraticCurveTo(x + i * 22 + Math.random() * 30, y - 50 + Math.random() * 100, x + (i + 1) * 26, y + (Math.random() - 0.5) * 40); g.stroke(); };
+            const spray = (x, y, r, col) => { for (let i = 0; i < 500; i++) { const a = Math.random() * Math.PI * 2, d = Math.random() * r; g.fillStyle = col; g.globalAlpha = Math.random() * 0.5; g.fillRect(x + Math.cos(a) * d, y + Math.sin(a) * d, 3, 3); } g.globalAlpha = 1; };
+            spray(250, 470, 150, pick()); spray(1800, 430, 170, pick()); spray(1020, 600, 120, pick());
+            bubble('KAIDO', 360, 470, 190, -0.08);
+            bubble('BOOST', 1700, 440, 160, 0.06);
+            tag(820, 600); tag(1150, 140); tag(120, 150); tag(1500, 640);
+          });
+          const gm = new THREE.Mesh(new THREE.PlaneGeometry(18, 6), new THREE.MeshStandardMaterial({ map: graf, transparent: true, roughness: 0.85 }));
+          gm.position.set(0, 3, -4.19); scene.add(gm);
+        }
 
         // Lift platform with a neon edge, posts and arms.
         const plat = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.3, 2.9), new THREE.MeshStandardMaterial({ color: '#1d1f26', metalness: 0.7, roughness: 0.35 }));
@@ -110,6 +162,30 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
           g.font = '900 54px system-ui'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('KAIDO GARAGE', W / 2, H / 2 + 2);
         }) }));
         banner.position.set(0, 4.45, -4.15); scene.add(banner);
+
+        // Car-brand banner (text in brand colors, no logos) and mod-brand pennants.
+        const hang = (w, h, x, y, draw) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: canvasTex(THREE, Math.round(w * 160), Math.round(h * 160), draw), roughness: 0.8, side: THREE.DoubleSide })); m.position.set(x, y, -4.12); scene.add(m); return m; };
+        if (garage.makeBanner !== false && make) {
+          const ms = MAKE_STYLE[make.toLowerCase()] || { bg: '#111318', fg: '#ffffff', stripe: accent };
+          hang(2.3, 0.7, -3.55, 4.45, (g, W, H) => {
+            g.fillStyle = ms.bg; g.fillRect(0, 0, W, H);
+            g.fillStyle = ms.stripe; g.fillRect(0, H - 14, W, 8); g.fillRect(0, 6, W, 4);
+            g.fillStyle = ms.fg; g.font = `900 ${Math.round(H * 0.48)}px "Arial Black", Arial, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+            g.fillText(make.toUpperCase(), W / 2, H * 0.44);
+            if (carModel) { g.font = `700 ${Math.round(H * 0.16)}px Arial`; g.fillStyle = ms.stripe; g.fillText(`${carModel.toUpperCase()} · RACE TEAM`, W / 2, H * 0.78); }
+          });
+        }
+        const mods = (garage.mods || []).map((id) => MOD_BRANDS.find((b) => b.id === id)).filter(Boolean).slice(0, 6);
+        // Mod banners hang in a row up near the ceiling, centered.
+        const bw = 1.5, gap = 0.12, row = mods.length * bw + (mods.length - 1) * gap;
+        mods.forEach((b, i) => {
+          hang(bw, 0.46, -row / 2 + bw / 2 + i * (bw + gap), 5.3, (g, W, H) => {
+            g.fillStyle = b.bg; g.fillRect(0, 0, W, H);
+            g.fillStyle = b.fg; g.font = `900 ${Math.min(H * 0.6, (W * 0.86) / (b.name.length * 0.66))}px "Arial Black", Arial, sans-serif`;
+            g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(b.name, W / 2, H / 2 + 2);
+            g.strokeStyle = b.fg; g.globalAlpha = 0.35; g.lineWidth = 4; g.strokeRect(5, 5, W - 10, H - 10); g.globalAlpha = 1;
+          });
+        });
 
         // Tool chest (left): sticker-bombed cabinet -> mods & service.
         const chestTex = canvasTex(THREE, 256, 256, (g, W, H) => {
@@ -170,7 +246,9 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
         else car = car3d.buildCar({ body: look.paint, glow: look.glow || null, shape: look.shape, wheels: look.wheels, wheelColor: look.wheelColor, scoop: look.scoop, wing: look.wing, style: look.style || {} });
         if (!alive) return;
         car.position.y = 0.3;
-        car.rotation.y = -0.5;
+        car.rotation.y = Math.PI - 0.5; // nose toward the camera
+        // No road headlight beams indoors (they'd shine straight into the camera as glare).
+        car.traverse((o) => { if (o.isMesh && o.material?.blending === THREE.AdditiveBlending && o.geometry?.parameters?.height === 6) o.visible = false; });
         scene.add(car);
 
         // Drag to look around; tap a prop to open it.
@@ -200,7 +278,7 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
         // Bloom glow, unless battery saver is on.
         let lite = false;
         try { const lk = JSON.parse(localStorage.getItem('dz-map-look') || '{}'); lite = lk.saver === 'on' || (lk.saver !== 'off' && navigator.deviceMemory && navigator.deviceMemory <= 2); } catch { /* default */ }
-        const post = lite ? { render: () => renderer.render(scene, camera), setSize: () => {}, dispose: () => {} } : await car3d.makeBloom(renderer, scene, camera, w, h);
+        const post = lite ? { render: () => renderer.render(scene, camera), setSize: () => {}, dispose: () => {} } : await car3d.makeBloom(renderer, scene, camera, w, h, { strength: 0.22, radius: 0.25, threshold: 0.88 });
         if (!alive) return;
         const onResize = () => { const nw = box.current?.clientWidth || w; renderer.setSize(nw, h); post.setSize(nw, h); camera.aspect = nw / h; camera.updateProjectionMatrix(); };
         window.addEventListener('resize', onResize);
@@ -210,7 +288,7 @@ export default function GarageBay3D({ look, accent = '#00e5ff', socials = {}, qr
         const tick = (t) => {
           raf = requestAnimationFrame(tick);
           if (!drag && t - idleAt > 2500) angle = 0.35 * Math.sin(t / 6000);
-          neon.intensity = 16 + Math.sin(t / 500) * 3;
+          neon.intensity = 5.5 + Math.sin(t / 700) * 1;
           camera.position.set(Math.sin(angle) * 10.5, 3.6, Math.cos(angle) * 10.5 + 1);
           camera.lookAt(0, 1.2, -0.8);
           car.userData.tick?.(t);

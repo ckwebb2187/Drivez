@@ -62,3 +62,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-11-07 · - · done by hand · gauge animations: run with no adapter, drawn on top of the face (were hidden), faint ones strengthened; Use animations on: Engine gauges + All/None
 2026-11-07 · - · done by hand · Style button moved: palette icon by the profile picture (map) and above the Tōge button (driving); off the gauges
 2026-11-07 · - · done by hand · Drive buttons glow FX now on every right-column button (Gemini, style, weather, music, report, end drive)
+2026-11-07 · - · done by hand · garage: less bloom/glare, car faces front, realistic shop lighting, Garage look (wall styles/colors, graffiti, car-brand + mod-brand text banners)

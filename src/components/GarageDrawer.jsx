@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Wrench, Cpu, QrCode, Users, Sparkles, Hand } from 'lucide-react';
+import { X, Wrench, Cpu, QrCode, Users, Sparkles, Hand, Paintbrush, ChevronDown } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import GarageBay3D from '@/components/GarageBay3D';
 import VehicleDetail from '@/components/VehicleDetail';
 import ProfileSharing, { QrSheet, profileUrl, SOCIAL_LINKS } from '@/components/ProfileSharing';
 import { carLook, displayMode } from '@/lib/carCatalog';
 import { odometer } from '@/lib/maintenance';
+import { WALL_STYLES, WALL_COLORS, MOD_BRANDS, useGarageLook, setGarageLook } from '@/lib/garageLook';
 
 // The theme's accent color as something three.js understands.
 const accentColor = () => {
@@ -19,6 +20,7 @@ const accentColor = () => {
 // Slide-out garage over the live map: 3D showroom + quick actions.
 export default function GarageDrawer({ open, onClose }) {
   const { user, vehicles, activeVehicle, trips, setPrimaryVehicle } = useApp();
+  const garage = useGarageLook();
   const [carId, setCarId] = useState(activeVehicle?.id);
   const [detail, setDetail] = useState(null); // vehicle shown in the full car page
   const [qr, setQr] = useState(false);
@@ -62,9 +64,10 @@ export default function GarageDrawer({ open, onClose }) {
           {v ? (
             <>
               <div className="relative">
-                <GarageBay3D look={look} accent={accentColor()} socials={socials} qrUrl={user ? profileUrl(user.username) : null} height={330} onProp={onProp} />
+                <GarageBay3D look={look} accent={accentColor()} socials={socials} qrUrl={user ? profileUrl(user.username) : null} height={330} onProp={onProp} make={v.make || ''} carModel={v.model || ''} garage={garage} />
                 {hint && <div className="absolute left-2 bottom-2 right-2 text-[10px] text-white/80 bg-black/50 rounded-lg px-2 py-1 flex items-center gap-1.5 pointer-events-none"><Hand className="w-3 h-3" />Drag to look around. Tap the tool chest, engine, QR sign or the social wall.</div>}
               </div>
+              <GarageLookControls make={v.make} />
               <div className="flex items-end justify-between">
                 <div>
                   <div className="text-base font-bold text-foreground">{v.year} {v.make} {v.model}{L.charm ? ` ${L.charm}` : ''}</div>
@@ -115,5 +118,54 @@ function Action({ icon: Icon, title, text, onClick }) {
       <div className="text-sm font-semibold text-foreground leading-tight">{title}</div>
       <div className="text-[10px] text-muted-foreground leading-tight">{text}</div>
     </button>
+  );
+}
+
+// Garage look: wall style and color, graffiti, and banners (your car's brand + mod brands). Text banners, no logos.
+function GarageLookControls({ make }) {
+  const g = useGarageLook();
+  const [open, setOpen] = useState(false);
+  const Chip = ({ on, onClick, children }) => (
+    <button onClick={onClick} className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${on ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-foreground border-border'}`}>{children}</button>
+  );
+  const toggleMod = (id) => setGarageLook((p) => {
+    const cur = p.mods || [];
+    return { mods: cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id].slice(-6) };
+  });
+  return (
+    <div className="rounded-2xl border border-border bg-card">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left">
+        <Paintbrush className="w-4 h-4 text-primary" />
+        <span className="flex-1 text-sm font-semibold text-foreground">Garage look</span>
+        <span className="text-[11px] text-muted-foreground">Walls, graffiti, banners</span>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="px-3 pb-3 space-y-3">
+          <div>
+            <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">WALLS</div>
+            <div className="flex flex-wrap gap-1.5">{WALL_STYLES.map((w) => <Chip key={w.id} on={g.wall === w.id} onClick={() => setGarageLook({ wall: w.id })}>{w.title}</Chip>)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">WALL COLOR</div>
+            <div className="flex flex-wrap gap-1.5">
+              {WALL_COLORS.map((c) => (
+                <Chip key={c.id} on={g.color === c.id} onClick={() => setGarageLook({ color: c.id })}>
+                  <span className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle border border-white/30" style={{ background: c.hex }} />{c.title}
+                </Chip>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <Chip on={!!g.graffiti} onClick={() => setGarageLook({ graffiti: !g.graffiti })}>Graffiti</Chip>
+            {make && <Chip on={g.makeBanner !== false} onClick={() => setGarageLook({ makeBanner: g.makeBanner === false })}>{make} banner</Chip>}
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">MOD BRAND BANNERS (UP TO 6)</div>
+            <div className="flex flex-wrap gap-1.5">{MOD_BRANDS.map((b) => <Chip key={b.id} on={(g.mods || []).includes(b.id)} onClick={() => toggleMod(b.id)}>{b.name}</Chip>)}</div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
