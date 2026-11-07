@@ -415,7 +415,6 @@ export default function LiveDrive({ active = true, peek = false }) {
   const [settingsArmed, setSettingsArmed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [whereOpen, setWhereOpen] = useState(false);
-  const [whereArmed, setWhereArmed] = useState(false);
   const [legend, setLegend] = useState(null); // tapped Local legend pin
   // Free drive (no route): end and save on its own after 10 minutes parked.
   const lastMoving = useRef(Date.now());
@@ -959,16 +958,14 @@ export default function LiveDrive({ active = true, peek = false }) {
 
             {/* Music + report shortcuts */}
             <div className={`absolute right-3 ${!nav.active ? 'bottom-[calc(16px+env(safe-area-inset-bottom))]' : barOpen ? 'bottom-[calc(134px+env(safe-area-inset-bottom))]' : 'bottom-[calc(76px+env(safe-area-inset-bottom))]'} transition-all pointer-events-auto flex flex-col gap-3`}>
-              {/* Where to? Pick or change the destination mid-drive. Moving: first tap asks for a second tap (meant for passengers). */}
-              <button onClick={() => {
-                  if ((drive.currentSpeed || 0) < 5 || whereArmed) { setWhereArmed(false); setWhereOpen(true); return; }
-                  setWhereArmed(true); setTimeout(() => setWhereArmed(false), 3500);
-                }}
-                className={`h-[50px] rounded-full shadow-xl border flex items-center justify-center gap-1.5 transition-all self-end ${whereArmed ? 'w-[150px] bg-primary border-primary text-primary-foreground' : 'w-[50px] bg-card border-border text-foreground'}`}
+              {/* Where to? Pick or change the destination mid-drive. Saved places are one tap at any speed;
+                  typing a search waits for a "Passenger?" tap while moving (inside the sheet). */}
+              <button onClick={() => setWhereOpen(true)}
+                className="w-[50px] h-[50px] rounded-full shadow-xl border flex items-center justify-center self-end bg-card border-border text-foreground"
                 aria-label={navPlan ? 'Change destination' : 'Where to?'}>
-                <Search className="w-5 h-5" />{whereArmed && <span className="text-xs font-bold">Passenger? Tap</span>}
+                <Search className="w-5 h-5" />
               </button>
-              {whereOpen && <PlaceSearchSheet title={navPlan ? 'Change destination' : 'Where to?'} pos={drive.currentPosition || herePos} onPick={radarGo} onClose={() => setWhereOpen(false)} />}
+              {whereOpen && <PlaceSearchSheet title={navPlan ? 'Change destination' : 'Where to?'} pos={drive.currentPosition || herePos} moving={(drive.currentSpeed || 0) >= 5} onPick={radarGo} onClose={() => setWhereOpen(false)} />}
               <AskGemini size={50} context={askContext} onAction={onAskAction} />
               <button onClick={cycleMode} aria-label="Drive mode"
                 className={`w-[50px] h-[50px] rounded-full shadow-xl border flex flex-col items-center justify-center leading-none ${driveMode === 'cruise' ? 'bg-card border-border text-muted-foreground' : 'bg-primary border-primary text-primary-foreground'}`}>

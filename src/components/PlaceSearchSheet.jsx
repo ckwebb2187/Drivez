@@ -5,14 +5,16 @@ import { searchPlaces, formatNavDistance, distM } from '@/lib/nav';
 import { useApp } from '@/lib/AppContext';
 
 // Full-screen "choose a place" search, with Home, Work and saved places as shortcuts.
-export default function PlaceSearchSheet({ title = 'Add stop', pos, onPick, onClose }) {
+// moving: saved places stay one tap, but typing a search waits for a "Passenger?" tap (no typing while driving).
+export default function PlaceSearchSheet({ title = 'Add stop', pos, onPick, onClose, moving = false }) {
   const { places } = useApp();
   const [q, setQ] = useState('');
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
   const inputRef = useRef(null);
-  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 50); }, []);
+  const [typeOk, setTypeOk] = useState(!moving);
+  useEffect(() => { if (typeOk) setTimeout(() => inputRef.current?.focus(), 50); }, [typeOk]);
   useEffect(() => {
     const t = q.trim();
     if (t.length < 3) { setResults([]); return undefined; }
@@ -49,13 +51,21 @@ export default function PlaceSearchSheet({ title = 'Add stop', pos, onPick, onCl
     <div className="fixed inset-0 z-[1600] bg-background flex flex-col">
       <div className="px-4 pt-[max(16px,env(safe-area-inset-top))] pb-3 flex items-center gap-3">
         <button onClick={onClose} className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0" aria-label="Close"><X className="w-5 h-5" /></button>
+        {!typeOk ? (
+          <button onClick={() => setTypeOk(true)} className="flex-1 flex items-center gap-2 bg-secondary rounded-xl px-3 h-11 text-left">
+            <Search className="w-4 h-4 text-muted-foreground" />
+            <span className="flex-1 text-[13px] text-muted-foreground">Passenger? Tap to type a search</span>
+          </button>
+        ) : (
         <div className="flex-1 flex items-center gap-2 bg-secondary rounded-xl px-3 h-11">
           {searching ? <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" /> : <Search className="w-4 h-4 text-muted-foreground" />}
           <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} placeholder={title} enterKeyHint="search"
             className="flex-1 bg-transparent text-[15px] text-foreground outline-none placeholder:text-muted-foreground" />
           {q && <button onClick={() => setQ('')} aria-label="Clear"><X className="w-4 h-4 text-muted-foreground" /></button>}
         </div>
+        )}
       </div>
+      {!typeOk && <p className="px-5 pb-2 text-[11px] text-muted-foreground">Driving? Pick a saved place below, or ask Gemini by voice.</p>}
       <div className="flex-1 overflow-y-auto px-2 pb-8">
         {saved.map((p) => (
           <Row key={`s-${p.id}`} p={p} icon={p.kind === 'home' ? Home : p.kind === 'work' ? Briefcase : Star}
