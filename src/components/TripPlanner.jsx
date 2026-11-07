@@ -2,6 +2,8 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 const ElevationChart = lazy(() => import('@/components/ElevationChart'));
 // The garage (3D bay, car builder, sharing) is big, so it loads on the first tap.
 const GarageDrawer = lazy(() => import('@/components/GarageDrawer'));
+// Glow animations on the Go buttons (Settings → Engine gauges → Look & animations).
+const FxLayer = lazy(() => import('@/components/GlowFx'));
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Search, X, Loader2, LocateFixed, Navigation, Route as RouteIcon, Radio, Clock, ChevronUp, MapPin, Car, MapPinOff, Star, Home, Briefcase, Sparkles, Plus, ArrowUp, ArrowDown, GripVertical, Shuffle, Save, TrafficCone, Play, Bookmark, Trophy, Menu, Users, ChevronLeft } from 'lucide-react';
 import { ReportButton } from '@/components/MapBits';
@@ -18,6 +20,8 @@ import { useApp } from '@/lib/AppContext';
 import { api } from '@/api/base44Client';
 import { searchPlaces, getRoute, optimizeStops, getAvoid, setAvoid, MAX_STOPS, formatEta, arrivalTime, formatNavDistance, distM } from '@/lib/nav';
 import PlaceSearchSheet from '@/components/PlaceSearchSheet';
+import { useAppFx } from '@/lib/obdPrefs';
+import { useActiveLook, speedStyle, isLite } from '@/lib/mapTheme';
 import { AlertsBanner, RouteConditions } from '@/components/WeatherAlerts';
 import { useWeatherAlerts } from '@/lib/alerts';
 import { useTrafficEta } from '@/lib/traffic';
@@ -49,6 +53,10 @@ function GarageTab({ onOpen }) {
 export default function TripPlanner({ pos, locError = '', roadReports, onPreview, onGo, onStartDrive, onRecenter, following = true, driveError, guideRoute, onClearGuide }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { look, key: themeKey } = useActiveLook();
+  const fxGo = useAppFx('go', themeKey);
+  const goSt = speedStyle(themeKey);
+  const goFx = (radius) => (fxGo?.length ? <Suspense fallback={null}><FxLayer shape="rect" radius={radius} fx={fxGo} col={goSt.glow || (themeKey === 'standard' ? '#4c8bf5' : goSt.ring)} col2={goSt.sub} calm={isLite(look)} /></Suspense> : null);
   const { user, scene, activeVehicle, stats, trips, vehicles, savedRoutes, myCar, places, addPlace, deletePlace, renamePlace, home, work, addRoute } = useApp();
   const [naming, setNaming] = useState(false);
   const [setting, setSetting] = useState(null); // 'home' | 'work' while choosing the address
@@ -333,7 +341,7 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
               </div>
               <div className="text-[11px] text-muted-foreground truncate">{suggestion.reason}{suggEta != null ? ` · arrive ${arrivalTime(suggEta)}` : ''}</div>
             </button>
-            <button onClick={() => choose(suggestion)} className="h-9 px-4 rounded-full dz-go text-xs font-bold flex items-center gap-1"><Navigation className="w-3.5 h-3.5 fill-white" /> Go</button>
+            <button onClick={() => choose(suggestion)} className="relative h-9 px-4 rounded-full dz-go text-xs font-bold flex items-center gap-1">{goFx(18)}<Navigation className="w-3.5 h-3.5 fill-white" /> Go</button>
             <button onClick={dismissSuggestion} className="w-8 h-8 flex items-center justify-center" aria-label="Hide suggestion"><X className="w-4 h-4 text-muted-foreground" /></button>
           </div></div>
         )}
@@ -492,7 +500,8 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
                 </div>
 
                 <div className="flex gap-2 mt-3">
-                  <button onClick={go} className="flex-1 h-12 rounded-full dz-go font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#4285F4]/30">
+                  <button onClick={go} className="relative flex-1 h-12 rounded-full dz-go font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#4285F4]/30">
+                    {goFx(24)}
                     <Navigation className="w-4 h-4 fill-white" /> Go
                   </button>
                   {scene && !stops.length && (

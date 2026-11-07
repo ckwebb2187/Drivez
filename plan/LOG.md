@@ -57,3 +57,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-11-07 · - · done by hand · Where to? button mid-drive (passenger double-tap while moving); engine bubbles can stay on when parked
 2026-11-07 · - · done by hand · engine bubbles: 8 more animations, glow strength, 12 stackable extras, 3 more number effects
 2026-11-07 · - · done by hand · engine gauge shapes (hex, octagon, diamond, cyber square, shield, bar) with edge-tracing progress + 4 new animations
+2026-11-07 · - · done by hand · mix several animations; same glow FX optional on speed gauge, drive buttons, turn card, Tōge/Wangan card, Go buttons (shared GlowFx.jsx, lazy)

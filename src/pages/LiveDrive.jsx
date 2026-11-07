@@ -29,7 +29,7 @@ import FriendsHub from '@/components/FriendsHub';
 import MeetRadar from '@/components/MeetRadar';
 import AskGemini from '@/components/AskGemini';
 import PlaceSearchSheet from '@/components/PlaceSearchSheet';
-import { useObdPrefs, useObdDemo } from '@/lib/obdPrefs';
+import { useObdPrefs, useObdDemo, useAppFx } from '@/lib/obdPrefs';
 import { samplePeaks, takePeaks } from '@/lib/obd';
 import { say, getVoiceSettings, recapText, tripFacts } from '@/lib/voice';
 import { searchPlaces, getRoute } from '@/lib/nav';
@@ -53,6 +53,8 @@ async function reverseGeocode(lat, lng) {
 
 // Engine gauge bubbles (OBD-II) load only when turned on.
 const EngineBubbles = lazy(() => import('@/components/EngineBubbles'));
+// Glow animations on other parts of the drive screen (Settings → Engine gauges → Look & animations).
+const FxLayer = lazy(() => import('@/components/GlowFx'));
 
 export default function LiveDrive({ active = true, peek = false }) {
   const navigate = useNavigate();
@@ -144,6 +146,11 @@ export default function LiveDrive({ active = true, peek = false }) {
   const { look, key: themeKey } = useActiveLook();
   const obdPrefs = useObdPrefs();
   const obdDemo = useObdDemo();
+  const fxSpeed = useAppFx('speed', themeKey), fxButtons = useAppFx('buttons', themeKey), fxTurn = useAppFx('turn', themeKey), fxRun = useAppFx('run', themeKey);
+  const fxCalm = isLite(look);
+  const fxSt = speedStyle(themeKey);
+  const fxCol = fxSt.glow || (themeKey === 'standard' ? '#4c8bf5' : fxSt.ring);
+  const fxOn = (list, shape = 'circle', radius) => (list?.length ? <Suspense fallback={null}><FxLayer shape={shape} radius={radius} fx={list} col={fxCol} col2={fxSt.sub} calm={fxCalm} /></Suspense> : null);
   // Engine peaks for the trip record (only with a real adapter).
   useEffect(() => {
     if (drive.status !== 'driving') return undefined;
@@ -768,7 +775,8 @@ export default function LiveDrive({ active = true, peek = false }) {
               const fg = '#fff';
               if (turnsMin) return (
                 <div className="absolute top-0 left-0 p-3 pt-[max(12px,env(safe-area-inset-top))] pointer-events-auto">
-                  <div className={`rounded-full shadow-2xl flex items-center gap-2 pl-3 pr-1 h-[52px] ${wire ? 'dz-wire' : ''}`} style={{ background: bg, color: fg }}>
+                  <div className={`relative rounded-full shadow-2xl flex items-center gap-2 pl-3 pr-1 h-[52px] ${wire ? 'dz-wire' : ''}`} style={{ background: bg, color: fg }}>
+                    {fxOn(fxTurn, 'rect', 26)}
                     <button onClick={() => setStepsOpen(true)} className="flex items-center gap-2" aria-label="All turns">
                       {nav.arrived ? <Check className="w-6 h-6" /> : <TurnIcon step={nav.step} className="w-6 h-6" />}
                       <span className="text-lg font-bold">{nav.arrived ? 'Arrived' : nav.rerouting ? 'Rerouting…' : formatNavDistance(nav.distToStep)}</span>
@@ -779,7 +787,8 @@ export default function LiveDrive({ active = true, peek = false }) {
               );
               return (
                 <div className="absolute top-0 left-0 right-0 p-3 pt-[max(12px,env(safe-area-inset-top))] pointer-events-auto">
-                  <div className={`rounded-2xl shadow-2xl overflow-hidden ${wire ? 'dz-wire' : ''}`} style={{ background: bg }}>
+                  <div className={`relative rounded-2xl shadow-2xl overflow-hidden ${wire ? 'dz-wire' : ''}`} style={{ background: bg }}>
+                    {fxOn(fxTurn, 'rect', 16)}
                     <div className="flex items-center gap-3 px-4 py-3.5" style={{ color: fg }}>
                       <button onClick={() => setStepsOpen(true)} className="flex-1 min-w-0 flex items-center gap-3 text-left" aria-label="All turns">
                         {nav.arrived ? <Check className="w-9 h-9" strokeWidth={2.6} /> : <TurnIcon step={nav.step} className="w-9 h-9 shrink-0" />}
@@ -879,7 +888,8 @@ export default function LiveDrive({ active = true, peek = false }) {
                 : [[spd(drive.maxSpeed || 0), `top ${speedUnit()}`], [drive.stats.best060 ? `${drive.stats.best060.toFixed(1)}s` : '–', '0-60'], [dst(drive.distance), distUnit()]];
               return (
                 <div className={`absolute left-3 ${top} pointer-events-none`}>
-                  <div className="rounded-2xl shadow-2xl px-3 py-2 border" style={{ background: st.bg, borderColor: st.glow || st.ring, boxShadow: st.glow ? `0 0 14px ${st.glow}66` : undefined }}>
+                  <div className="relative rounded-2xl shadow-2xl px-3 py-2 border" style={{ background: st.bg, borderColor: st.glow || st.ring, boxShadow: st.glow ? `0 0 14px ${st.glow}66` : undefined }}>
+                    {fxOn(fxRun, 'rect', 16)}
                     <div className="text-[10px] font-black tracking-[0.2em]" style={{ color: st.glow || st.sub }}>{toge ? '峠 TŌGE' : '湾岸 WANGAN'}</div>
                     <div className="flex gap-3 mt-0.5">
                       {cells.map(([v, l]) => (
@@ -905,6 +915,7 @@ export default function LiveDrive({ active = true, peek = false }) {
                 <div className={`absolute left-3 ${!nav.active ? 'bottom-[calc(16px+env(safe-area-inset-bottom))]' : barOpen ? 'bottom-[calc(134px+env(safe-area-inset-bottom))]' : 'bottom-[calc(76px+env(safe-area-inset-bottom))]'} transition-all pointer-events-none flex items-end gap-2`}>
                   <div className="relative w-[76px] h-[76px] rounded-full shadow-2xl flex flex-col items-center justify-center"
                     style={{ background: over ? '#d93025' : st.bg, boxShadow: st.glow && !over ? `0 0 18px ${st.glow}88, 0 8px 20px rgba(0,0,0,.4)` : '0 8px 20px rgba(0,0,0,.4)' }}>
+                    {fxOn(fxSpeed)}
                     <svg className="absolute inset-0" viewBox="0 0 76 76" aria-hidden="true">
                       <circle cx="38" cy="38" r={R} fill="none" stroke={over ? '#ffffff55' : st.ring} strokeOpacity="0.45" strokeWidth="5" />
                       <circle cx="38" cy="38" r={R} fill="none" stroke={over ? '#fff' : st.glow || st.sub} strokeWidth="5" strokeLinecap="round"
@@ -961,14 +972,16 @@ export default function LiveDrive({ active = true, peek = false }) {
               {/* Where to? Pick or change the destination mid-drive. Saved places are one tap at any speed;
                   typing a search waits for a "Passenger?" tap while moving (inside the sheet). */}
               <button onClick={() => setWhereOpen(true)}
-                className="w-[50px] h-[50px] rounded-full shadow-xl border flex items-center justify-center self-end bg-card border-border text-foreground"
+                className="relative w-[50px] h-[50px] rounded-full shadow-xl border flex items-center justify-center self-end bg-card border-border text-foreground"
                 aria-label={navPlan ? 'Change destination' : 'Where to?'}>
+                {fxOn(fxButtons)}
                 <Search className="w-5 h-5" />
               </button>
               {whereOpen && <PlaceSearchSheet title={navPlan ? 'Change destination' : 'Where to?'} pos={drive.currentPosition || herePos} moving={(drive.currentSpeed || 0) >= 5} onPick={radarGo} onClose={() => setWhereOpen(false)} />}
               <AskGemini size={50} context={askContext} onAction={onAskAction} />
               <button onClick={cycleMode} aria-label="Drive mode"
-                className={`w-[50px] h-[50px] rounded-full shadow-xl border flex flex-col items-center justify-center leading-none ${driveMode === 'cruise' ? 'bg-card border-border text-muted-foreground' : 'bg-primary border-primary text-primary-foreground'}`}>
+                className={`relative w-[50px] h-[50px] rounded-full shadow-xl border flex flex-col items-center justify-center leading-none ${driveMode === 'cruise' ? 'bg-card border-border text-muted-foreground' : 'bg-primary border-primary text-primary-foreground'}`}>
+                {fxOn(fxButtons)}
                 <span className="text-base font-black">{driveMode === 'toge' ? '峠' : driveMode === 'wangan' ? '湾' : '巡'}</span>
                 <span className="text-[8px] font-bold mt-0.5">{driveMode === 'toge' ? 'TŌGE' : driveMode === 'wangan' ? 'WANGAN' : 'CRUISE'}</span>
               </button>
@@ -980,8 +993,9 @@ export default function LiveDrive({ active = true, peek = false }) {
                   if ((drive.currentSpeed || 0) < 5 || settingsArmed) { setSettingsArmed(false); setSettingsOpen(true); return; }
                   setSettingsArmed(true); setTimeout(() => setSettingsArmed(false), 3500);
                 }}
-                className={`h-[50px] rounded-full shadow-xl border flex items-center justify-center gap-1.5 transition-all self-end ${settingsArmed ? 'w-[150px] bg-primary border-primary text-primary-foreground' : 'w-[50px] bg-card border-border text-foreground'}`}
+                className={`relative h-[50px] rounded-full shadow-xl border flex items-center justify-center gap-1.5 transition-all self-end ${settingsArmed ? 'w-[150px] bg-primary border-primary text-primary-foreground' : 'w-[50px] bg-card border-border text-foreground'}`}
                 aria-label="Settings">
+                {!settingsArmed && fxOn(fxButtons)}
                 <Settings className="w-5 h-5" />{settingsArmed && <span className="text-xs font-bold">Passenger? Tap</span>}
               </button>
               {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}

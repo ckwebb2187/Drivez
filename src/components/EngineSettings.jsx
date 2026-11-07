@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Bluetooth, Loader2, RefreshCw, Play, Square, Circle, Lock, Unlock, RotateCcw, ChevronDown } from 'lucide-react';
-import { METRICS, GROUPS, BUBBLE_THEMES, BUBBLE_FX, VALUE_FX, GLOWS, EXTRAS, SHAPES, useObd, useObdPrefs, setObdPrefs, hasNativeObd, obdDevices, obdConnect, obdDisconnect, obdLog, obdAskBluetooth, useObdDemo, setObdDemo, resetPeak } from '@/lib/obd';
+import { METRICS, GROUPS, BUBBLE_THEMES, BUBBLE_FX, VALUE_FX, GLOWS, EXTRAS, SHAPES, FX_TARGETS, useObd, useObdPrefs, setObdPrefs, hasNativeObd, obdDevices, obdConnect, obdDisconnect, obdLog, obdAskBluetooth, useObdDemo, setObdDemo, resetPeak } from '@/lib/obd';
 
 const Chip = ({ on, off, onClick, children }) => (
   <button onClick={onClick} className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${on ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-foreground border-border'} ${off ? 'opacity-40' : ''}`}>{children}</button>
@@ -41,6 +41,14 @@ export default function EngineSettings() {
   const toggleLog = () => { const err = obdLog(!s.logging); setMsg(err || ''); };
   const toggle = (id) => setObdPrefs((p) => ({ metrics: { ...p.metrics, [id]: !p.metrics[id] } }));
   const onCount = METRICS.filter((m) => prefs.metrics[m.id]).length;
+  // Animation mix: "auto" and "still" are on their own; anything else stacks.
+  const fxSel = prefs.fxList?.length ? prefs.fxList : [prefs.fx || 'auto'];
+  const pickFx = (id) => {
+    if (id === 'auto' || id === 'none') return setObdPrefs({ fxList: [id], fx: id });
+    const cur = fxSel.filter((x) => x !== 'auto' && x !== 'none');
+    const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+    setObdPrefs({ fxList: next.length ? next : ['none'], fx: next[0] || 'none' });
+  };
 
   return (
     <div className="space-y-3">
@@ -122,7 +130,7 @@ export default function EngineSettings() {
         })}
       </Section>
 
-      <Section title="LOOK & ANIMATIONS" hint={BUBBLE_FX.find((f) => f.id === prefs.fx)?.title}>
+      <Section title="LOOK & ANIMATIONS" hint={fxSel.length > 1 ? `${fxSel.length} mixed` : BUBBLE_FX.find((f) => f.id === fxSel[0])?.title}>
         <div>
           <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">COLORS</div>
           <div className="flex flex-wrap gap-1.5">
@@ -138,8 +146,8 @@ export default function EngineSettings() {
           <div className="flex flex-wrap gap-1.5">{SHAPES.map((x) => <Chip key={x.id} on={(prefs.shape || 'circle') === x.id} onClick={() => setObdPrefs({ shape: x.id, pos: {} })}>{x.title}</Chip>)}</div>
         </div>
         <div>
-          <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">ANIMATION</div>
-          <div className="flex flex-wrap gap-1.5">{BUBBLE_FX.map((f) => <Chip key={f.id} on={prefs.fx === f.id} onClick={() => setObdPrefs({ fx: f.id })}>{f.title}</Chip>)}</div>
+          <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">ANIMATIONS <span className="font-normal normal-case tracking-normal">(tap several to mix)</span></div>
+          <div className="flex flex-wrap gap-1.5">{BUBBLE_FX.map((f) => <Chip key={f.id} on={fxSel.includes(f.id)} onClick={() => pickFx(f.id)}>{f.title}</Chip>)}</div>
         </div>
         <div>
           <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">NUMBERS</div>
@@ -148,6 +156,13 @@ export default function EngineSettings() {
         <div>
           <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">GLOW STRENGTH</div>
           <div className="flex flex-wrap gap-1.5">{GLOWS.map((l, i) => <Chip key={l} on={(prefs.glow ?? 1) === i} onClick={() => setObdPrefs({ glow: i })}>{l}</Chip>)}</div>
+        </div>
+        <div>
+          <div className="text-[11px] font-bold text-muted-foreground tracking-wider mb-1.5">ALSO USE AROUND THE APP</div>
+          <div className="flex flex-wrap gap-1.5">
+            {FX_TARGETS.map((t) => <Chip key={t.id} on={!!prefs.fxTargets?.[t.id]} onClick={() => setObdPrefs((p) => ({ fxTargets: { ...p.fxTargets, [t.id]: !p.fxTargets?.[t.id] } }))}>{t.title}</Chip>)}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1">Puts your animation mix (in your map theme's colors) on these too. Works without an OBD adapter.</p>
         </div>
         <Section title="EXTRAS" hint={`${EXTRAS.filter((x) => prefs.extras?.[x.id]).length} on`}>
           <p className="text-[11px] text-muted-foreground">Mix and match. Each one stacks on top of any animation.</p>

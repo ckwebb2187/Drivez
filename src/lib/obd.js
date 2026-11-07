@@ -66,7 +66,7 @@ export const BUBBLE_THEMES = [
   { id: 'sunset', title: 'Sunset', accent: '#FF6A13', bg: '#1A0D06', track: '#40261A', text: '#FFFFFF', label: '#FFB38A' },
 ];
 
-// Bubble animations (all take the theme's colors). "auto" picks one per world theme.
+// Bubble animations (all take the theme's colors). "auto" picks one per world theme. Several can be mixed.
 export const BUBBLE_FX = [
   { id: 'auto', title: 'Auto (by theme)' },
   { id: 'breathe', title: 'Breathe' },
@@ -99,6 +99,14 @@ export const VALUE_FX = [
   { id: 'plain', title: 'Plain' },
 ];
 export const GLOWS = ['Soft', 'Normal', 'Bright', 'Max'];
+// Other parts of the app that can wear the same animation mix.
+export const FX_TARGETS = [
+  { id: 'speed', title: 'Speed gauge' },
+  { id: 'buttons', title: 'Drive buttons' },
+  { id: 'turn', title: 'Turn card' },
+  { id: 'run', title: 'Tōge / Wangan card' },
+  { id: 'go', title: 'Go buttons' },
+];
 // Gauge shapes. Non-round ones trace their progress glow around their own edge.
 export const SHAPES = [
   { id: 'circle', title: 'Bubble' },
@@ -124,19 +132,12 @@ export const EXTRAS = [
   { id: 'shiftLight', title: 'Shift light (high RPM)' },
   { id: 'peaks', title: 'Show highest this session' },
 ];
-const AUTO_FX = {
-  kaido: 'orbit', tokyo: 'orbit', sakuranight: 'orbit', harajuku: 'orbit', cyberpunk: 'glitch', matrix: 'circuit', y2k: 'holo',
-  vapor: 'aurora', galaxy: 'starfield', kawaii: 'ripple', rose: 'ripple', bayshore: 'comet', daikoku: 'radar', shuto: 'sonar',
-  dystopian: 'radar', wasteland: 'radar', risingsun: 'plasma', samurai: 'reactor', tougedawn: 'heartbeat',
-  lavender: 'aurora', zen: 'breathe', minimal: 'breathe',
-};
-export const fxFor = (fx, themeKey) => (fx !== 'auto' ? fx : AUTO_FX[String(themeKey).split('@')[0]] || 'breathe');
 
 export const WARN = '#FFB020';
 export const HOT = '#FF3B3B';
 export const SIZES = [64, 80, 100];
 
-export { setObdPrefs, useObdPrefs, setObdDemo, useObdDemo } from '@/lib/obdPrefs';
+export { setObdPrefs, useObdPrefs, setObdDemo, useObdDemo, fxFor, fxListOf } from '@/lib/obdPrefs';
 import { useObdDemo } from '@/lib/obdPrefs';
 
 // ---------------------------------------------------------------- native bridge (Android app)
