@@ -1,4 +1,5 @@
 // National Weather Service alerts (floods, hurricanes, tornadoes, evacuations) where you are.
+import { poll } from '@/lib/poll';
 import { useEffect, useState } from 'react';
 import { api } from '@/api/base44Client';
 import { distM } from './nav';
@@ -16,8 +17,8 @@ export function useWeatherAlerts(pos) {
       .then((d) => alive && setAlerts(d.alerts.filter((a) => SERIOUS.test(a.event) || /Extreme|Severe/.test(a.severity))))
       .catch(() => {});
     load();
-    const t = setInterval(load, 5 * 60 * 1000);
-    return () => { alive = false; clearInterval(t); };
+    const t = poll(load, 5 * 60 * 1000);
+    return () => { alive = false; t(); };
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   return alerts;
 }

@@ -1,3 +1,4 @@
+import { poll, usePageVisible } from '@/lib/poll';
 import { createPortal } from 'react-dom';
 import { lazy, Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { useTrafficEta } from '@/lib/traffic';
@@ -94,15 +95,19 @@ export default function LiveDrive({ active = true, peek = false }) {
     autoStartCheck(p, speedMs);
   };
   const [locError, setLocError] = useState('');
+  const pageVisible = usePageVisible();
   useEffect(() => {
     if (drive.status !== 'idle' || !active) return undefined;
     if (!('geolocation' in navigator)) { setLocError('Your browser can’t share your location.'); return undefined; }
     const ok = (p) => { setLocError(''); setHerePos([p.coords.latitude, p.coords.longitude], p.coords.speed); };
     const bad = (e) => { if (e.code === 1) setLocError('Turn on location for Kaido Maps to see where you are.'); };
     navigator.geolocation.getCurrentPosition(ok, bad, { enableHighAccuracy: false, maximumAge: 600000, timeout: 8000 });
-    const id = navigator.geolocation.watchPosition(ok, bad, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
+    // In the background, low-power location is enough to notice you've started driving.
+    const id = navigator.geolocation.watchPosition(ok, bad, pageVisible
+      ? { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
+      : { enableHighAccuracy: false, maximumAge: 30000, timeout: 60000 });
     return () => navigator.geolocation.clearWatch(id);
-  }, [drive.status, active]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [drive.status, active, pageVisible]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Always on: a drive starts by itself once you're moving (about 10 mph for a few seconds,
   // or 250 m from where you were standing), and ends by itself after 4 minutes parked.
@@ -168,8 +173,8 @@ export default function LiveDrive({ active = true, peek = false }) {
     let alive = true;
     const load = () => api.get('/live').then((d) => alive && setFriends(d.drivers || [])).catch(() => {});
     load();
-    const t = setInterval(load, 15000);
-    return () => { alive = false; clearInterval(t); };
+    const stop = poll(load, 15000);
+    return () => { alive = false; stop(); };
   }, [active]);
   // Group drive: the others in your convoy show on the map like friends (even if they aren't friends yet).
   const { convoy, leave: leaveConvoy } = useConvoy(active);

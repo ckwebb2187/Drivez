@@ -1,3 +1,4 @@
+import { poll } from '@/lib/poll';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CloudRain, X, Play, Pause, Check } from 'lucide-react';
@@ -57,8 +58,8 @@ export function useRainViewer(active) {
     let alive = true;
     const load = () => fetch('https://api.rainviewer.com/public/weather-maps.json').then((r) => r.json()).then((d) => alive && setData(d)).catch(() => {});
     load();
-    const t = setInterval(load, 5 * 60 * 1000);
-    return () => { alive = false; clearInterval(t); };
+    const t = poll(load, 5 * 60 * 1000);
+    return () => { alive = false; t(); };
   }, [active]);
   return data;
 }

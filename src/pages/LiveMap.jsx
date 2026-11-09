@@ -1,3 +1,4 @@
+import { poll } from '@/lib/poll';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, CircleMarker, Tooltip } from 'react-leaflet';
@@ -25,8 +26,8 @@ export default function LiveMap() {
     let alive = true;
     const load = () => api.get('/live').then((d) => alive && setDrivers(d.drivers)).catch(() => {});
     load();
-    const t = setInterval(load, 5000);
-    return () => { alive = false; clearInterval(t); };
+    const t = poll(load, 5000);
+    return () => { alive = false; t(); };
   }, []);
 
   useEffect(() => {

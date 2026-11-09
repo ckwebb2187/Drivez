@@ -284,9 +284,9 @@ export function addCityLife(map, theme, palette, isActive = () => true, { before
   let t = 0;
   const sway = setInterval(() => {
     if (!isActive() || map.getZoom() < 15.5 || !map.getLayer('dz-trees')) return;
-    t += 0.5;
+    t += 0.9;
     try { map.setLayoutProperty('dz-trees', 'icon-rotate', ['*', 3, ['sin', ['+', ['get', 'ph'], t]]]); } catch { /* ignore */ }
-  }, 220);
+  }, 600);
 
   return () => { clearInterval(sway); clearTimeout(timer); map.off('moveend', refill); };
 }

@@ -1,5 +1,6 @@
 // Family on the phone: the shared state, the background check-in (location + battery),
 // and alerts when someone arrives, leaves, checks in or needs help.
+import { poll } from '@/lib/poll';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
@@ -33,8 +34,7 @@ export function useFamily(active = true) {
   useEffect(() => {
     if (!active) return undefined;
     load();
-    const t = setInterval(load, 20000);
-    return () => clearInterval(t);
+    return poll(load, 20000, 120000);
   }, [active, load]);
   return { data, loading, reload: load };
 }

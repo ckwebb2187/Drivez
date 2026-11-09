@@ -1,3 +1,4 @@
+import { poll } from '@/lib/poll';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 const ElevationChart = lazy(() => import('@/components/ElevationChart'));
 // The garage (3D bay, car builder, sharing) is big, so it loads on the first tap.
@@ -93,8 +94,8 @@ export default function TripPlanner({ pos, locError = '', roadReports, onPreview
     let alive = true;
     const load = () => api.get('/live').then((d) => alive && setFriends(d.drivers)).catch(() => {});
     load();
-    const t = setInterval(load, 15000);
-    return () => { alive = false; clearInterval(t); };
+    const t = poll(load, 15000);
+    return () => { alive = false; t(); };
   }, []);
 
   // Type-ahead search

@@ -224,12 +224,17 @@ export function animateWater(map, theme, isActive = () => true) {
     const tw = setInterval(() => { if (!isActive()) return; f = (f + 1) % 3; ids.forEach((id) => setP(map, id, 'fill-pattern', `dz-wave${f}`)); }, 500);
     return () => clearInterval(tw);
   }
-  let on = false;
+  // Slow shimmer in small steps (a long paint transition would redraw the whole map every frame).
+  const mix = (x, y, k) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(x.slice(i, i + 2), 16) * (1 - k) + parseInt(y.slice(i, i + 2), 16) * k).toString(16).padStart(2, '0')).join('');
+  const hex = /^#[0-9a-f]{6}$/i.test(a) && /^#[0-9a-f]{6}$/i.test(b);
+  let n = 0;
+  ids.forEach((id) => setP(map, id, 'fill-color-transition', { duration: 0, delay: 0 }));
   const t = setInterval(() => {
     if (!isActive()) return;
-    on = !on;
-    ids.forEach((id) => { setP(map, id, 'fill-color-transition', { duration: 2400, delay: 0 }); setP(map, id, 'fill-color', on ? b : a); });
-  }, 2500);
+    n = (n + 1) % 10;
+    const k = n < 5 ? n / 5 : (10 - n) / 5;
+    ids.forEach((id) => setP(map, id, 'fill-color', hex ? mix(a, b, k) : k > 0.5 ? b : a));
+  }, 500);
   return () => clearInterval(t);
 }
 

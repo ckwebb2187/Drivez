@@ -1,3 +1,4 @@
+import { poll } from '@/lib/poll';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Settings2, ExternalLink, Loader2, Play, Pause, SkipBack, SkipForward, ShieldCheck, Plus, Check } from 'lucide-react';
@@ -127,8 +128,8 @@ function useNowPlaying(user, every) {
       } catch { /* keep last */ } finally { if (alive) setLoading(false); }
     };
     load();
-    const id = setInterval(load, every);
-    return () => { alive = false; clearInterval(id); };
+    const id = poll(load, every);
+    return () => { alive = false; id(); };
   }, [user, every]);
   return { track, loading, error, hint };
 }

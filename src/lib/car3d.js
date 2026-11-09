@@ -493,13 +493,13 @@ export function car3dLayer({ id = 'dz-car3d', colors, getPose, screenLength = 78
       // bigger than life so it stays readable, which makes it poke into nearby buildings).
       renderer.clearDepth();
       renderer.render(scene, camera);
-      // Animated underglow: keep redrawing (about 30 times a second).
+      // Animated underglow: keep redrawing (about 15 times a second; plenty for a glow and half the battery).
       const st = getDrive?.();
       const fxOn = !!st && (st.turn || st.braking || st.alert);
       if (st) attachDriveFx(car)(st, performance.now());
       if ((car.userData.tick || fxOn) && isActive()) {
         car.userData.tick?.(performance.now());
-        if (!pulseT) pulseT = setTimeout(() => { pulseT = null; map.triggerRepaint(); }, 33);
+        if (!pulseT) pulseT = setTimeout(() => { pulseT = null; map.triggerRepaint(); }, 66);
       }
     },
     onRemove() { clearTimeout(pulseT); renderer?.dispose(); },

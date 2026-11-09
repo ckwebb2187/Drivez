@@ -127,6 +127,8 @@ function DriveMapInner({
       attributionControl: false,
       maxPitch: 70,
       fadeDuration: 0,
+      // Phones with very sharp screens draw 2-3x more pixels than you can see; 2x looks the same and saves a lot of battery.
+      pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
     });
     // Map credits live in Settings → App & updates (keeps the map clear).
     // Start with the credits folded into the small (i) button.
@@ -157,9 +159,9 @@ function DriveMapInner({
       const firstSymbol = layers.slice(lastRoad + 1).find((l) => l.type === 'symbol')?.id;
       // World theme colors + 3D buildings (themed windows), then gentle water motion.
       try { applyTheme(map, theme, { lite, beforeId: firstSymbol }); } catch { /* keep the plain style */ }
-      if (!lite) live.current.stopWater = animateWater(map, theme, () => live.current.active);
+      if (!lite) live.current.stopWater = animateWater(map, theme, () => live.current.active && !document.hidden);
       // Trees, park props, houses, gas canopies and chain landmarks (not in battery saver).
-      if (!lite) { try { live.current.stopCity = addCityLife(map, theme, themePalette(theme), () => live.current.active, { beforeId: firstSymbol }); } catch { /* optional */ } }
+      if (!lite) { try { live.current.stopCity = addCityLife(map, theme, themePalette(theme), () => live.current.active && !document.hidden, { beforeId: firstSymbol }); } catch { /* optional */ } }
       map.addSource('dz-guide', { type: 'geojson', data: EMPTY });
       map.addSource('dz-trail', { type: 'geojson', data: EMPTY });
       map.addSource('dz-behind', { type: 'geojson', data: EMPTY });
@@ -195,12 +197,12 @@ function DriveMapInner({
         const steps = [[0, 4, 3], [0.5, 4, 2.5], [1, 4, 2], [1.5, 4, 1.5], [2, 4, 1], [2.5, 4, 0.5], [3, 4, 0], [0, 0.5, 3, 3.5], [0, 1, 3, 3], [0, 1.5, 3, 2.5], [0, 2, 3, 2], [0, 2.5, 3, 1.5], [0, 3, 3, 1], [0, 3.5, 3, 0.5]];
         let k = 0;
         const flowTimer = setInterval(() => {
-          if (!live.current.active || !readyRef.current) return;
+          if (!live.current.active || document.hidden || !readyRef.current) return;
           const src = map.getSource('dz-ahead');
           if (!src || !live.current.hasRoute) return;
           k = (k + 1) % steps.length;
           try { map.setPaintProperty('dz-ahead-flow', 'line-dasharray', steps[k]); } catch { /* gone */ }
-        }, 90);
+        }, 140);
         live.current.stopFlow = () => clearInterval(flowTimer);
       }
       readyRef.current = true;
@@ -209,11 +211,17 @@ function DriveMapInner({
     });
 
     // Animation loop: glide the car between GPS fixes and keep the camera behind it.
-    let raf;
+    // Battery: about 30 redraws a second while moving, and the loop naps when nothing changes.
+    let raf, nap, lastFrame = 0, idle = 0;
+    const later = () => { raf = 0; nap = setTimeout(() => { nap = 0; raf = requestAnimationFrame(tick); }, 250); };
+    live.current.wake = () => { if (nap) { clearTimeout(nap); nap = 0; raf = requestAnimationFrame(tick); } };
     const tick = (now) => {
       // Hidden behind another screen: do nothing so the rest of the app stays quick.
-      if (!live.current.active) { raf = requestAnimationFrame(tick); return; }
+      if (!live.current.active) { later(); return; }
+      if (now - lastFrame < 30) { raf = requestAnimationFrame(tick); return; }
+      lastFrame = now;
       const a = anim.current;
+      let busy = false;
       if (a.to) {
         const t = Math.min(1, (now - a.t0) / a.dur);
         const from = a.from || a.to;
@@ -237,10 +245,13 @@ function DriveMapInner({
           const still = Math.abs(c.lng - ll[0]) < 2e-7 && Math.abs(c.lat - ll[1]) < 2e-7
             && Math.abs(map.getZoom() - a.zoom) < 0.002 && Math.abs(angleDiff(map.getBearing(), bearing)) < 0.05
             && Math.abs(map.getPitch() - pitch) < 0.05;
-          if (!still) map.jumpTo({ center: ll, bearing, pitch, zoom: a.zoom });
+          if (!still) { map.jumpTo({ center: ll, bearing, pitch, zoom: a.zoom }); busy = true; }
         }
+        if (t < 1 || Math.abs(angleDiff(a.brg, a.brgTarget)) > 0.3) busy = true;
         if (t < 1 && live.current.car3d && !f) map.triggerRepaint(); // 3D car gliding while you look around
       }
+      idle = busy || live.current.held ? 0 : idle + 1;
+      if (idle > 10) { later(); return; }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -251,7 +262,7 @@ function DriveMapInner({
     };
     window.addEventListener('resize', resize);
     return () => {
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(raf); clearTimeout(nap); live.current.wake = null;
       window.removeEventListener('resize', resize);
       window.removeEventListener('pointerup', up);
       window.removeEventListener('touchend', up);
@@ -340,7 +351,7 @@ function DriveMapInner({
         try {
           map.addLayer(car3dLayer({
             colors,
-            isActive: () => live.current.active,
+            isActive: () => live.current.active && !document.hidden,
             getDrive: () => {
               if (!live.current.driving) return null;
               // Brake lights: speed dropped 4+ mph within ~2 s (stay lit a moment after).
@@ -389,6 +400,7 @@ function DriveMapInner({
     a.dur = a.lastFix ? Math.max(250, Math.min(1600, now - a.lastFix)) : 1;
     a.t0 = now;
     a.lastFix = now;
+    live.current.wake?.();
     if (heading != null && !Number.isNaN(heading) && speed > 3) a.brgTarget = heading;
     else if (a.lastPos && distM(a.lastPos, pos) > 4) a.brgTarget = bearingBetween(a.lastPos, pos);
     if (a.lastPos && distM(a.lastPos, pos) > 4) a.movedOnce = true;

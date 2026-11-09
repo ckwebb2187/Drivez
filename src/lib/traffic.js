@@ -1,5 +1,6 @@
 // Live traffic from TomTom (through the Drivez server, which holds the key).
 // Everything here quietly does nothing when no key is set up.
+import { poll } from '@/lib/poll';
 import { useEffect, useState } from 'react';
 import { api } from '@/api/base44Client';
 
@@ -30,8 +31,8 @@ export function useTrafficEta(points, enabled, every = 180000) {
     let alive = true;
     const load = () => trafficEta(points).then((d) => alive && setEta(d)).catch(() => {});
     load();
-    const t = setInterval(load, every);
-    return () => { alive = false; clearInterval(t); };
+    const t = poll(load, every);
+    return () => { alive = false; t(); };
   }, [live, enabled, key]); // eslint-disable-line react-hooks/exhaustive-deps
   return eta;
 }

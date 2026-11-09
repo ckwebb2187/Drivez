@@ -1,3 +1,4 @@
+import { poll } from '@/lib/poll';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/api/base44Client';
 import { distM, distToLineM, speak } from './nav';
@@ -36,7 +37,7 @@ export function useReports(pos) {
   }, [pos]);
 
   useEffect(() => { load(pos); }, [pos, load]);
-  useEffect(() => { const t = setInterval(() => load(last.current.pos, true), 60000); return () => clearInterval(t); }, [load]);
+  useEffect(() => poll(() => load(last.current.pos, true), 60000), [load]);
 
   const report = async (type, p) => { await api.post('/reports', { type, lat: p[0], lng: p[1] }); await load(p, true); };
   const voteOn = async (id, stillThere) => { await api.post(`/reports/${id}/vote`, { stillThere }); await load(last.current.pos, true); };

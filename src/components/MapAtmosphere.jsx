@@ -73,7 +73,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
     let raf, lastT = 0, frame = 0;
     const draw = (now) => {
       raf = requestAnimationFrame(draw);
-      if (now - lastT < 33) return; // ~30 fps is plenty for an overlay
+      if (now - lastT < 50) return; // ~20 fps is plenty for an overlay (saves battery)
       lastT = now; frame++;
       g.clearRect(0, 0, w, h);
       for (const p of parts) {

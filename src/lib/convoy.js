@@ -1,3 +1,4 @@
+import { poll } from '@/lib/poll';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/api/base44Client';
 
@@ -10,10 +11,10 @@ export function useConvoy(active = true) {
   useEffect(() => {
     if (!active) return undefined;
     load();
-    const t = setInterval(load, 10000);
+    const t = poll(load, 10000);
     const on = () => load();
     window.addEventListener('dz-convoy', on);
-    return () => { clearInterval(t); window.removeEventListener('dz-convoy', on); };
+    return () => { t(); window.removeEventListener('dz-convoy', on); };
   }, [active, load]);
   const leave = async () => { if (convoy) await api.post(`/convoys/${convoy.code}/leave`).catch(() => {}); setConvoy(null); window.dispatchEvent(new Event('dz-convoy')); };
   return { convoy, reload: load, leave };
@@ -35,9 +36,9 @@ export function useOpenConvoys(active = true) {
   useEffect(() => {
     if (!active) return undefined;
     load();
-    const t = setInterval(load, 20000);
+    const t = poll(load, 20000);
     window.addEventListener('dz-convoy', load);
-    return () => { clearInterval(t); window.removeEventListener('dz-convoy', load); };
+    return () => { t(); window.removeEventListener('dz-convoy', load); };
   }, [active, load]);
   return { open: list, reload: load };
 }
@@ -59,8 +60,8 @@ export function useConvoyChat(code, open) {
       setMsgs((m) => [...m, ...d.messages.filter((x) => !m.some((y) => y.id === x.id))].slice(-100));
     }).catch(() => {});
     load();
-    const t = setInterval(load, 5000);
-    return () => { alive = false; clearInterval(t); };
+    const t = poll(load, 5000);
+    return () => { alive = false; t(); };
   }, [code, open]);
   const send = async (text) => { await api.post(`/convoys/${code}/messages`, { text }); };
   return { msgs, send, setMsgs };
