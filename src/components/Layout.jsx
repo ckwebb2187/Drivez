@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useState } from 'react';
 import { prefetchPages } from '@/lib/pages';
+import { startObdAuto } from '@/lib/obdAuto';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { Gauge, Clock, User, ChevronRight, Flame, CalendarDays } from 'lucide-react';
 import LiveDrive from '@/pages/LiveDrive';
@@ -42,6 +43,7 @@ export default function Layout() {
   const [driveOpened, setDriveOpened] = useState(onDrive);
   // Fetch the other pages in the background once the app is up.
   useEffect(() => { const t = setTimeout(prefetchPages, 2500); return () => clearTimeout(t); }, []);
+  useEffect(() => { startObdAuto(); }, []); // OBD2 auto-connect when you get in the car
   useEffect(() => { if (onDrive) setDriveOpened(true); }, [onDrive]);
   const [driveStatus, setDriveStatus] = useState(() => window.__dzDriveStatus);
   useEffect(() => {

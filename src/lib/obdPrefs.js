@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from 'react';
 
 const KEY = 'dz-obd';
-const DEFAULTS = { show: false, theme: 'map', fx: 'auto', valueFx: 'glow', shape: 'circle', fxList: null, fxTargets: {}, glow: 1, extras: { neonRim: true, tipSpark: true }, size: 1, opacity: 85, locked: false, metrics: { boost: true, coolant: true, iat: true, timing: true }, pos: {} };
+const DEFAULTS = { show: false, theme: 'map', fx: 'auto', valueFx: 'glow', shape: 'circle', fxList: null, fxTargets: {}, glow: 1, extras: { neonRim: true, tipSpark: true }, size: 1, opacity: 85, locked: false, metrics: { boost: true, coolant: true, iat: true, timing: true }, pos: {}, autoConnect: true, autoCar: null };
 let prefs = load();
 const subs = new Set();
 function load() {
@@ -14,6 +14,7 @@ export function setObdPrefs(patch) {
   try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch { /* private mode */ }
   subs.forEach((f) => f());
 }
+export const getObdPrefs = () => prefs;
 export const useObdPrefs = () => useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f); }, () => prefs);
 
 let demo = false;

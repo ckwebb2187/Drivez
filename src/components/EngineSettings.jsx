@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useCarBluetooth } from '@/lib/carBluetooth';
+import { checkObdAuto, holdObdAuto, autoCarMatch } from '@/lib/obdAuto';
 import { useNavigate } from 'react-router-dom';
 import { openStylePanel, fxTargetOn, toggleFxTarget, setAllFxTargets } from '@/lib/obdPrefs';
 import { Bluetooth, Loader2, RefreshCw, Play, Square, Circle, Lock, Unlock, RotateCcw, ChevronDown, Palette } from 'lucide-react';
@@ -40,6 +42,10 @@ export default function EngineSettings() {
     : s.status === 'live' ? `Live · ${s.device || 'adapter'} · ${Math.round(s.rate || 0)} updates/s`
     : s.status === 'connecting' ? s.message || 'Connecting…'
     : s.status === 'error' ? s.message || 'Connection failed' : 'Not connected';
+  const bt = useCarBluetooth();
+  const setAuto = (patch) => { setObdPrefs(patch); setTimeout(() => checkObdAuto(), 0); };
+  const cars = (bt.status?.paired || []).filter((d) => d.address !== prefs.device?.address);
+  const autoCar = prefs.autoCar || cars.find((d) => autoCarMatch(null, d)) || null;
   const toggleLog = () => { const err = obdLog(!s.logging); setMsg(err || ''); };
   const toggle = (id) => setObdPrefs((p) => ({ metrics: { ...p.metrics, [id]: !p.metrics[id] } }));
   const onCount = METRICS.filter((m) => prefs.metrics[m.id]).length;
@@ -84,12 +90,39 @@ export default function EngineSettings() {
         <Section title="ADAPTER" hint={s.status === 'live' ? 'Live' : prefs.device?.name || ''} open={s.status !== 'live'}>
           <div className="flex items-center justify-end">
             {(s.status === 'live' || s.status === 'connecting') ? (
-              <button onClick={() => obdDisconnect()} className="text-xs font-bold text-destructive">Disconnect</button>
+              <button onClick={() => { holdObdAuto(); obdDisconnect(); }} className="text-xs font-bold text-destructive">Disconnect</button>
             ) : (
               <button onClick={refresh} className="text-xs font-bold text-primary flex items-center gap-1"><RefreshCw className="w-3 h-3" /> Find adapters</button>
             )}
           </div>
           <p className="text-[11px] text-muted-foreground">Plug in the adapter, turn the ignition on, and pair it in your phone's Bluetooth settings first (PIN is usually 1234 or 0000).</p>
+          <div className="rounded-xl border border-border bg-card px-3 py-2.5 space-y-2">
+            <button onClick={() => setAuto({ autoConnect: !prefs.autoConnect, autoCar: prefs.autoCar || autoCar })} className="w-full flex items-center justify-between gap-3 text-left">
+              <div>
+                <div className="text-sm font-semibold text-foreground">Auto-connect in the car</div>
+                <div className="text-[11px] text-muted-foreground">
+                  {!prefs.device ? 'Connect to your adapter once first.' : autoCar ? `When your phone joins ${autoCar.name}, connect to ${prefs.device.name}. Lets go when you leave.` : 'Pick your car\'s Bluetooth below.'}
+                </div>
+              </div>
+              <span className={`shrink-0 w-10 h-6 rounded-full p-0.5 transition-colors ${prefs.autoConnect ? 'bg-primary' : 'bg-secondary'}`}>
+                <span className={`block w-5 h-5 rounded-full bg-white transition-transform ${prefs.autoConnect ? 'translate-x-4' : ''}`} />
+              </span>
+            </button>
+            {prefs.autoConnect && cars.length > 0 && (
+              <div>
+                <div className="text-[10px] font-bold text-muted-foreground tracking-wider mb-1">MY CAR'S BLUETOOTH</div>
+                <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
+                  {cars.map((d) => (
+                    <button key={d.address} onClick={() => setAuto({ autoCar: { name: d.name, address: d.address } })}
+                      className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border whitespace-nowrap ${autoCar?.address === d.address ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/80 text-foreground border-border'}`}>{d.name}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {prefs.autoConnect && !bt.status?.permission && (
+              <button onClick={bt.request} className="text-xs font-bold text-primary">Allow Bluetooth to see your car</button>
+            )}
+          </div>
           {prefs.device && s.status !== 'live' && s.status !== 'connecting' && (
             <button onClick={() => connect(prefs.device)} className="w-full h-11 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2">
               <Bluetooth className="w-4 h-4" /> Connect to {prefs.device.name}

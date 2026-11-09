@@ -66,3 +66,4 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-11-06T13:09,T36,live,,,37,150,pass
 2026-11-07T02:18,snappy,build,518.3,966.9,,,pass
 2026-11-09T16:30,battery,build,518.9,967.6,,,pass
+2026-11-09T16:40,obd-auto,build,519.5,968.6,,,pass
