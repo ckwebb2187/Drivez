@@ -402,17 +402,33 @@ function DriveMapInner({
       if (!readyRef.current || !map.getSource('dz-ahead')) return;
       const coords = routeCoords || [];
       if (coords.length > 1 && pos) {
-        // Find the closest route point, searching forward from the last one.
-        let best = routeIdx.current, bestD = Infinity;
-        const from = Math.max(0, routeIdx.current - 5), to = Math.min(coords.length, routeIdx.current + 300);
-        for (let i = from; i < to; i++) { const d = distM(pos, coords[i]); if (d < bestD) { bestD = d; best = i; } }
-        if (bestD > 150) { for (let i = 0; i < coords.length; i++) { const d = distM(pos, coords[i]); if (d < bestD) { bestD = d; best = i; } } }
+        // Find where you are ALONG the route: the closest point on any segment (not just the closest
+        // corner point). Using the closest corner made the line skip the next turn and cut across it.
+        const seg = (from, to) => {
+          let bi = -1, bd = Infinity, bp = null;
+          for (let i = Math.max(0, from); i < Math.min(coords.length - 1, to); i++) {
+            const [p, q] = [coords[i], coords[i + 1]];
+            const k = Math.cos((p[0] * Math.PI) / 180);
+            const ax = (q[1] - p[1]) * k, ay = q[0] - p[0];
+            const bx = (pos[1] - p[1]) * k, by = pos[0] - p[0];
+            const len = ax * ax + ay * ay;
+            const t = len ? Math.max(0, Math.min(1, (ax * bx + ay * by) / len)) : 0;
+            const pt = [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+            const d = distM(pos, pt);
+            if (d < bd) { bd = d; bi = i; bp = pt; }
+          }
+          return { i: bi, d: bd, pt: bp };
+        };
+        let hit = seg(routeIdx.current - 5, routeIdx.current + 300); // search forward from last time
+        if (hit.d > 150) hit = seg(0, coords.length); // lost (reroute, jump): search the whole route
+        const best = hit.i;
         routeIdx.current = best;
         // Not moving yet? Point the car along the route.
         const a = anim.current;
-        if (!a.movedOnce && coords[best + 1]) a.brgTarget = bearingBetween(pos, coords[Math.min(best + 2, coords.length - 1)]);
-        map.getSource('dz-behind').setData(line([...coords.slice(0, best + 1), pos].map(toLngLat)));
-        map.getSource('dz-ahead').setData(line([pos, ...coords.slice(best + 1)].map(toLngLat)));
+        if (!a.movedOnce && coords[best + 1]) a.brgTarget = bearingBetween(pos, coords[Math.min(best + 1, coords.length - 1)]);
+        // Driven part ends, and the route ahead starts, at your spot on the road; every corner ahead stays in.
+        map.getSource('dz-behind').setData(line([...coords.slice(0, best + 1), hit.pt].map(toLngLat)));
+        map.getSource('dz-ahead').setData(line([hit.pt, ...coords.slice(best + 1)].map(toLngLat)));
       } else {
         map.getSource('dz-behind').setData(EMPTY);
         map.getSource('dz-ahead').setData(coords.length > 1 ? line(coords.map(toLngLat)) : EMPTY);

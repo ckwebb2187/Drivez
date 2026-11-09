@@ -65,3 +65,4 @@ One line per run: date · ticket · result · startup KB · note.
 2026-11-07 · - · done by hand · garage: less bloom/glare, car faces front, realistic shop lighting, Garage look (wall styles/colors, graffiti, car-brand + mod-brand text banners)
 2026-11-07 · - · done by hand · garage: 12 floors, 10 wall styles + custom color, 10 lighting moods, shadows, 10 mix-and-match effects, 6 graffiti styles + own word, car-type banners, checkered flags, 10 presets; all folded under Garage look
 2026-11-07 · - · done by hand · snappier: startup -47 KB (dropped framer-motion for CSS fades; FriendsHub panel, OBD peaks, social links off the startup path), icons 504→60 KB, tile preconnect
+2026-11-09 · - · done by hand · fix: route line cut corners (split at nearest corner point, skipping the next turn); now splits at your spot along the road
