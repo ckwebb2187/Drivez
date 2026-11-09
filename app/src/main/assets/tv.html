@@ -23,11 +23,13 @@ body.ready { opacity:1 }
 #pat { position:fixed; inset:0; background-image:var(--pat, none); background-size:48vh 48vh; opacity:.08; pointer-events:none }
 #fade { position:fixed; left:0; right:0; bottom:0; height:calc(var(--row) + 8vh); background:linear-gradient(180deg, transparent, rgba(0,0,0,.5)); pointer-events:none }
 body.saver #fade { display:none }
-#motes { position:fixed; inset:0; pointer-events:none; overflow:hidden }
-#motes i { position:absolute; bottom:-4vh; border-radius:50%; background:var(--c); box-shadow:0 0 1.4vh .5vh var(--c), 0 0 4vh 1.2vh var(--c); opacity:.0;
-  animation-name:tv-rise, tv-sway; animation-timing-function:linear, ease-in-out; animation-iteration-count:infinite; animation-direction:normal, alternate }
-@keyframes tv-rise { 0% { transform:translateY(0); opacity:0 } 10% { opacity:.6 } 85% { opacity:.45 } 100% { transform:translateY(-110vh); opacity:0 } }
-@keyframes tv-sway { from { margin-left:-1.5vw } to { margin-left:1.5vw } }
+/* Rising motes. The glow is painted into the dot itself (a soft gradient), and the whole path, sway included, is one
+   transform, so the TV box's graphics chip moves them without redrawing or re-laying out the page every frame. */
+#motes { position:fixed; inset:0; pointer-events:none; overflow:hidden; contain:strict }
+#motes i { position:absolute; bottom:-6vh; border-radius:50%; background:radial-gradient(circle, var(--c) 0 7%, color-mix(in srgb, var(--c) 45%, transparent) 16%, color-mix(in srgb, var(--c) 14%, transparent) 38%, transparent 70%);
+  opacity:0; will-change:transform, opacity; animation:tv-rise linear infinite }
+@keyframes tv-rise { 0% { transform:translate3d(0,0,0); opacity:0 } 10% { opacity:.65 } 30% { transform:translate3d(1.4vw,-33vh,0) }
+  55% { transform:translate3d(-1.2vw,-60vh,0) } 80% { transform:translate3d(1vw,-88vh,0); opacity:.45 } 100% { transform:translate3d(-.6vw,-112vh,0); opacity:0 } }
 #wrap { position:fixed; left:0; right:0; top:0; bottom:var(--row); padding:6.5vh 5.5vw 2vh; box-sizing:border-box; display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 0.92fr); gap:4vw; transition:transform 6s ease }
 body.saver #wrap { bottom:22vh; padding:9vh 7vw 2vh }
 .left { display:flex; flex-direction:column; min-width:0 }
@@ -55,10 +57,11 @@ body.home .right { max-height:100%; box-sizing:border-box; overflow:hidden }
 #up { margin-top:1vh }
 .ev { display:grid; grid-template-columns:.7vh minmax(0, 1fr); gap:1.8vh; padding:1.5vh 0; border-bottom:1px solid var(--line) }
 .ev:last-child { border-bottom:0 }
-.ev i { border-radius:1vh; background:var(--c) }
+.ev i { position:relative; border-radius:1vh; background:var(--c) }
 .ev.first i { box-shadow:0 0 1.6vh .2vh var(--c) }
-.ev.now i { animation:tv-breathe 3.2s ease-in-out infinite }
-@keyframes tv-breathe { 50% { box-shadow:0 0 2.8vh .5vh var(--c) } }
+/* "Happening now" breathes by fading a ready-made glow in and out (opacity only, nothing redrawn each frame). */
+.ev.now i::after { content:''; position:absolute; inset:0; border-radius:inherit; box-shadow:0 0 2.8vh .6vh var(--c); opacity:0; will-change:opacity; animation:tv-breathe 3.2s ease-in-out infinite }
+@keyframes tv-breathe { 50% { opacity:1 } }
 .ev .when { font-size:2.3vh; color:var(--gold); font-weight:700; font-variant-numeric:tabular-nums }
 .ev .what { font:700 3.2vh/1.2 var(--f-display); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:.3vh }
 .ev.first .what { font-size:4vh }
@@ -77,6 +80,9 @@ body.photos #photo { display:block }
 #photo .ph { position:absolute; inset:0; opacity:0; transition:opacity 2s ease }
 #photo .ph.show { opacity:1 }
 #photo .bk { position:absolute; inset:-6%; background-size:cover; background-position:center; filter:blur(4vh) brightness(.55) saturate(1.2) }
+/* With a pre-shrunk copy of the photo, stretching it up already looks blurred, so no live blur filter is needed. */
+#photo .bk.soft { filter:none; inset:0; image-rendering:auto }
+#photo .bk.soft::after { content:''; position:absolute; inset:0; background:rgba(0,0,0,.45) }
 #photo img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; transform:scale(1); transition:transform 18s linear }
 #photo .ph.show img { transform:scale(1.06) }
 #photo::after { content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; box-shadow:inset 0 0 0 1px rgba(255,255,255,.08), inset 0 -10vh 8vh -8vh rgba(0,0,0,.35) }
@@ -84,9 +90,147 @@ body.photos #photo { display:block }
 body.saver #lane { bottom:3vh; height:20vh; left:6vw; right:6vw }
 #lane .hero-pace { height:100%; bottom:0 }
 .hero-visit { z-index:3 }
-@media (prefers-reduced-motion: reduce) { #motes { display:none } #wrap { transition:none } #glow i, .ev.now i { animation:none }
+/* ---------- motion polish ----------
+   Everything here moves only transform and opacity, the two things the TV box can animate smoothly. */
+:root { --ease-out:cubic-bezier(.16,1,.3,1); --ease-io:cubic-bezier(.65,0,.35,1) }
+/* Theme changes from the wall fade in over a second instead of snapping. */
+@property --bg { syntax:'<color>'; inherits:true; initial-value:#0E1412 }
+@property --bg2 { syntax:'<color>'; inherits:true; initial-value:#16201C }
+@property --accent { syntax:'<color>'; inherits:true; initial-value:#6DC2A4 }
+@property --gold { syntax:'<color>'; inherits:true; initial-value:#F0B43C }
+:root { transition:--bg 1.2s var(--ease-io), --bg2 1.2s var(--ease-io), --accent 1.2s var(--ease-io), --gold 1.2s var(--ease-io) }
+/* Opening: the clock, date and weather rise in one after another, then the card. */
+body { transition:opacity .35s var(--ease-out) }
+.left > *, .right, #photo { opacity:0; transform:translate3d(0,2.4vh,0); transition:opacity .7s var(--ease-out), transform .9s var(--ease-out) }
+body.ready .left > *, body.ready .right, body.ready #photo { opacity:1; transform:none }
+body.ready #date { transition-delay:.07s } body.ready #wx { transition-delay:.14s } body.ready #next { transition-delay:.2s }
+body.ready .right, body.ready #photo { transition-delay:.18s }
+/* New calendar rows slide in, staggered; rows already showing stay put. */
+.ev.in { animation:tv-row .6s var(--ease-out) both; animation-delay:calc(var(--n, 0) * 70ms) }
+@keyframes tv-row { from { opacity:0; transform:translate3d(2.6vh,0,0) } to { opacity:1; transform:none } }
+.swap { animation:tv-swap .55s var(--ease-out) both }
+@keyframes tv-swap { from { opacity:0; transform:translate3d(0,1.2vh,0) } to { opacity:1; transform:none } }
+/* The minute ticks over with a soft lift. */
+#clock .tk { display:inline-block; animation:tv-tick .5s var(--ease-out) both }
+@keyframes tv-tick { from { opacity:0; transform:translate3d(0,.18em,0) } to { opacity:1; transform:none } }
+/* A slow sheen runs along the card's glowing top edge. */
+.right { overflow:hidden }
+.right::after { content:''; position:absolute; top:-1px; left:0; width:30%; height:2px; pointer-events:none;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.9), transparent); opacity:.6; transform:translate3d(-110%,0,0); will-change:transform;
+  animation:tv-sheen 9s var(--ease-io) 2s infinite }
+@keyframes tv-sheen { 0% { transform:translate3d(-110%,0,0) } 35%, 100% { transform:translate3d(380%,0,0) } }
+#glow { contain:strict }
+#glow i { backface-visibility:hidden }
+@media (prefers-reduced-motion: reduce) { #motes { display:none } #wrap { transition:none } #glow i, .ev.now i, .ev.now i::after, .right::after, .ev.in, .swap, #clock .tk { animation:none }
+  .left > *, .right, #photo { transition:none; transform:none }
   #photo img, #photo .ph.show img { transition:none; transform:none }
   .hero, .hero svg *, .hero-pace, .hero-pace .hv-turn, .stk-a { animation:none !important } .hero-visit { display:none } }
+
+/* ---------- styles (see tv-style.js) ----------
+   Effects switched off are hidden or never built; the ones on move only with transform and opacity. */
+@property --glowA { syntax:'<color>'; inherits:true; initial-value:rgba(109,194,164,.24) }
+@property --glowG { syntax:'<color>'; inherits:true; initial-value:rgba(240,180,60,.14) }
+@property --haloA { syntax:'<color>'; inherits:true; initial-value:rgba(109,194,164,.45) }
+@property --haloG { syntax:'<color>'; inherits:true; initial-value:rgba(240,180,60,.38) }
+:root { transition:--bg 1.2s var(--ease-io), --bg2 1.2s var(--ease-io), --accent 1.2s var(--ease-io), --gold 1.2s var(--ease-io),
+  --glowA 1.2s var(--ease-io), --glowG 1.2s var(--ease-io), --haloA 1.2s var(--ease-io), --haloG 1.2s var(--ease-io) }
+body:not(.fx-motes) #motes, body:not(.fx-glowbg) #glow, body:not(.fx-pattern) #pat { display:none }
+body:not(.fx-shimmer) .right::after { display:none }
+#fx { position:fixed; inset:0; pointer-events:none; overflow:hidden; contain:strict; z-index:0 }
+.fx { position:absolute; inset:0 }
+.fx i { position:absolute; display:block; will-change:transform, opacity }
+
+/* Glow strength: g0 off ... g5 ultra. Shadows are drawn once; only "Plasma" and up add a slow opacity pulse. */
+body.g0 #clock, body.g0 #date { text-shadow:none } body.g0 .right { box-shadow:0 2vh 6vh rgba(0,0,0,.25) } body.g0 .ev.first i, body.g0 .right::before { box-shadow:none }
+body.g2 #clock { text-shadow:0 0 1vh var(--accent), 0 0 4vh var(--haloA), 0 0 9vh var(--haloA) }
+body.g2 #date { text-shadow:0 0 1.2vh var(--accent), 0 0 3vh var(--haloA) }
+body.g2 .right { border-color:color-mix(in srgb, var(--accent) 55%, transparent); box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent), 0 0 4vh var(--haloA), inset 0 0 3vh color-mix(in srgb, var(--accent) 12%, transparent) }
+body.g2 .ev i, body.g3 .ev i, body.g4 .ev i, body.g5 .ev i { box-shadow:0 0 1.4vh .2vh var(--c) }
+body.g3 #clock, body.g5 #clock { text-shadow:0 0 .6vh #fff, 0 0 1.6vh var(--accent), 0 0 5vh var(--accent), 0 0 12vh var(--haloA) }
+body.g3 #date, body.g5 #date { text-shadow:0 0 .6vh #fff, 0 0 2vh var(--accent), 0 0 5vh var(--haloA) }
+body.g3 .right, body.g5 .right { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 0 3vh var(--accent), 0 0 9vh var(--haloA), inset 0 0 4vh color-mix(in srgb, var(--accent) 18%, transparent) }
+body.g3 #wx > svg, body.g5 #wx > svg { filter:drop-shadow(0 0 1vh var(--gold)) drop-shadow(0 0 3vh var(--haloG)) }
+body.g4 #clock { width:fit-content; color:transparent; background:linear-gradient(100deg, var(--ink) 0%, var(--accent) 35%, var(--gold) 60%, var(--ink) 100%); background-size:200% 100%;
+  -webkit-background-clip:text; background-clip:text; text-shadow:none; filter:drop-shadow(0 0 2vh var(--haloA)) }
+body.g4 #clock .ap { color:var(--ink2); -webkit-text-fill-color:var(--ink2) }
+body.g4 .right { border-color:color-mix(in srgb, var(--accent) 60%, transparent); box-shadow:0 0 3vh var(--haloA), inset 0 0 0 1px rgba(255,255,255,.12);
+  background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, var(--card)), var(--card) 40%, color-mix(in srgb, var(--gold) 8%, var(--card))) }
+/* Hologram's clock sheen moves by sliding its gradient: a small text area, so it stays cheap. */
+body.g4:not(.perf) #clock { animation:sty-holo 7s linear infinite }
+@keyframes sty-holo { to { background-position:-200% 0 } }
+/* Plasma and Ultra pulse a ready-made glow layer over the card's edge. */
+body.g3 .right > .lbl::after, body.g5 .right > .lbl::after { content:''; position:absolute; inset:-1px; border-radius:3vh; pointer-events:none;
+  box-shadow:0 0 5vh 1vh var(--accent), inset 0 0 5vh var(--haloA); opacity:0; will-change:opacity; animation:sty-pulse 3.6s ease-in-out infinite }
+@keyframes sty-pulse { 50% { opacity:.55 } }
+body.g5 .ev .what, body.g5 #dinner .dn { text-shadow:0 0 1.5vh var(--haloA) }
+body.g5 .lbl { color:var(--accent); text-shadow:0 0 1vh var(--haloA) }
+
+/* Aurora: three wide soft ribbons swaying slowly. */
+.fx-aurora-l i { left:-30vw; width:160vw; height:42vh; top:-6vh; border-radius:50%; opacity:.5; filter:none;
+  background:radial-gradient(60% 50% at 50% 50%, color-mix(in srgb, var(--accent) 55%, transparent), transparent 70%); animation:sty-aur 26s ease-in-out infinite alternate }
+.fx-aurora-l i:nth-child(2) { top:8vh; background:radial-gradient(60% 50% at 50% 50%, color-mix(in srgb, var(--gold) 45%, transparent), transparent 70%); animation-duration:34s; animation-delay:-9s }
+.fx-aurora-l i:nth-child(3) { top:-14vh; opacity:.35; animation-duration:41s; animation-delay:-20s }
+@keyframes sty-aur { from { transform:translate3d(-12vw,0,0) rotate(-6deg) scaleY(.8) } to { transform:translate3d(12vw,6vh,0) rotate(5deg) scaleY(1.15) } }
+/* Horizon grid: a perspective floor whose lines roll toward you, with a glowing sun. */
+.fx-grid-l .gp { position:absolute; left:-50vw; right:-50vw; bottom:0; height:46vh; perspective:40vh; overflow:hidden;
+  -webkit-mask-image:linear-gradient(to top, #000 30%, transparent); mask-image:linear-gradient(to top, #000 30%, transparent) }
+.fx-grid-l .gl { position:absolute; left:0; right:0; bottom:0; height:200%; transform-origin:50% 100%; will-change:transform;
+  background-image:linear-gradient(color-mix(in srgb, var(--accent) 70%, transparent) 2px, transparent 2px), linear-gradient(90deg, color-mix(in srgb, var(--accent) 70%, transparent) 2px, transparent 2px);
+  background-size:8vh 8vh; animation:sty-grid 3s linear infinite }
+@keyframes sty-grid { from { transform:rotateX(70deg) translate3d(0,0,0) } to { transform:rotateX(70deg) translate3d(0,8vh,0) } }
+.fx-grid-l .sun { position:absolute; left:50%; bottom:40vh; width:34vh; height:34vh; margin-left:-17vh; border-radius:50%; opacity:.55;
+  background:linear-gradient(var(--gold), var(--accent)); -webkit-mask-image:repeating-linear-gradient(to bottom, #000 0 2.2vh, transparent 2.2vh 3vh);
+  mask-image:repeating-linear-gradient(to bottom, #000 0 2.2vh, transparent 2.2vh 3vh); box-shadow:0 0 8vh var(--haloG) }
+/* Starfield: two layers of tiny dots twinkling at different speeds. */
+.fx-stars-l i { left:0; top:0; width:.25vh; height:.25vh; border-radius:50%; animation:sty-twinkle 5s ease-in-out infinite }
+.fx-stars-l i:nth-child(2) { width:.35vh; height:.35vh; animation-duration:8s; animation-delay:-3s }
+@keyframes sty-twinkle { 50% { opacity:.35 } }
+/* Scan lines: a faint ruled overlay with one bright band sweeping down. */
+.fx-scan-l { background:repeating-linear-gradient(to bottom, rgba(255,255,255,.035) 0 1px, transparent 1px 4px) }
+.fx-scan-l i { left:0; right:0; top:0; height:18vh; background:linear-gradient(transparent, color-mix(in srgb, var(--accent) 16%, transparent), transparent); animation:sty-scan 7s linear infinite }
+@keyframes sty-scan { from { transform:translate3d(0,-20vh,0) } to { transform:translate3d(0,110vh,0) } }
+/* Orbit rings: dashed rings turning behind the clock. */
+.fx-rings-l i { left:-6vh; top:-14vh; width:70vh; height:70vh; border-radius:50%; border:2px dashed color-mix(in srgb, var(--accent) 45%, transparent); animation:sty-spin 60s linear infinite }
+.fx-rings-l i:nth-child(2) { left:4vh; top:-4vh; width:50vh; height:50vh; border:1px solid color-mix(in srgb, var(--gold) 40%, transparent); border-left-color:transparent; animation-duration:28s; animation-direction:reverse }
+.fx-rings-l i:nth-child(3) { left:-16vh; top:-24vh; width:90vh; height:90vh; border:1px dotted color-mix(in srgb, var(--accent) 30%, transparent); animation-duration:110s }
+@keyframes sty-spin { to { transform:rotate(360deg) } }
+/* Light beams: tall soft beams sweeping from below like stage lights. */
+.fx-beams-l i { bottom:-20vh; left:20vw; width:14vw; height:150vh; transform-origin:50% 100%; opacity:.22;
+  background:linear-gradient(to top, var(--accent), transparent 80%); animation:sty-beam 9s ease-in-out infinite alternate }
+.fx-beams-l i:nth-child(2) { left:55vw; background:linear-gradient(to top, var(--gold), transparent 80%); animation-duration:12s; animation-delay:-4s }
+.fx-beams-l i:nth-child(3) { left:80vw; animation-duration:15s; animation-delay:-8s }
+@keyframes sty-beam { from { transform:rotate(-24deg) } to { transform:rotate(24deg) } }
+/* Pulse ripples: rings spreading out from the clock corner and fading. */
+.fx-ripple-l i { left:6vw; top:4vh; width:40vh; height:40vh; margin:-20vh 0 0 -20vh; border-radius:50%; border:.3vh solid var(--accent); opacity:0; animation:sty-ripple 6s ease-out infinite }
+.fx-ripple-l i:nth-child(2) { animation-delay:-2s } .fx-ripple-l i:nth-child(3) { animation-delay:-4s; border-color:var(--gold) }
+@keyframes sty-ripple { 0% { transform:scale(.2); opacity:.6 } 100% { transform:scale(3); opacity:0 } }
+/* Glowing screen edge: a frame of light that breathes. */
+.fx-edge-l i { inset:0; box-shadow:inset 0 0 6vh color-mix(in srgb, var(--accent) 55%, transparent), inset 0 0 1.2vh var(--accent); animation:sty-pulse 5s ease-in-out infinite; opacity:.5 }
+@media (prefers-reduced-motion: reduce) { .fx i, .fx .gl, body.g4 #clock, .right > .lbl::after { animation:none !important } }
+
+/* ---------- the Style panel ---------- */
+#sty { display:none; position:fixed; inset:0; z-index:20; background:rgba(0,0,0,.35); align-items:center; justify-content:flex-end; padding:0 4vw; box-sizing:border-box }
+body.sty-open #sty { display:flex }
+body.sty-open #lane { display:none }
+.sty-card { width:min(46vw, 900px); max-height:86vh; display:flex; flex-direction:column; background:color-mix(in srgb, var(--bg) 88%, #000); border:1px solid var(--accent); border-radius:3vh;
+  box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent), 0 0 6vh var(--haloA), 0 3vh 8vh rgba(0,0,0,.5); overflow:hidden; animation:tv-swap .4s var(--ease-out) both }
+.sty-h { display:flex; align-items:baseline; justify-content:space-between; gap:2vh; padding:2.6vh 3vh 1.6vh; border-bottom:1px solid var(--line) }
+.sty-h b { font:700 4vh/1 var(--f-display); color:var(--ink); text-shadow:0 0 2vh var(--haloA) }
+.sty-h span { font-size:1.7vh; color:var(--ink2) }
+.sty-l { overflow:auto; padding:1vh 0; scrollbar-width:none }
+.sty-r { display:flex; align-items:center; gap:1.4vh; padding:1.3vh 3vh; font-size:2.3vh; color:var(--ink2); cursor:pointer; position:relative }
+.sty-r.on { background:color-mix(in srgb, var(--accent) 18%, transparent); color:var(--ink) }
+.sty-r.on::before { content:''; position:absolute; left:0; top:15%; bottom:15%; width:.6vh; border-radius:.6vh; background:var(--accent); box-shadow:0 0 1.6vh var(--accent) }
+.sty-k { flex:1; min-width:0 }
+.sty-v { font-weight:700; color:var(--ink); text-align:right; max-width:22vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.sty-r.t1 .sty-v { color:var(--accent); text-shadow:0 0 1.2vh var(--haloA) }
+.sty-r.t0 .sty-v { color:var(--ink2); opacity:.7 }
+.sty-r button { font:inherit; color:var(--ink); background:none; border:1px solid var(--line); border-radius:1vh; padding:.2vh 1.2vh; cursor:pointer }
+.sty-ver { font-style:normal; color:var(--accent); font-weight:700 }
+.sty-note { padding:1.6vh 3vh 2.4vh; font-size:1.9vh; line-height:1.4; color:var(--ink); border-top:1px solid var(--line) }
+.sty-sw { display:flex; gap:.5vh } .sty-sw i { width:1.8vh; height:1.8vh; border-radius:50%; box-shadow:0 0 1vh currentColor }
+body.style-page .sty-card { width:min(94vw, 900px) } body.style-page #sty { justify-content:center }
+@media (max-width:700px) { .sty-r { font-size:16px; padding:12px 16px } .sty-h b { font-size:24px } .sty-h span { font-size:12px } .sty-v { max-width:45vw } .sty-r button { padding:6px 12px } }
 
 .stk { display:inline-block; width:var(--sz, 48px); height:var(--sz, 48px); flex:none; transform:rotate(var(--r0, 0deg)); pointer-events:none }
 .stk-a { display:block; width:100%; height:100%; animation:var(--an, none) var(--du, 4s) ease-in-out var(--dl, 0s) infinite; transform-origin:50% 60%; will-change:transform }
@@ -976,8 +1120,8 @@ document.addEventListener('visibilitychange', () => musicSync());
    Shown by the Home Base launcher on the TV: behind the row of apps (?mode=home) and as the screensaver (?mode=saver).
    Everything comes from the bridge's read-only tv.json, which Home Base fills in whenever something changes:
    what's up next, the weather, tonight's dinner, and the colors or holiday theme on the wall. No sign-in needed. */
-const MODE = /mode=saver/.test(location.search) ? 'saver' : 'home';
-document.body.classList.add(MODE);
+const MODE = /mode=saver/.test(location.search) ? 'saver' : /mode=style/.test(location.search) ? 'style' : 'home';
+document.body.classList.add(MODE === 'style' ? 'style-page' : MODE);
 const D = { data: null, ht: null, look: '', timer: 0 };
 const HB_APP = window.HomeBaseTVApp || null;
 try { const c = localStorage.getItem('hbtv.data'); if (c) D.data = JSON.parse(c); } catch (e) {}
@@ -1006,14 +1150,17 @@ function whenText(e, now) {
 }
 
 function applyLook(data) {
-  const lk = (data && data.look) || {}, key = JSON.stringify(lk);
+  /* The style chosen on the TV (or the phone) can swap the wall's colors for a palette of its own; see styleLook. */
+  const lk = styleLook((data && data.look) || {}), key = JSON.stringify(lk);
   if (key === D.look) return; D.look = key;
   const ht = lk.th ? holThemeById(lk.th) : null; D.ht = ht;
   /* The music picks its style from the holiday theme showing (spooky music box for Halloween, sleigh bells, ...). */
   S.settings.holidayMode = ht ? 'pick' : 'off'; S.settings.holidayTheme = ht ? ht.id : '';
-  const main = ht ? ht.main : isHex(lk.main) ? lk.main : '#1D5B4A', hi = ht ? ht.hi : isHex(lk.hi) ? lk.hi : '#C98A12';
+  /* A palette picked in Style wins over the holiday's colors (the holiday's characters and pattern stay). */
+  const pick = lk.sty && isHex(lk.main);
+  const main = pick ? lk.main : ht ? ht.main : isHex(lk.main) ? lk.main : '#1D5B4A', hi = pick ? lk.hi : ht ? ht.hi : isHex(lk.hi) ? lk.hi : '#C98A12';
   const tk = deriveTokens(main, hi, true), root = document.documentElement.style;
-  const bg = ht ? ht.bgDark : tk['--bg'];
+  const bg = ht && !pick ? ht.bgDark : tk['--bg'];
   const A = hexRgb(tk['--accent']), G = hexRgb(tk['--gold']), B = hexRgb(bg);
   root.setProperty('--bg', bg);
   root.setProperty('--bg2', '#' + lerpC(B, A, 0.12).map(v => Math.round(v).toString(16).padStart(2, '0')).join(''));
@@ -1045,6 +1192,9 @@ function stickerPng(inner) {
 }
 async function sendTileTheme(ht, main, tk) {
   if (MODE !== 'home' || !HB_APP || typeof HB_APP.theme !== 'function') return;
+  /* While Style is open the app's tiles keep their colors; they get the new ones once, when it closes (rebuilding the
+     tiles on every press is what made the screen flash). */
+  if (PANEL && PANEL.open) { PANEL.tilesLater = [ht, main, tk]; return; }
   const key = D.look, stickers = [];
   if (ht) {
     const c = { ...HOL_BASE, ...ht.c }, names = [...new Set([...(ht.chars || []), ...ht.motifs])].filter(n => MOTIFS[n]).slice(0, 8);
@@ -1058,8 +1208,9 @@ async function sendTileTheme(ht, main, tk) {
 function makeMotes(cols) {
   const n = MODE === 'saver' ? 16 : 9, box = $('#motes'); let h = '';
   for (let i = 0; i < n; i++) {
-    const r = holHash('m' + i), x = r % 100, size = 0.8 + (r >> 4) % 18 / 10, du = 26 + (r >> 8) % 30, dl = -((Date.now() / 1000 + (r % 997)) % du);
-    h += `<i style="left:${x}vw;width:${size}vh;height:${size}vh;--c:${cols[i % cols.length]};animation-duration:${du}s,${3 + (r >> 6) % 4}s;animation-delay:${dl.toFixed(1)}s,${(dl / 3).toFixed(1)}s"></i>`;
+    /* Each dot is drawn seven times its old size because its glow is now painted inside it (see the CSS). */
+    const r = holHash('m' + i), x = r % 100, size = (0.8 + (r >> 4) % 18 / 10) * 7, du = 26 + (r >> 8) % 30, dl = -((Date.now() / 1000 + (r % 997)) % du);
+    h += `<i style="left:${x}vw;width:${size.toFixed(1)}vh;height:${size.toFixed(1)}vh;--c:${cols[i % cols.length]};animation-duration:${du}s;animation-delay:${dl.toFixed(1)}s"></i>`;
   }
   box.innerHTML = h;
 }
@@ -1088,35 +1239,63 @@ function visit() {
   document.body.appendChild(el);
 }
 
+/* Writes a part of the screen only when what it shows has changed, so the TV isn't redrawing the same thing every
+   30 seconds. A part that does change fades up into place (unless it's the very first draw). */
+const SHOWN = new Map();
+function put(sel, html, anim) {
+  if (SHOWN.get(sel) === html) return false;
+  const first = !SHOWN.has(sel); SHOWN.set(sel, html);
+  const el = $(sel); el.innerHTML = html;
+  if (anim && !first && html) { el.classList.remove('swap'); void el.offsetWidth; el.classList.add('swap'); }
+  return true;
+}
+let clockMin = '';
 function renderClock() {
   const now = new Date(); let h = now.getHours(); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
-  $('#clock').innerHTML = `${h}:${pad(now.getMinutes())}<span class="ap">${ap}</span>`;
-  $('#date').textContent = `${DOWL[now.getDay()]}, ${MON[now.getMonth()]} ${now.getDate()}`;
+  const hh = String(h), mm = pad(now.getMinutes()), key = hh + ':' + mm + ap;
+  if (key !== clockMin) {
+    /* Only the digits that changed lift into place. */
+    const old = clockMin; clockMin = key;
+    const oh = old ? old.split(':')[0] : '', om = old ? old.split(':')[1].slice(0, 2) : '';
+    const dg = (s, o) => s.split('').map((c, i) => old && c !== o[i] ? `<span class="tk">${c}</span>` : c).join('');
+    $('#clock').innerHTML = `${oh && oh.length === hh.length ? dg(hh, oh) : old ? `<span class="tk">${hh}</span>` : hh}:${dg(mm, om)}<span class="ap">${ap}</span>`;
+  }
+  const dt = `${DOWL[now.getDay()]}, ${MON[now.getMonth()]} ${now.getDate()}`;
+  if ($('#date').textContent !== dt) $('#date').textContent = dt;
+}
+/* Calendar rows: only rows that weren't showing before slide in. */
+let shownRows = new Set();
+function putRows(rows, empty) {
+  const keys = rows.map(r => r.key), html = rows.length ? rows.map(r => r.html).join('') : empty;
+  if (SHOWN.get('#up') === html) return;
+  const first = !SHOWN.has('#up'); SHOWN.set('#up', html);
+  $('#up').innerHTML = html;
+  if (!first) { let n = 0; $('#up').querySelectorAll('.ev').forEach((el, i) => { if (!shownRows.has(keys[i])) { el.classList.add('in'); el.style.setProperty('--n', n++); } }); }
+  shownRows = new Set(keys);
 }
 function render() {
   renderClock();
   const d = D.data, now = new Date();
   /* Weather */
   const w = d && d.wx;
-  $('#wx').innerHTML = w ? `${wxIcon(w.ic, w.night)}<span>${w.now != null ? `<b>${w.now}°</b>` : ''}<span class="wx-sub">${esc(w.ph || w.dph || '')}${w.hi != null ? `${w.ph || w.dph ? ' · ' : ''}High ${w.hi}° · Low ${w.lo}°` : ''}${w.rain >= 30 ? ` · ${w.rain}% rain` : ''}</span></span>` : '';
+  put('#wx', w ?`${wxIcon(w.ic, w.night)}<span>${w.now != null ? `<b>${w.now}°</b>` : ''}<span class="wx-sub">${esc(w.ph || w.dph || '')}${w.hi != null ? `${w.ph || w.dph ? ' · ' : ''}High ${w.hi}° · Low ${w.lo}°` : ''}${w.rain >= 30 ? ` · ${w.rain}% rain` : ''}</span></span>` : '', true);
   /* Up next */
   const up = (d && d.up || []).filter(e => { const end = e.ad ? addDays(parseYmd(e.s), 1) : new Date(e.e || +new Date(e.s) + 36e5); return end > now; });
   const max = MODE === 'saver' ? 5 : 4;
-  let h = '';
-  if (!d || !d.ok) h = `<p class="none">Open Home Base once and what's coming up will show here.</p>`;
-  else if (!up.length) h = `<p class="none">Nothing else on the calendar for the next few days.</p>`;
-  else h = up.slice(0, max).map((e, i) => `<div class="ev${i ? '' : ' first'}${isNow(e, now) ? ' now' : ''}" style="--c:${esc(e.c || 'var(--accent)')}"><i></i><div><div class="when">${esc(whenText(e, now))}</div><div class="what">${esc(e.t)}</div></div></div>`).join('');
-  $('#up').innerHTML = h;
+  if (!d || !d.ok) putRows([], `<p class="none">Open Home Base once and what's coming up will show here.</p>`);
+  else if (!up.length) putRows([], `<p class="none">Nothing else on the calendar for the next few days.</p>`);
+  else putRows(up.slice(0, max).map((e, i) => ({ key: e.t + '|' + e.s,
+    html: `<div class="ev${i ? '' : ' first'}${isNow(e, now) ? ' now' : ''}" style="--c:${esc(e.c || 'var(--accent)')}"><i></i><div><div class="when">${esc(whenText(e, now))}</div><div class="what">${esc(e.t)}</div></div></div>` })), '');
   const nx = up[0];
-  $('#next').innerHTML = nx ? `<div class="when">${esc(whenText(nx, now))}</div><div class="what">${esc(nx.t)}</div>` : '';
+  put('#next', nx ? `<div class="when">${esc(whenText(nx, now))}</div><div class="what">${esc(nx.t)}</div>` : '', true);
   $('#next').style.setProperty('--c', nx && nx.c ? nx.c : 'var(--accent)');
   syncPhotos();
   /* Tonight's dinner and chores still to do */
   const late = now.getHours() >= 20;
   const dinner = d && (late ? d.dinnerTomorrow : d.dinner);
-  $('#dinner').innerHTML = dinner ? `<span class="lbl">${late ? 'Tomorrow night' : 'Tonight'}</span><span class="dn">${esc(dinner)}</span>` : '';
+  put('#dinner', dinner ? `<span class="lbl">${late ? 'Tomorrow night' : 'Tonight'}</span><span class="dn">${esc(dinner)}</span>` : '', true);
   const left = (d && d.chores || []).filter(c => c.left && c.left.length);
-  $('#chores').innerHTML = d && d.chores && d.chores.length ? `<span class="lbl">Chores</span><span>${left.length ? left.map(c => `${esc(c.who)} <b>${c.left.length} left</b>`).join(' · ') : 'All done today ★'}</span>` : '';
+  put('#chores', d && d.chores && d.chores.length ? `<span class="lbl">Chores</span><span>${left.length ? left.map(c => `${esc(c.who)} <b>${c.left.length} left</b>`).join(' · ') : 'All done today ★'}</span>` : '', true);
   /* On a busy day, drop the last calendar items until dinner and chores fit above the app row. */
   const card = $('.right'), evs = () => $('#up').querySelectorAll('.ev');
   while (MODE === 'home' && card.scrollHeight > card.clientHeight + 2 && evs().length > 1) evs()[evs().length - 1].remove();
@@ -1147,7 +1326,13 @@ function nextPhoto() {
     const box = $('#photo'), el = document.createElement('div');
     el.className = 'ph';
     el.innerHTML = `<div class="bk"></div>`;
-    el.firstChild.style.backgroundImage = `url("${src}")`;
+    /* The blurred backdrop: a tiny pre-blurred copy of the photo stretched up looks just as soft as a live blur and costs
+       almost nothing to show. Falls back to the blur filter if the copy can't be made. */
+    let soft = '';
+    try { const cv = document.createElement('canvas'), k = 48 / Math.max(img.naturalWidth, img.naturalHeight); cv.width = Math.max(1, Math.round(img.naturalWidth * k)); cv.height = Math.max(1, Math.round(img.naturalHeight * k));
+      const cx = cv.getContext('2d'); cx.filter = 'blur(2px) saturate(1.2)'; cx.drawImage(img, 0, 0, cv.width, cv.height); soft = cv.toDataURL('image/png'); } catch (e) { soft = ''; }
+    if (soft) el.firstChild.classList.add('soft');
+    el.firstChild.style.backgroundImage = `url("${soft || src}")`;
     img.alt = ''; el.appendChild(img); box.appendChild(el);
     document.body.classList.add('photos');
     requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
@@ -1179,7 +1364,7 @@ async function load() {
   if (DEMO) { D.data = demoData(); applyLook(D.data); render(); return; }
   try {
     const r = await fetch('tv.json', { cache: 'no-store' });
-    if (r.ok) { D.data = await r.json(); try { localStorage.setItem('hbtv.data', JSON.stringify(D.data)); } catch (e) {} }
+    if (r.ok) { D.data = await r.json(); try { localStorage.setItem('hbtv.data', JSON.stringify(D.data)); } catch (e) {} styleFromFeed(D.data); }
   } catch (e) {}
   applyLook(D.data); render();
 }
@@ -1242,6 +1427,269 @@ window.hbMusic = on => {
 };
 if (MODE === 'saver') { setInterval(drift, 90000); setInterval(visit, 40000); setTimeout(visit, 8000); }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) window.hbRefresh(); });
+/* ---------- styles: themes, colors, glow and effects you can mix ----------
+   A style is a few independent choices: a preset (a ready-made mix), a color palette (or the wall's own colors),
+   animated color cycling, a glow strength, and effects that each switch on or off. Picking a preset fills in the
+   rest; anything changed afterwards sticks on top of it. It's chosen in the Style panel (on the TV with the remote,
+   or on a phone at this same address with ?mode=style) and saved to the bridge, so every screen shows the same.
+   Everything here animates only transform and opacity, and Performance mode caps how many effects run at once,
+   so the TV box stays quick. These are declared with var/function so the code above can use them before this runs. */
+var STY_KEY = 'hbtv.style';
+/* Palettes: [name, main, highlight, ...extra colors used when the colors cycle] */
+var PALETTES = [
+  ['Home Base (from the wall)', '', ''],
+  ['Neon Mint', '#00E5A8', '#7CF8FF', '#00B3FF'], ['Electric Blue', '#1E6BFF', '#00E0FF', '#7A5CFF'], ['Hot Magenta', '#FF2D95', '#FFC4E6', '#B026FF'],
+  ['Cyber Lime', '#9DFF00', '#E7FF6B', '#00FFA3'], ['Laser Lemon', '#FFE600', '#FFF7A8', '#FF9F00'], ['Ultra Violet', '#7B2CFF', '#D1A6FF', '#FF3CAC'],
+  ['Synthwave', '#FF3CAC', '#784BA0', '#2B86C5'], ['Vaporwave', '#FF71CE', '#01CDFE', '#B967FF', '#05FFA1'], ['Tron', '#00F0FF', '#FF9B00', '#0066FF'],
+  ['Aurora', '#00FF9C', '#7A5CFF', '#00C2FF', '#FF4FD8'], ['Galaxy', '#5B2BFF', '#FF6AD5', '#00D4FF'], ['Deep Ocean', '#0077B6', '#90E0EF', '#00B4D8'],
+  ['Lagoon', '#00B8A9', '#F8F3D4', '#00E1C6'], ['Ember', '#FF5E1A', '#FFC15E', '#FF2E2E'], ['Lava', '#FF2E00', '#FFB800', '#FF006E'],
+  ['Sunset', '#FF7A59', '#FFD166', '#EF476F'], ['Rose Gold', '#E8A0A0', '#F7D6C9', '#C97B84'], ['Cherry Blossom', '#FF8FB1', '#FFE3EC', '#C9A0FF'],
+  ['Forest', '#2D8F5E', '#C9E265', '#5FD068'], ['Matrix', '#00FF41', '#B6FFC9', '#008F11'], ['Toxic', '#B8FF00', '#39FF14', '#00FF85'],
+  ['Arctic', '#8FD3FF', '#FFFFFF', '#B5F2FF'], ['Glacier', '#5EC2E8', '#E3F6FF', '#9AD0EC'], ['Midnight Gold', '#C9A227', '#FFE8A3', '#8C6D1F'],
+  ['Royal', '#4B3FD1', '#FFD24C', '#8A7CFF'], ['Copper', '#C8733B', '#F5C29A', '#E0904F'], ['Mono Silver', '#9AA5B1', '#F2F4F7', '#CBD2D9'],
+  ['Infrared', '#FF0040', '#FF8A00', '#FF00A8'], ['Plasma', '#FF00E5', '#00F5FF', '#FFE600'], ['Rainbow', '#FF3B3B', '#FFD93B', '#3BFF6B', '#3BC8FF', '#B03BFF']
+];
+var CYCLES = [['Off', 0], ['Slow', 16000], ['Medium', 8000], ['Fast', 4000], ['Rainbow drift', 6000]];
+var GLOWS = ['Off', 'Soft', 'Neon', 'Plasma', 'Hologram', 'Ultra'];
+/* Effects: [id, name, heavy] (heavy ones count double against Performance mode's limit) */
+var EFFECTS = [
+  ['motes', 'Floating lights', 0], ['aurora', 'Aurora ribbons', 1], ['grid', 'Neon horizon grid', 1], ['stars', 'Starfield', 0],
+  ['scan', 'Scan lines', 0], ['rings', 'Orbit rings', 0], ['beams', 'Light beams', 1], ['ripple', 'Pulse ripples', 0],
+  ['edge', 'Glowing screen edge', 0], ['shimmer', 'Card shimmer', 0], ['glowbg', 'Drifting color glow', 0], ['pattern', 'Holiday pattern', 0]
+];
+/* 50 presets: [name, palette index, cycle index, glow index, effects] */
+var PRESETS = [
+  ['Home Base classic', 0, 0, 1, 'motes shimmer glowbg pattern'], ['Home Base neon', 0, 0, 2, 'motes edge shimmer glowbg pattern'],
+  ['Home Base calm', 0, 0, 1, 'glowbg pattern'], ['Home Base party', 0, 3, 3, 'motes ripple edge shimmer glowbg pattern'],
+  ['Neon City', 1, 0, 2, 'grid scan edge shimmer'], ['Cyberpunk', 3, 2, 3, 'grid scan beams edge'], ['Synthwave Sunset', 7, 1, 3, 'grid stars shimmer'],
+  ['Vaporwave', 8, 2, 2, 'grid stars glowbg'], ['Tron Grid', 9, 0, 5, 'grid scan edge rings'], ['Aurora Night', 10, 1, 2, 'aurora stars glowbg'],
+  ['Northern Lights', 10, 2, 3, 'aurora motes'], ['Galaxy', 11, 1, 2, 'stars rings glowbg'], ['Deep Space', 11, 0, 1, 'stars'],
+  ['Hologram', 2, 2, 4, 'scan rings shimmer edge'], ['Plasma Core', 29, 3, 3, 'rings ripple glowbg'], ['Laser Show', 6, 3, 5, 'beams scan edge'],
+  ['Deep Ocean', 12, 1, 1, 'motes glowbg ripple'], ['Lagoon', 13, 0, 1, 'motes glowbg'], ['Ember Glow', 14, 1, 2, 'motes glowbg edge'],
+  ['Lava Lamp', 15, 2, 3, 'glowbg ripple'], ['Sunset Drive', 16, 1, 2, 'grid glowbg'], ['Rose Gold', 17, 0, 1, 'motes shimmer'],
+  ['Cherry Blossom', 18, 1, 1, 'motes glowbg'], ['Forest Calm', 19, 0, 1, 'motes glowbg'], ['Matrix', 20, 0, 2, 'scan stars'],
+  ['Toxic Neon', 21, 3, 3, 'scan ripple edge'], ['Arctic', 22, 0, 1, 'stars glowbg'], ['Glacier', 23, 1, 2, 'aurora'],
+  ['Midnight Gold', 24, 0, 2, 'stars shimmer'], ['Royal', 25, 0, 2, 'rings shimmer glowbg'], ['Copper Steam', 26, 0, 1, 'motes glowbg'],
+  ['Minimal Silver', 27, 0, 0, ''], ['Infrared', 28, 2, 3, 'beams edge'], ['Rainbow Wave', 30, 4, 3, 'motes ripple shimmer'],
+  ['Rainbow Party', 30, 3, 5, 'beams ripple edge rings'], ['Electric Storm', 2, 3, 3, 'beams scan edge'], ['Ultraviolet', 6, 1, 3, 'rings glowbg edge'],
+  ['Laser Lemon', 5, 0, 2, 'scan shimmer'], ['Cyber Lime', 4, 2, 2, 'grid edge'], ['Hot Magenta', 3, 0, 3, 'motes edge glowbg'],
+  ['Retro Arcade', 9, 3, 3, 'grid scan stars'], ['Starship Bridge', 2, 0, 4, 'stars scan rings'], ['Quiet Night', 12, 0, 0, 'stars'],
+  ['Reading Light', 26, 0, 0, 'glowbg'], ['Pure Focus', 27, 0, 0, ''], ['Firefly Field', 19, 1, 2, 'motes stars'],
+  ['Neon Pulse', 1, 2, 3, 'ripple edge shimmer'], ['Space Odyssey', 11, 2, 4, 'stars rings beams'], ['Candy Glow', 18, 3, 2, 'motes ripple glowbg'],
+  ['Max Futuristic', 29, 4, 5, 'aurora grid rings scan edge shimmer']
+];
+var STY = null;
+function styDefault() { return { preset: 0, palette: 0, cycle: 0, glow: 1, fx: fxFromList(PRESETS[0][4]), wall: true, perf: true, ts: 0 }; }
+function fxFromList(s) { const o = {}; EFFECTS.forEach(e => { o[e[0]] = (' ' + s + ' ').includes(' ' + e[0] + ' '); }); return o; }
+function styLoad() {
+  if (STY) return STY;
+  STY = styDefault();
+  try { const s = JSON.parse(localStorage.getItem(STY_KEY) || 'null'); if (s && typeof s === 'object') STY = styClean(s); } catch (e) {}
+  return STY;
+}
+function styClean(s) {
+  const d = styDefault(), n = (v, max, def) => Number.isInteger(v) && v >= 0 && v < max ? v : def;
+  const o = { preset: n(s.preset, PRESETS.length, d.preset), palette: n(s.palette, PALETTES.length, d.palette), cycle: n(s.cycle, CYCLES.length, d.cycle),
+    glow: n(s.glow, GLOWS.length, d.glow), fx: {}, wall: s.wall !== false, perf: s.perf !== false, ts: +s.ts || 0 };
+  EFFECTS.forEach(e => { o.fx[e[0]] = s.fx && typeof s.fx[e[0]] === 'boolean' ? s.fx[e[0]] : d.fx[e[0]]; });
+  return o;
+}
+/* Colors: with "Follow the wall" on and the Home Base palette, the wall's colors and holiday theme show as before. */
+function styleLook(lk) {
+  if (!PRESETS) return lk;   /* the first draw runs before this part of the page has loaded */
+  const s = styLoad(), p = PALETTES[s.palette];
+  if (!p[1]) return lk;
+  const out = { main: p[1], hi: p[2], sty: s.palette };
+  if (s.wall && lk.th) out.th = lk.th;   /* a holiday on the wall still brings its characters */
+  return out;
+}
+/* Effects allowed right now: Performance mode keeps the total "weight" at 4 or less (heavy effects count 2). */
+function fxActive() {
+  const s = styLoad(), on = EFFECTS.filter(e => s.fx[e[0]]);
+  if (!s.perf) return on.map(e => e[0]);
+  let w = 0; return on.filter(e => (w += e[2] ? 2 : 1) <= 4).map(e => e[0]);
+}
+function styApply(save) {
+  const s = styLoad(), b = document.body, act = fxActive();
+  GLOWS.forEach((g, i) => b.classList.toggle('g' + i, i === s.glow));
+  EFFECTS.forEach(e => b.classList.toggle('fx-' + e[0], act.includes(e[0])));
+  b.classList.toggle('perf', s.perf);
+  fxBuild(act);
+  D.look = '';   /* re-derive colors from the new palette */
+  applyLook(D.data);
+  cycleStart();
+  if (save) {
+    s.ts = Date.now();
+    try { localStorage.setItem(STY_KEY, JSON.stringify(s)); } catch (e) {}
+    styPush();
+  }
+}
+/* Saves the style to the bridge (relative address: this page's own /w/CODE/), so the TV and a phone stay in step. */
+let styPushT = 0;
+function styPush() {
+  if (DEMO) return;
+  clearTimeout(styPushT);
+  styPushT = setTimeout(() => { try { fetch('style', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...styLoad(), page: '11.9-C', mode: MODE }) }).catch(() => {}); } catch (e) {} }, 600);
+}
+/* A newer style saved somewhere else (the phone, the other screen) arrives with tv.json. */
+function styleFromFeed(data) {
+  if (!PRESETS) return;
+  const r = data && data.style;
+  if (!r || typeof r !== 'object' || !(+r.ts > styLoad().ts)) return;
+  STY = styClean(r);
+  try { localStorage.setItem(STY_KEY, JSON.stringify(STY)); } catch (e) {}
+  styApply(false);
+  if (PANEL.open) panelDraw();
+}
+
+/* ---------- animated color cycling ----------
+   Every few seconds the accent and highlight move on to the next colors of the palette (or round the rainbow).
+   The colors are registered properties, so the browser fades between them on its own (see the CSS). */
+var CY = { t: 0, i: 0 };
+function cycleStart() {
+  clearInterval(CY.t);
+  const s = styLoad(), ms = CYCLES[s.cycle][1];
+  if (!ms || fxStill()) return;
+  CY.t = setInterval(cycleStep, ms);
+}
+function cycleStep() {
+  if (document.hidden) return;
+  const s = styLoad(), root = document.documentElement.style;
+  let a, g;
+  if (s.cycle === 4) { const h = (CY.i++ * 47) % 360; a = hslHex(h, 90, 62); g = hslHex((h + 140) % 360, 95, 70); }
+  else {
+    const p = PALETTES[s.palette], cols = p[1] ? p.slice(1) : [getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6DC2A4', '#F0B43C'];
+    a = cols[CY.i % cols.length]; g = cols[(CY.i + 1) % cols.length]; CY.i++;
+  }
+  root.setProperty('--accent', a); root.setProperty('--gold', g);
+  const A = hexRgb(a), G = hexRgb(g);
+  if (A && G) {
+    root.setProperty('--glowA', rgba(A, 0.24)); root.setProperty('--glowG', rgba(G, 0.14));
+    root.setProperty('--haloA', rgba(A, 0.45)); root.setProperty('--haloG', rgba(G, 0.38));
+  }
+  try { if (HB_APP && typeof HB_APP.look === 'function') HB_APP.look(a, g); } catch (e) {}
+}
+function hslHex(h, s, l) {
+  s /= 100; l /= 100; const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
+  const f = n => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))))).toString(16).padStart(2, '0');
+  return '#' + f(0) + f(8) + f(4);
+}
+
+/* ---------- effect layers (built only when switched on) ---------- */
+function fxBuild(act) {
+  let box = $('#fx');
+  if (!box) { box = document.createElement('div'); box.id = 'fx'; box.setAttribute('aria-hidden', 'true'); document.body.insertBefore(box, $('#wrap')); }
+  const want = act.filter(id => FX_HTML[id]), have = [...box.children].map(c => c.dataset.fx);
+  [...box.children].forEach(c => { if (!want.includes(c.dataset.fx)) c.remove(); });
+  want.forEach(id => { if (!have.includes(id)) { const d = document.createElement('div'); d.className = 'fx fx-' + id + '-l'; d.dataset.fx = id; d.innerHTML = FX_HTML[id](); box.appendChild(d); } });
+}
+var FX_HTML = {
+  aurora: () => '<i></i><i></i><i></i>',
+  grid: () => '<div class="gp"><div class="gl"></div></div><div class="sun"></div>',
+  stars: () => { const sh = n => { let o = []; for (let i = 0; i < n; i++) { const r = holHash('s' + n + i); o.push(`${r % 100}vw ${(r >> 7) % 100}vh 0 ${(r >> 3) % 3 ? 0 : '.08vh'} rgba(255,255,255,${(.35 + (r >> 5) % 6 / 10).toFixed(2)})`); } return o.join(','); };
+    return `<i style="box-shadow:${sh(70)}"></i><i style="box-shadow:${sh(40)}"></i>`; },
+  scan: () => '<i></i>',
+  rings: () => '<i></i><i></i><i></i>',
+  beams: () => '<i></i><i></i><i></i>',
+  ripple: () => '<i></i><i></i><i></i>',
+  edge: () => '<i></i>'
+};
+
+/* ---------- the Style panel ----------
+   Up and down pick a line, left and right change it, OK switches an effect on or off, Back closes.
+   On the TV the app passes the remote's buttons in (hbKey); a phone or keyboard can tap and use arrow keys. */
+var PANEL = { open: false, row: 0 };
+function panelRows() {
+  const s = styLoad(), rows = [
+    { k: 'preset', label: 'Preset', val: `${s.preset + 1}/${PRESETS.length} · ${PRESETS[s.preset][0]}` },
+    { k: 'palette', label: 'Colors', val: PALETTES[s.palette][0], sw: PALETTES[s.palette].slice(1).filter(Boolean) },
+    { k: 'cycle', label: 'Color cycling', val: CYCLES[s.cycle][0] },
+    { k: 'glow', label: 'Glow', val: GLOWS[s.glow] },
+    { k: 'wall', label: 'Follow the wall’s holiday themes', val: s.wall ? 'On' : 'Off', tog: s.wall }
+  ];
+  const act = fxActive();
+  EFFECTS.forEach(e => rows.push({ k: 'fx:' + e[0], label: e[1], val: s.fx[e[0]] ? (act.includes(e[0]) ? 'On' : 'On · paused by Performance') : 'Off', tog: s.fx[e[0]] }));
+  rows.push({ k: 'perf', label: 'Performance mode (keeps the TV quick)', val: s.perf ? 'On' : 'Off', tog: s.perf });
+  rows.push({ k: 'reset', label: 'Reset to Home Base classic', val: 'OK', btn: true });
+  if (HB_APP && typeof HB_APP.pair === 'function') rows.push({ k: 'pair', label: 'Change the Home Base code', val: 'OK', btn: true });
+  if (HB_APP && typeof HB_APP.update === 'function') rows.push({ k: 'update', label: 'Update Home Base TV', val: PANEL.upd || 'Check now', btn: true });
+  return rows;
+}
+function panelOpen() {
+  let p = $('#sty');
+  if (!p) { p = document.createElement('div'); p.id = 'sty'; document.body.appendChild(p);
+    p.addEventListener('click', e => { const r = e.target.closest('[data-i]'); if (!r) return; PANEL.row = +r.dataset.i; const d = e.target.closest('[data-d]'); panelAct(d ? +d.dataset.d : 0); }); }
+  PANEL.open = true; document.body.classList.add('sty-open'); panelDraw();
+  try { HB_APP && typeof HB_APP.panel === 'function' && HB_APP.panel(true); } catch (e) {}
+}
+function panelClose() {
+  if (MODE === 'style') return;   /* the style page is only the panel */
+  PANEL.open = false; document.body.classList.remove('sty-open');
+  if (PANEL.tilesLater) { const t = PANEL.tilesLater; PANEL.tilesLater = null; setTimeout(() => sendTileTheme(...t), 350); }
+  try { HB_APP && typeof HB_APP.panel === 'function' && HB_APP.panel(false); } catch (e) {}
+}
+function panelDraw() {
+  /* The card is built once when the panel opens; a button press only updates the lines. (Rebuilding the whole card on
+     every press replayed its fade-in, which made the panel flash and show the screen through it.) */
+  const rows = panelRows(); PANEL.row = Math.max(0, Math.min(PANEL.row, rows.length - 1));
+  const box = $('#sty');
+  let list = box.querySelector('.sty-l');
+  if (!list) {
+    box.innerHTML = `<div class="sty-card"><div class="sty-h"><b>Style</b><span>${MODE === 'style' ? 'Tap or use arrows' : '▲▼ pick · ◀▶ change · OK on/off · Back closes'} · <em class="sty-ver">Page 11.9-C</em></span></div><div class="sty-l"></div></div>`;
+    list = box.querySelector('.sty-l');
+  }
+  const html = rows.map((r, i) => `<div class="sty-r${i === PANEL.row ? ' on' : ''}${r.tog === true ? ' t1' : r.tog === false ? ' t0' : ''}" data-i="${i}">` +
+      `<span class="sty-k">${esc(r.label)}</span>${r.sw ? `<span class="sty-sw">${r.sw.map(c => `<i style="background:${c}"></i>`).join('')}</span>` : ''}` +
+      `${r.tog === undefined && !r.btn ? '<button data-d="-1">◀</button>' : ''}<span class="sty-v">${esc(r.val)}</span>` +
+      `${r.tog === undefined && !r.btn ? '<button data-d="1">▶</button>' : ''}</div>`);
+  const have = list.children;
+  if (have.length !== html.length) list.innerHTML = html.join('');
+  else html.forEach((h, i) => { if (have[i].outerHTML !== h) have[i].outerHTML = h; });
+  const cur = list.querySelector('.sty-r.on'); if (cur) cur.scrollIntoView({ block: 'nearest' });
+}
+function panelAct(dir) {
+  const s = styLoad(), r = panelRows()[PANEL.row]; if (!r) return;
+  const step = (v, n) => (v + (dir || 1) + n) % n;
+  if (r.k === 'preset') { s.preset = step(s.preset, PRESETS.length); const p = PRESETS[s.preset]; s.palette = p[1]; s.cycle = p[2]; s.glow = p[3]; s.fx = fxFromList(p[4]); }
+  else if (r.k === 'palette') s.palette = step(s.palette, PALETTES.length);
+  else if (r.k === 'cycle') s.cycle = step(s.cycle, CYCLES.length);
+  else if (r.k === 'glow') s.glow = step(s.glow, GLOWS.length);
+  else if (r.k === 'wall') s.wall = !s.wall;
+  else if (r.k === 'perf') s.perf = !s.perf;
+  else if (r.k.startsWith('fx:')) { const id = r.k.slice(3); s.fx[id] = !s.fx[id]; }
+  else if (r.k === 'reset') { const ts = s.ts; STY = styDefault(); STY.ts = ts; }
+  else if (r.k === 'pair') { try { HB_APP.pair(); } catch (e) {} return; }
+  else if (r.k === 'update') { if (HB_APP && typeof HB_APP.update === 'function') { PANEL.upd = 'Checking…'; panelDraw(); try { HB_APP.update(); } catch (e) {} } else { PANEL.upd = ''; updHint(); } return; }
+  styApply(true); panelDraw();
+}
+/* The app tells the page how an update check went (newer TV app versions). */
+window.hbUpdate = msg => { PANEL.upd = String(msg || ''); if (PANEL.open) panelDraw(); };
+function updHint() {
+  let t = $('#sty .sty-note'); const card = $('#sty .sty-card'); if (!card) return;
+  if (!t) { t = document.createElement('div'); t.className = 'sty-note'; card.appendChild(t); }
+  t.textContent = 'This TV has an older Home Base app. To get the new one: open Downloader, enter home-bridge.webb-home.workers.dev/tv and install it. After that, this button updates the app for you.';
+}
+/* The remote's buttons, passed in by the app while the panel is open. Returns true when used. */
+window.hbKey = k => {
+  if (!PANEL.open) { if (k === 'menu') { panelOpen(); return true; } return false; }
+  const n = panelRows().length;
+  if (k === 'up') PANEL.row = (PANEL.row - 1 + n) % n;
+  else if (k === 'down') PANEL.row = (PANEL.row + 1) % n;
+  else if (k === 'left') { panelAct(-1); return true; }
+  else if (k === 'right') { panelAct(1); return true; }
+  else if (k === 'ok') { panelAct(1); return true; }
+  else if (k === 'back' || k === 'menu') { panelClose(); return true; }
+  else return false;
+  panelDraw(); return true;
+};
+window.hbStyle = { open: panelOpen, close: panelClose, get: () => styLoad() };
+document.addEventListener('keydown', e => {
+  const map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', Enter: 'ok', Escape: 'back', s: 'menu' };
+  if (map[e.key] && window.hbKey(map[e.key])) e.preventDefault();
+});
+styApply(false);
+if (MODE === 'style') { document.body.classList.add('home'); panelOpen(); }
+
 requestAnimationFrame(() => { document.body.classList.add('ready'); try { HB_APP && HB_APP.ready(); } catch (e) {} });
 
 })();

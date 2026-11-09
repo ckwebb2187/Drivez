@@ -17,7 +17,7 @@ M=app/src/main
   --java "$OUT/gen" -o "$OUT/unsigned.apk" "$OUT/res/res.zip"
 javac --release 8 -Xlint:-options -nowarn -encoding UTF-8 -classpath "$JAR" -d "$OUT/classes" $(find $M/java "$OUT/gen" -name '*.java') 2>&1 | grep -v "^Picked up" || true
 test -f "$OUT/classes/app/homebase/tv/HomeActivity.class"
-java -cp "$BT/lib/d8.jar" com.android.tools.r8.D8 --release --min-api 26 --lib "$JAR" --output "$OUT/dex" $(find "$OUT/classes" -name '*.class') 2>&1 | grep -v "^Picked up" || true
+java -cp "${R8:-$BT/lib/d8.jar}" com.android.tools.r8.D8 --release --min-api 26 --lib "$JAR" --output "$OUT/dex" $(find "$OUT/classes" -name '*.class') 2>&1 | grep -v "^Picked up" || true
 cp "$OUT/unsigned.apk" "$OUT/with-dex.apk"
 if command -v zip >/dev/null; then (cd "$OUT/dex" && zip -q -j ../with-dex.apk classes.dex)
 else python -c "import zipfile,sys; z=zipfile.ZipFile(sys.argv[1],'a',zipfile.ZIP_DEFLATED); z.write(sys.argv[2],'classes.dex'); z.close()" "$OUT/with-dex.apk" "$OUT/dex/classes.dex"; fi

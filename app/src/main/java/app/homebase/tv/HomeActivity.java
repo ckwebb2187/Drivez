@@ -78,7 +78,16 @@ public class HomeActivity extends Activity {
     private Zen zen;
     /** Behind the screensaver the music stops when the box is allowed to sleep (after two hours, like the screensaver). */
     private final Runnable zenSleep = () -> { if (zen != null) zen.pause(); };
-    private final Runnable idle = () -> { toSaver = true; startActivity(new Intent(this, SaverActivity.class)); };
+    private final Runnable idle = () -> { if (this.panelOpen) { resetIdle(); return; } toSaver = true; startActivity(new Intent(this, SaverActivity.class)); };
+    /** True while the page's Style panel is open: the remote's buttons go to the page then. */
+    private boolean panelOpen;
+    /** Where the small Settings and Style buttons sit: "corner" (bottom right), "end" or "start" of the app row. */
+    private String gearPlace = "corner";
+    private LinearLayout corner;
+    /** Each tile's picture and sticker, so a new theme can recolor them in place instead of rebuilding the row. */
+    private static final class TileRef { final Tile t; final ImageView img, sticker; TileRef(Tile t, ImageView img, ImageView sticker) { this.t = t; this.img = img; this.sticker = sticker; } }
+    private final List<TileRef> refs = new ArrayList<>();
+    private int themeGen;
 
     /** One tile: an app, the Home Base wall, or Settings. */
     private static final class Tile {
@@ -150,10 +159,16 @@ public class HomeActivity extends Activity {
                 final TileTheme t = TileTheme.parse(json);   // decoded here, off the screen's thread
                 ui.post(() -> {
                     if (t.json.isEmpty() || t.json.equals(theme.json)) return;
+                    boolean stickersChanged = t.stickers.isEmpty() != theme.stickers.isEmpty();
                     theme = t; Hb.prefs(HomeActivity.this).edit().putString("tileTheme", t.json).apply();
-                    buildRow();
+                    if (stickersChanged) buildRow(); else recolorTiles();
                 });
             }
+            @JavascriptInterface public void panel(final boolean open) { ui.post(() -> setPanel(open)); }
+            @JavascriptInterface public void pair() { ui.post(() -> startActivity(new Intent(HomeActivity.this, PairActivity.class))); }
+            @JavascriptInterface public void place(final String where) { jsPlace(where); }
+            @JavascriptInterface public void update() { jsUpdate(); }
+            @JavascriptInterface public String version() { return Upd.versionName(HomeActivity.this); }
             @JavascriptInterface public void ready() { ui.post(() -> fallback.animate().alpha(0f).setDuration(400).withEndAction(() -> fallback.setVisibility(View.GONE)).start()); }
         }, "HomeBaseTVApp");
         root.addView(web, new FrameLayout.LayoutParams(-1, -1));
@@ -185,6 +200,19 @@ public class HomeActivity extends Activity {
         lp.leftMargin = pad; lp.bottomMargin = Math.round(H * 0.03f);
         root.addView(label, lp);
 
+        // The small Style and Settings buttons, bottom right (or in the app row; Style → Settings button).
+        gearPlace = Hb.prefs(this).getString("gear", "corner");
+        corner = new LinearLayout(this);
+        corner.setOrientation(LinearLayout.HORIZONTAL);
+        corner.setClipChildren(false);
+        corner.setClipToPadding(false);
+        corner.addView(pill("Style", () -> openStyle()), pillParams());
+        corner.addView(pill("Settings", () -> openSettings()), pillParams());
+        FrameLayout.LayoutParams kp = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.END);
+        kp.rightMargin = pad; kp.bottomMargin = Math.round(H * 0.022f);
+        corner.setVisibility("corner".equals(gearPlace) ? View.VISIBLE : View.GONE);
+        root.addView(corner, kp);
+
         setContentView(root);
         android.content.IntentFilter pf = new android.content.IntentFilter();
         pf.addAction(Intent.ACTION_PACKAGE_ADDED); pf.addAction(Intent.ACTION_PACKAGE_REMOVED); pf.addAction(Intent.ACTION_PACKAGE_CHANGED); pf.addAction(Intent.ACTION_PACKAGE_REPLACED);
@@ -196,6 +224,7 @@ public class HomeActivity extends Activity {
         super.onResume();
         if (Hb.code(this).isEmpty()) { startActivity(new Intent(this, PairActivity.class)); return; }
         String want = Hb.pageUrl(this, "home");
+        if (Hb.takeNewPage()) loadedFor = "";
         if (!want.equals(loadedFor)) { loadedFor = want; fallback.setVisibility(View.VISIBLE); fallback.setAlpha(1f); Hb.loadPage(this, web, "home"); }
         else web.evaluateJavascript("window.hbRefresh && hbRefresh()", null);
         toSaver = false;
@@ -218,14 +247,128 @@ public class HomeActivity extends Activity {
 
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
+        if (intent != null && intent.getBooleanExtra("style", false)) { openStyle(); return; }
         // Pressing Home while already here jumps back to the first app.
+        if (panelOpen) web.evaluateJavascript("window.hbKey && hbKey('back')", null);
         if (row.getChildCount() > 0) { row.getChildAt(0).requestFocus(); scroller.smoothScrollTo(0, 0); }
     }
 
     @Override public boolean dispatchKeyEvent(KeyEvent e) {
         resetIdle();
-        if (e.getKeyCode() == KeyEvent.KEYCODE_BACK) return true;   // it's the home screen: nothing to go back to
+        int code = e.getKeyCode();
+        boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
+        // While Style is open, the remote drives it.
+        if (panelOpen) {
+            String k = keyName(code);
+            if (k != null) { if (down) web.evaluateJavascript("window.hbKey && hbKey('" + k + "')", null); return true; }
+        }
+        // The ★ / menu buttons open Style.
+        if (code == KeyEvent.KEYCODE_MENU || code == KeyEvent.KEYCODE_BOOKMARK || code == KeyEvent.KEYCODE_STAR) { if (down && e.getRepeatCount() == 0) openStyle(); return true; }
+        if (code == KeyEvent.KEYCODE_BACK) return true;   // it's the home screen: nothing to go back to
         return super.dispatchKeyEvent(e);
+    }
+    private static String keyName(int code) {
+        switch (code) {
+            case KeyEvent.KEYCODE_DPAD_UP: return "up";
+            case KeyEvent.KEYCODE_DPAD_DOWN: return "down";
+            case KeyEvent.KEYCODE_DPAD_LEFT: return "left";
+            case KeyEvent.KEYCODE_DPAD_RIGHT: return "right";
+            case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER: case KeyEvent.KEYCODE_NUMPAD_ENTER: return "ok";
+            case KeyEvent.KEYCODE_BACK: case KeyEvent.KEYCODE_ESCAPE: return "back";
+            case KeyEvent.KEYCODE_MENU: case KeyEvent.KEYCODE_BOOKMARK: case KeyEvent.KEYCODE_STAR: return "menu";
+            default: return null;
+        }
+    }
+    private void jsPlace(final String where) {
+        ui.post(new Runnable() { @Override public void run() {
+            String w = "start".equals(where) || "end".equals(where) ? where : "corner";
+            if (w.equals(gearPlace)) return;
+            gearPlace = w; Hb.prefs(HomeActivity.this).edit().putString("gear", w).apply();
+            corner.setVisibility(panelOpen || !"corner".equals(w) ? View.GONE : View.VISIBLE);
+            buildRow();
+        } });
+    }
+    private void jsUpdate() {
+        Upd.check(this, new Upd.Say() { @Override public void say(final String msg) { ui.post(new Runnable() { @Override public void run() { HomeActivity.this.say(msg); } }); } });
+    }
+    private void openStyle() { web.evaluateJavascript("window.hbStyle && hbStyle.open()", null); }
+    private void openSettings() {
+        try { startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Exception e) { Toast.makeText(this, "Settings wouldn't open.", Toast.LENGTH_SHORT).show(); }
+    }
+    private void say(String msg) {
+        String js = "window.hbUpdate && hbUpdate(" + org.json.JSONObject.quote(msg) + ")";
+        web.evaluateJavascript(js, null);
+        if (!panelOpen) Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+    }
+    /** Style opened or closed: the app row steps out of the way so nothing draws over the panel. */
+    private void setPanel(boolean open) {
+        if (open == panelOpen) return;
+        panelOpen = open;
+        final View[] parts = { scroller, label, corner };
+        for (View v : parts) {
+            if (v == corner && !"corner".equals(gearPlace)) continue;
+            v.animate().cancel();
+            if (open) v.animate().alpha(0f).setDuration(160).withEndAction(() -> v.setVisibility(View.INVISIBLE)).start();
+            else { v.setVisibility(View.VISIBLE); v.animate().alpha(1f).setDuration(220).start(); }
+        }
+        if (!open) { View f = row.getFocusedChild(); if (f != null) f.requestFocus(); else if (row.getChildCount() > 0) row.getChildAt(0).requestFocus(); }
+    }
+
+    /** A small rounded button (Style, Settings) that glows in the theme's color when selected. */
+    private View pill(String text, final Runnable open) {
+        final TextView t = new TextView(this);
+        t.setText(text);
+        t.setTextColor(Color.argb(235, 238, 242, 239));
+        t.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        t.setTextSize(TypedValue.COMPLEX_UNIT_PX, tileH * 0.17f);
+        int ph = Math.round(tileH * 0.16f), pv = Math.round(tileH * 0.07f);
+        t.setPadding(ph, pv, ph, pv);
+        final GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(tileH);
+        t.setBackground(bg);
+        t.setFocusable(true);
+        t.setClickable(true);
+        final int stroke = Math.max(2, Math.round(tileH * 0.025f));
+        final Runnable style = () -> {
+            boolean f = t.hasFocus();
+            bg.setColor(f ? Color.argb(90, Color.red(glow), Color.green(glow), Color.blue(glow)) : Color.argb(110, 0, 0, 0));
+            bg.setStroke(stroke, f ? mix(glow, Color.WHITE, 0.45f) : Color.argb(60, 255, 255, 255));
+        };
+        style.run();
+        restyle.add(style);
+        t.setOnFocusChangeListener((v, has) -> {
+            style.run();
+            v.animate().scaleX(has ? 1.12f : 1f).scaleY(has ? 1.12f : 1f).setDuration(150).start();
+            if (has) label.setText("Settings".equals(text) ? "Settings  ·  hold OK to change the Home Base code" : "Style  ·  colors, glows and effects");
+        });
+        t.setOnClickListener(v -> open.run());
+        t.setOnLongClickListener(v -> { if ("Settings".equals(text)) { startActivity(new Intent(this, PairActivity.class)); return true; } return false; });
+        return t;
+    }
+    private LinearLayout.LayoutParams pillParams() { LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-2, -2); p.leftMargin = Math.round(tileH * 0.12f); return p; }
+
+    /** New theme colors: each tile's picture is recolored off the screen's thread, then faded in place. */
+    private void recolorTiles() {
+        final int gen = ++themeGen;
+        final TileTheme th = theme;
+        final List<TileRef> list = new ArrayList<>(refs);
+        new Thread(() -> {
+            final List<android.graphics.Bitmap> out = new ArrayList<>();
+            for (TileRef r : list) out.add(themedArt(r.t, th));
+            ui.post(() -> {
+                if (gen != themeGen) return;
+                for (int i = 0; i < list.size(); i++) {
+                    TileRef r = list.get(i);
+                    android.graphics.drawable.Drawable old = r.img.getDrawable();
+                    android.graphics.drawable.Drawable nu = new android.graphics.drawable.BitmapDrawable(getResources(), out.get(i));
+                    if (old != null) {
+                        android.graphics.drawable.TransitionDrawable td = new android.graphics.drawable.TransitionDrawable(new android.graphics.drawable.Drawable[]{ old, nu });
+                        td.setCrossFadeEnabled(true); r.img.setImageDrawable(td); td.startTransition(450);
+                    } else r.img.setImageDrawable(nu);
+                    if (r.sticker != null && !th.stickers.isEmpty()) r.sticker.setImageBitmap(th.stickers.get(i % th.stickers.size()));
+                }
+            });
+        }, "hb-tiles").start();
     }
 
     private void resetIdle() { ui.removeCallbacks(idle); ui.postDelayed(idle, IDLE_MS); }
@@ -239,6 +382,8 @@ public class HomeActivity extends Activity {
         List<Tile> tiles = tiles();
         row.removeAllViews();
         restyle.clear();
+        refs.clear();
+        if (corner != null) for (int i = 0; i < corner.getChildCount(); i++) { final View c = corner.getChildAt(i); restyle.add(() -> c.getOnFocusChangeListener().onFocusChange(c, c.hasFocus())); }
         int gap = Math.round(tileW * 0.09f);
         View first = null, refocus = null;
         tileN = 0;
@@ -283,11 +428,11 @@ public class HomeActivity extends Activity {
             return a.name.toLowerCase(Locale.US).compareTo(b.name.toLowerCase(Locale.US));
         });
         List<Tile> out = new ArrayList<>();
+        Tile set = new Tile("settings", "Settings  ·  hold OK to change the Home Base code", getDrawable(android.R.drawable.ic_menu_preferences), false, this::openSettings);
         out.add(new Tile("homebase", "Home Base", getDrawable(R.drawable.banner), true, () -> Hb.openWall(this)));
+        if ("start".equals(gearPlace)) out.add(set);
         out.addAll(apps);
-        out.add(new Tile("settings", "Settings  ·  hold OK for Home Base settings", getDrawable(android.R.drawable.ic_menu_preferences), false, () -> {
-            try { startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Exception e) { Toast.makeText(this, "Settings wouldn't open.", Toast.LENGTH_SHORT).show(); }
-        }));
+        if ("end".equals(gearPlace)) out.add(set);
         return out;
     }
 
@@ -307,8 +452,9 @@ public class HomeActivity extends Activity {
         });
         ImageView img = new ImageView(this);
         img.setScaleType(ImageView.ScaleType.FIT_XY);
-        img.setImageBitmap(themedArt(t));
+        img.setImageBitmap(themedArt(t, theme));
         v.addView(img, new FrameLayout.LayoutParams(-1, -1));
+        ImageView stickerView = null;
         if (!theme.stickers.isEmpty()) {
             int h = Math.abs(t.key.hashCode());
             ImageView st = new ImageView(this);
@@ -319,7 +465,9 @@ public class HomeActivity extends Activity {
             FrameLayout.LayoutParams stp = new FrameLayout.LayoutParams(ss, ss, Gravity.TOP | Gravity.END);
             stp.topMargin = Math.round(tileH * 0.03f); stp.rightMargin = Math.round(tileH * 0.03f);
             v.addView(st, stp);
+            stickerView = st;
         }
+        refs.add(new TileRef(t, img, stickerView));
         // Focus glow drawn on top: a bright ring in the theme's color with a soft wash inside it, plus a colored
         // shadow (Android 9 and up) so the tile seems to light up. It breathes gently while it's selected.
         final View ring = new View(this);
@@ -393,7 +541,7 @@ public class HomeActivity extends Activity {
      * main color, the brightest to a warm cream touched with the highlight color. Each tile's brightness is stretched
      * first, so logos stay crisp against their background.
      */
-    private android.graphics.Bitmap themedArt(Tile t) {
+    private android.graphics.Bitmap themedArt(Tile t, TileTheme theme) {
         int w = Math.max(16, tileW), h = Math.max(9, tileH);
         android.graphics.Bitmap bm = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
         android.graphics.Canvas c = new android.graphics.Canvas(bm);

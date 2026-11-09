@@ -78,10 +78,15 @@ final class Hb {
         while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
         return out.toString("UTF-8");
     }
-    /** At most every 6 hours: saves the bridge's copy of the page when it has one that differs (used from the next load). */
+    /** Set when a newer page has been saved; the home screen reloads it the next time it comes to the front. */
+    private static volatile boolean newPage;
+    static boolean takeNewPage() { boolean b = newPage; newPage = false; return b; }
+    /** Checks right away (the Update button), whatever the time since the last check. */
+    static void refreshPageNow(Context c) { checkedAt = 0; refreshPage(c.getApplicationContext()); }
+    /** At most every 20 minutes: saves the bridge's copy of the page when it has one that differs (used from the next load). */
     private static void refreshPage(final Context c) {
         final String code = code(c);
-        if (code.isEmpty() || code.equals("demo") || System.currentTimeMillis() - checkedAt < 6 * 3600 * 1000L) return;
+        if (code.isEmpty() || code.equals("demo") || System.currentTimeMillis() - checkedAt < 20 * 60 * 1000L) return;
         checkedAt = System.currentTimeMillis();
         new Thread(() -> {
             HttpURLConnection h = null;
@@ -94,7 +99,7 @@ final class Hb {
                 if (got.length() < 50000 || !got.contains("id=\"wrap\"") || got.equals(page)) return;
                 java.io.File tmp = new java.io.File(c.getFilesDir(), "tv.html.part");
                 try (java.io.FileOutputStream out = new java.io.FileOutputStream(tmp)) { out.write(got.getBytes("UTF-8")); }
-                if (tmp.renameTo(new java.io.File(c.getFilesDir(), "tv.html"))) synchronized (Hb.class) { page = got; }
+                if (tmp.renameTo(new java.io.File(c.getFilesDir(), "tv.html"))) { synchronized (Hb.class) { page = got; } newPage = true; }
             } catch (Exception e) { /* try again later */ }
             finally { if (h != null) h.disconnect(); }
         }, "hb-page").start();

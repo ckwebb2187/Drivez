@@ -26,6 +26,14 @@ adb shell input keyevent KEYCODE_DPAD_CENTER; sleep 3
 adb shell am start -n app.homebase.tv/.HomeActivity; sleep 4
 adb shell input keyevent KEYCODE_DPAD_RIGHT; adb shell input keyevent KEYCODE_DPAD_RIGHT; sleep 1
 adb shell input keyevent --longpress KEYCODE_DPAD_CENTER; sleep 3; shot 06-moved
+# 2.0: the Style panel opens from the remote's menu button and follows the arrows; the small buttons sit bottom right
+adb shell am start -n app.homebase.tv/.HomeActivity; sleep 4
+adb shell input keyevent KEYCODE_MENU; sleep 3; shot 07-style-open
+adb shell input keyevent KEYCODE_DPAD_DOWN; sleep 1; adb shell input keyevent KEYCODE_DPAD_DOWN; sleep 1; shot 08-style-moved
+adb shell input keyevent KEYCODE_DPAD_RIGHT; sleep 2; shot 09-style-changed
+adb shell input keyevent KEYCODE_BACK; sleep 2; shot 10-style-closed
+adb shell input keyevent KEYCODE_DPAD_DOWN; sleep 2; shot 11-corner-buttons
+adb shell dumpsys package app.homebase.tv | grep -E "versionName|versionCode" > shots/version.txt
 adb logcat -d > shots/logcat.txt
 adb logcat -d -b crash > shots/crash.txt
 exit 0

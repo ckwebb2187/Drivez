@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 
 import java.util.HashSet;
@@ -16,6 +17,22 @@ import java.util.Set;
 public class HomeButtonService extends AccessibilityService {
     private final Set<String> homes = new HashSet<>();
     private long lastJump;
+    /** The last remote button pressed and when, so the ★, Settings and other Google TV buttons aren't undone. */
+    private int lastKey; private long lastKeyAt;
+    /** The app showing most recently, so ★ can open Style when the Home Base home screen is up. */
+    private String front = "";
+
+    @Override protected boolean onKeyEvent(KeyEvent e) {
+        if (e.getAction() == KeyEvent.ACTION_DOWN) { lastKey = e.getKeyCode(); lastKeyAt = System.currentTimeMillis(); }
+        // ★ on the Home Base home screen opens Style there (Google TV would otherwise take it).
+        if (e.getKeyCode() == KeyEvent.KEYCODE_BOOKMARK && front.equals(getPackageName())) {
+            if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
+                try { startActivity(new Intent(this, HomeActivity.class).putExtra("style", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP)); } catch (Exception ignored) {}
+            }
+            return true;
+        }
+        return false;
+    }
 
     @Override protected void onServiceConnected() {
         super.onServiceConnected();
@@ -30,8 +47,12 @@ public class HomeButtonService extends AccessibilityService {
     @Override public void onAccessibilityEvent(AccessibilityEvent e) {
         if (e.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || e.getPackageName() == null || e.getClassName() == null) return;
         String pkg = e.getPackageName().toString(), cls = e.getClassName().toString();
+        if (!pkg.equals("com.android.systemui")) front = pkg;
         if (!homes.contains(pkg + "/" + cls) && !isStockHome(pkg, cls)) return;
         long now = System.currentTimeMillis();
+        // Only the Home button (or Back out of an app, or the box starting up) brings Home Base back. A Google TV
+        // button like Settings, ★ or Apps opens part of Google TV's own home screen on purpose, so it's left alone.
+        if (now - lastKeyAt < 4000 && lastKey != KeyEvent.KEYCODE_HOME && lastKey != KeyEvent.KEYCODE_BACK) return;
         if (now - lastJump < 800) return;
         lastJump = now;
         Intent i = new Intent(this, HomeActivity.class)

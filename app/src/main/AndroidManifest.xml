@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="app.homebase.tv">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- The Update button installs new versions of this app (Android asks to confirm). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Sideloaded app for one TV: it lists every TV app on the box for the app row. -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
@@ -45,6 +47,8 @@
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density" />
         <activity android:name=".WallActivity" android:exported="false"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density" />
+
+        <receiver android:name=".Upd$Done" android:exported="false" />
 
         <!-- Home Base as the TV's screensaver (picked with one ADB command; see README). -->
         <service
