@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { themeDragon } from '@/lib/mapTheme';
 
 const WaveCanvas = lazy(() => import('@/components/WaveCanvas'));
+const GreatWaveArt = lazy(() => import('@/components/GreatWaveArt'));
 
 // Animated layer over the drive map: real local weather (rain, snow, fog, clouds)
 // plus each theme's mood (petals, dust, smog, scanlines, searchlights).
@@ -261,9 +262,9 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
       {(theme === 'greatwave' || theme === 'crimsonwave') && <>
         {theme === 'crimsonwave' && <div className="absolute" style={{ right: '-12vmin', top: '14%', width: '78vmin', height: '78vmin', borderRadius: '50%', background: 'radial-gradient(circle, rgba(214,52,36,0.92) 0 66%, rgba(214,52,36,0.3) 68.5%, transparent 71%)', opacity: driving ? 0.45 : 0.9, transition: 'opacity 1.5s' }} />}
         <div className="absolute inset-0" style={{ background: theme === 'crimsonwave' ? 'radial-gradient(120% 60% at 50% 115%, rgba(224,65,46,0.14), transparent 60%)' : night ? 'radial-gradient(110% 60% at 50% -10%, rgba(232,217,176,0.10), transparent 65%)' : 'radial-gradient(130% 80% at 50% 40%, transparent 55%, rgba(170,150,110,0.28))' }} />
-        {/* Hokusai's Great Wave (1831, public domain), cut out of its paper sky. Fades back while you drive so the roads stay clear. */}
+        {/* Our own animated wave in the classic woodblock style. Fades back while you drive so the roads stay clear. */}
         <Suspense fallback={null}>
-          <WaveCanvas src="/great-wave.webp" animate={run} fps={driving ? 15 : 30} className={`dz-bigwave${run ? '' : ' dz-still'}`} style={{ opacity: driving ? 0.38 : night || theme === 'crimsonwave' ? 0.88 : 0.95 }} />
+          <GreatWaveArt animate={run} fps={driving ? 15 : 30} className={`dz-bigwave${run ? '' : ' dz-still'}`} style={{ opacity: driving ? 0.38 : night || theme === 'crimsonwave' ? 0.9 : 0.96 }} />
         </Suspense>
       </>}
       {dragon && <>
