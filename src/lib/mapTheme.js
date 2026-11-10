@@ -508,6 +508,35 @@ const NIGHT_SPEED = {
   leaf: { bg: '#101c10', text: '#e8f8e0', ring: '#6cc95a', sub: '#f0c040', glow: '#6cc95a' },
 };
 // Night keys look like 'sakura@n'; every lookup (map, route, speed bubble, app skin) just works on the key.
+// ---- Dragon themes: one per dragon painting, each recoloring Kuniyoshi's dragon to match ----
+const hx = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const mixHex = (a, b, k) => '#' + hx(a).map((v, i) => Math.round(v + (hx(b)[i] - v) * k).toString(16).padStart(2, '0')).join('');
+const lumOf = (h) => { const [r, g, b] = hx(h); return (0.3 * r + 0.59 * g + 0.11 * b) / 255; };
+const DRAGON_LOOKS = [
+  { key: 'fujidragon', label: 'Fuji Dragon', jp: 'Fuji no Ryū 富士の龍', text: 'Teal dragon with red flames, red sun over Fuji, cream paper.', day: true, bg: '#e9dec4', land: '#efe5cd', water: '#3f7f86', road: '#fbf6ea', accent: '#2f6f68', accent2: '#d2452f', fg: '#1f3532', dragon: { body: '#2f6f68', hi: '#d5e6d8', accent: '#d2452f' }, sun: '#d2452f' },
+  { key: 'seiryu', label: 'Seiryū Blue', jp: 'Seiryū 青龍', text: 'The blue dragon: sky-blue scales, orange fire, smoky gray clouds.', bg: '#1d1f23', land: '#24272c', water: '#2a3a4c', road: '#3a3e46', accent: '#3f8fd6', accent2: '#ff7a2f', fg: '#e8eef6', dragon: { body: '#3f8fd6', hi: '#c4e2ff', accent: '#ff7a2f' } },
+  { key: 'sumidragon', label: 'Sumi Ink Dragon', jp: 'Sumi-e 墨絵', text: 'Ink-wash dragon on aged paper, brushed grays and a touch of gold.', day: true, bg: '#ddd2b8', land: '#e6dcc4', water: '#8f8a7c', road: '#f3eddd', accent: '#3a342a', accent2: '#b8913a', fg: '#2a2620', dragon: { body: '#4a453c', hi: '#ece4cf', accent: '#2e2a22' } },
+  { key: 'goldwave', label: 'Golden Wave Dragon', jp: 'Kin no Ryū 金の龍', text: 'Gold and crimson dragon bursting out of blue waves.', bg: '#0d2236', land: '#112a40', water: '#1f6f8f', road: '#1d3a55', accent: '#e0a83a', accent2: '#c8322a', fg: '#f6ead0', dragon: { body: '#d39a35', hi: '#ffe6a8', accent: '#c8322a' } },
+  { key: 'moondragon', label: 'Moon Dragon', jp: 'Tsuki no Ryū 月の龍', text: 'Turquoise dragon under a huge full moon, rust-orange sky.', bg: '#14302f', land: '#173836', water: '#1f5a5a', road: '#28504e', accent: '#2fc6c0', accent2: '#e07a3a', fg: '#eafaf6', dragon: { body: '#2fb8b0', hi: '#d6fff8', accent: '#e07a3a' }, moon: '#f2d58a' },
+  { key: 'peonydragon', label: 'Peony Dragon', jp: 'Botan to Ryū 牡丹と龍', text: 'Green dragon among pink peonies, rising red sun.', day: true, bg: '#efe3c8', land: '#f3e9d2', water: '#3d6f8f', road: '#fbf5e8', accent: '#2f7a3a', accent2: '#e8536a', fg: '#22381f', dragon: { body: '#2f7a3a', hi: '#e6f0c8', accent: '#e8536a' }, sun: '#d8452f' },
+  { key: 'goldstorm', label: 'Gold Storm Dragon', jp: 'Kin Arashi 金嵐', text: 'Golden dragon glaring out of a starry black storm.', bg: '#14110c', land: '#1a1610', water: '#2a2418', road: '#3a3020', accent: '#d9a441', accent2: '#c8641e', fg: '#f6e7c4', dragon: { body: '#c8902f', hi: '#ffe2a0', accent: '#c8641e' } },
+  { key: 'azuredragon', label: 'Azure Night Dragon', jp: 'Ai no Ryū 藍の龍', text: 'Deep-blue dragon with red blossoms on a dark night.', bg: '#0e0c14', land: '#13111c', water: '#16224a', road: '#262446', accent: '#3f6fff', accent2: '#d83a2a', fg: '#e8eeff', dragon: { body: '#2a55d8', hi: '#b0c8ff', accent: '#d83a2a' } },
+  { key: 'redgold', label: 'Red & Gold Dragon', jp: 'Aka to Kin 赤と金', text: 'A gold dragon on lucky deep red.', bg: '#5a0e0e', land: '#661212', water: '#4a0a14', road: '#7a1c1a', accent: '#e6b450', accent2: '#ffd98a', fg: '#fff1d6', dragon: { body: '#d9a441', hi: '#fff0c0', accent: '#ffcf6a' } },
+];
+DRAGON_LOOKS.forEach((d) => {
+  const day = !!d.day, ink = mixHex(d.bg, '#000000', day ? 0.55 : 0.45);
+  THEMES.push({ key: d.key, label: d.label, jp: d.jp, text: d.text, swatch: [d.bg, d.accent, d.accent2] });
+  P[d.key] = { base: day ? 'day' : 'dark', bg: d.bg, water: [d.water, mixHex(d.water, '#ffffff', 0.1)], park: mixHex(d.land, d.accent, 0.14), wood: mixHex(d.land, d.accent, 0.22), land: d.land, road: d.road, roadMajor: mixHex(d.road, d.accent2, 0.25), casing: day ? mixHex(d.road, '#000000', 0.35) : ink, bldg: mixHex(d.land, d.fg, 0.08), bldgTop: mixHex(d.land, d.fg, 0.16), windows: [d.accent, d.accent2, d.dragon.hi], text: d.fg, halo: d.bg, glow: day ? null : [d.accent, d.accent2] };
+  SPEED[d.key] = { bg: day ? mixHex(d.bg, '#ffffff', 0.5) : d.bg, text: d.fg, ring: d.accent, sub: d.accent2, ...(day ? {} : { glow: d.accent }) };
+  ROUTE[d.key] = { casing: mixHex(d.accent, '#000000', 0.6), core: [d.accent, mixHex(d.accent, '#ffffff', 0.35)], glow: day ? null : d.accent, chev: day ? '#ffffff' : d.fg, flow: 'rgba(255,255,255,0.75)' };
+  SKIN[d.key] = day
+    ? { bg: mixHex(d.bg, '#ffffff', 0.35), card: mixHex(d.bg, '#ffffff', 0.7), sec: d.bg, border: mixHex(d.bg, d.fg, 0.2), fg: d.fg, muted: mixHex(d.fg, d.bg, 0.45), primary: d.accent, pfg: lumOf(d.accent) > 0.55 ? '#111111' : '#ffffff', accent: d.accent2, light: true }
+    : { bg: mixHex(d.bg, '#000000', 0.3), card: mixHex(d.bg, '#ffffff', 0.04), sec: mixHex(d.bg, '#ffffff', 0.09), border: mixHex(d.bg, '#ffffff', 0.18), fg: d.fg, muted: mixHex(d.fg, d.bg, 0.45), primary: d.accent, pfg: lumOf(d.accent) > 0.55 ? '#111111' : '#ffffff', accent: d.accent2 };
+});
+// Which dragon (and sun / moon) a theme shows; 'dragon' is Kuniyoshi's original colors.
+const DRAGON_BY_KEY = Object.fromEntries(DRAGON_LOOKS.map((d) => [d.key, d]));
+export const themeDragon = (theme) => (theme === 'dragon' ? { sun: '#c8281e' } : DRAGON_BY_KEY[theme] || null);
+
 const addNight = (table, night, extra) => Object.keys(night).forEach((k) => { table[`${k}@n`] = { ...table[k], ...night[k], ...extra }; });
 addNight(P, NIGHT_P, { base: 'dark' });
 addNight(SKIN, NIGHT_SKIN, { light: false });

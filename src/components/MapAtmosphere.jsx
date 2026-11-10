@@ -1,5 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 
+import { themeDragon } from '@/lib/mapTheme';
+
 const WaveCanvas = lazy(() => import('@/components/WaveCanvas'));
 
 // Animated layer over the drive map: real local weather (rain, snow, fog, clouds)
@@ -42,6 +44,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
   const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const run = active && !lite && !reduce;
   const [flash, setFlash] = useState(false);
+  const dragon = themeDragon(theme);
 
   useEffect(() => {
     if (!run) return undefined;
@@ -77,7 +80,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
     if (theme === 'xmas') parts.push({ t: 'lights' });
     if (theme === 'tide') parts.push({ t: 'swell' });
     if (theme === 'tide') add(14, (init) => ({ t: 'bubble', x: rnd(0, w), y: init ? rnd(0, h) : h + 10, v: rnd(0.4, 1.1), r: rnd(2, 6), ph: rnd(0, 6) }));
-    if (theme === 'dragon' || theme === 'ember') add(theme === 'ember' ? 40 : 22, (init) => ({ t: 'ember', x: rnd(0, w), y: init ? rnd(0, h) : h + 5, v: rnd(0.5, 1.6), r: rnd(0.8, 2.4), ph: rnd(0, 6), hue: Math.round(rnd(110, 200)) }));
+    if (dragon || theme === 'ember') add(theme === 'ember' ? 40 : 22, (init) => ({ t: 'ember', x: rnd(0, w), y: init ? rnd(0, h) : h + 5, v: rnd(0.5, 1.6), r: rnd(0.8, 2.4), ph: rnd(0, 6), hue: Math.round(rnd(110, 200)) }));
     if (theme === 'ghost') add(5, (init) => ({ t: 'ghost', x: rnd(0.05, 0.95) * w, y: init ? rnd(0.2, 1) * h : h + 30, v: rnd(0.25, 0.6), r: rnd(10, 18), ph: rnd(0, 6) }));
     if (theme === 'tokyo' || theme === 'cyberpunk') add(6, () => ({ t: 'trail', x: rnd(0, w), y: rnd(0.55, 1) * h, v: rnd(2, 5), len: rnd(40, 90), hue: theme === 'tokyo' ? (Math.random() < 0.5 ? '255,45,149' : '0,229,255') : (Math.random() < 0.5 ? '176,38,255' : '0,255,213') }));
 
@@ -263,12 +266,12 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
           <WaveCanvas src="/great-wave.webp" animate={run} fps={driving ? 15 : 30} className={`dz-bigwave${run ? '' : ' dz-still'}`} style={{ opacity: driving ? 0.38 : night || theme === 'crimsonwave' ? 0.88 : 0.95 }} />
         </Suspense>
       </>}
-      {theme === 'dragon' && <>
-        <div className="absolute inset-0" style={{ background: 'radial-gradient(90% 50% at 50% -10%, rgba(212,160,23,0.12), transparent 70%), radial-gradient(100% 50% at 50% 112%, rgba(179,32,44,0.16), transparent 60%)' }} />
-        <div className="absolute" style={{ left: '18vw', top: '120px', width: '46vmin', height: '46vmin', borderRadius: '50%', background: 'radial-gradient(circle, rgba(200,40,30,0.85) 0 66%, rgba(200,40,30,0.25) 69%, transparent 72%)', opacity: driving ? 0.35 : 0.85, transition: 'opacity 1.5s' }} />
-        {/* The dragon from Utagawa Kuniyoshi's "Dragon and Waves" (c. 1827-31, public domain), cut out and animated. Fades back while you drive. */}
+      {dragon && <>
+        <div className="absolute inset-0" style={{ background: theme === 'dragon' ? 'radial-gradient(90% 50% at 50% -10%, rgba(212,160,23,0.12), transparent 70%), radial-gradient(100% 50% at 50% 112%, rgba(179,32,44,0.16), transparent 60%)' : `radial-gradient(90% 50% at 50% -10%, ${dragon.accent}22, transparent 70%), radial-gradient(100% 50% at 50% 112%, ${dragon.accent2}29, transparent 60%)` }} />
+        {(dragon.sun || dragon.moon) && <div className="absolute" style={{ left: '18vw', top: '120px', width: '46vmin', height: '46vmin', borderRadius: '50%', background: dragon.moon ? `radial-gradient(circle at 42% 40%, #fff7da 0, ${dragon.moon} 45%, ${dragon.moon}dd 64%, ${dragon.moon}55 67%, transparent 72%)` : `radial-gradient(circle, ${dragon.sun}d9 0 66%, ${dragon.sun}4d 68.5%, transparent 71%)`, boxShadow: dragon.moon ? `0 0 60px ${dragon.moon}55` : undefined, opacity: driving ? 0.35 : 0.88, transition: 'opacity 1.5s' }} />}
+        {/* The dragon from Utagawa Kuniyoshi's "Dragon and Waves" (c. 1827-31, public domain), cut out, animated and recolored per theme. Fades back while you drive. */}
         <Suspense fallback={null}>
-          <WaveCanvas src="/dragon-waves.webp" fx="dragon" animate={run} fps={driving ? 15 : 30} className={`dz-dragon${run ? '' : ' dz-still'}`} style={{ opacity: driving ? 0.35 : 0.95 }} />
+          <WaveCanvas src="/dragon-waves.webp" fx="dragon" tint={dragon.dragon || null} animate={run} fps={driving ? 15 : 30} className={`dz-dragon${run ? '' : ' dz-still'}`} style={{ opacity: driving ? 0.35 : 0.95 }} />
         </Suspense>
       </>}
       {theme === 'xmas' && <div className="absolute inset-0" style={{ background: 'radial-gradient(100% 50% at 50% 112%, rgba(217,43,43,0.16), transparent 62%), radial-gradient(80% 40% at 50% -5%, rgba(242,193,78,0.12), transparent 70%)' }} />}

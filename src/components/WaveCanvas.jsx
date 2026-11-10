@@ -7,7 +7,7 @@ const VS = 'attribute vec2 p; varying vec2 v; void main(){ v = vec2(p.x * 0.5 + 
 // Kuniyoshi's dragon (cut out of "Dragon and Waves"): a slow serpentine ripple runs down the body,
 // the dangling claw swings, and the red flames lick upward. Same pixels, only moved.
 const DRAGON_FS = `precision mediump float;
-uniform sampler2D img; uniform float t; varying vec2 v;
+uniform sampler2D img; uniform float t; uniform float tint; uniform vec3 cBody, cHi, cAcc; varying vec2 v;
 void main(){
   vec2 uv = v;
   vec2 d = vec2(sin(uv.y * 7.0 - t * 1.3) * 0.009 * (0.35 + 0.65 * uv.y), sin(uv.x * 6.0 - t * 0.9) * 0.005);
@@ -15,7 +15,19 @@ void main(){
   vec4 base = texture2D(img, uv);
   float flame = clamp((base.r - base.g) * 4.0 - 0.6, 0.0, 1.0) * base.a;
   d += flame * vec2(sin(uv.y * 34.0 + t * 4.2) * 0.006, -abs(sin(uv.x * 22.0 + t * 3.1)) * 0.007);
-  gl_FragColor = texture2D(img, uv + d);
+  vec4 c = texture2D(img, uv + d);
+  if (tint > 0.5 && c.a > 0.01) {
+    // Recolor for the dragon themes: ink lines stay dark, scales take the body color, highlights
+    // the light color, and the red flames / belly the accent color.
+    vec3 rgb = c.rgb / c.a;
+    float lum = dot(rgb, vec3(0.3, 0.59, 0.11));
+    float fl = clamp((rgb.r - rgb.g) * 5.0 - 0.45, 0.0, 1.0);
+    vec3 body = mix(cBody * 0.18, cBody, smoothstep(0.12, 0.6, lum));
+    body = mix(body, cHi, smoothstep(0.6, 0.92, lum));
+    vec3 acc = mix(cAcc * 0.35, cAcc, smoothstep(0.15, 0.55, lum));
+    c = vec4(mix(body, acc, fl) * c.a, c.a);
+  }
+  gl_FragColor = c;
 }`;
 const FS = `precision mediump float;
 uniform sampler2D img; uniform float t; varying vec2 v;
@@ -34,7 +46,10 @@ void main(){
   gl_FragColor = texture2D(img, uv + d);
 }`;
 
-export default function WaveCanvas({ src, className, style, animate = true, fps = 30, fx = 'wave' }) {
+const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+
+export default function WaveCanvas({ src, className, style, animate = true, fps = 30, fx = 'wave', tint = null }) {
+  const tintKey = tint ? `${tint.body}${tint.hi}${tint.accent}` : '';
   const ref = useRef(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -51,6 +66,14 @@ export default function WaveCanvas({ src, className, style, animate = true, fps 
     const loc = gl.getAttribLocation(pr, 'p');
     gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
     const tLoc = gl.getUniformLocation(pr, 't');
+    if (fx === 'dragon') {
+      gl.uniform1f(gl.getUniformLocation(pr, 'tint'), tint ? 1 : 0);
+      if (tint) {
+        gl.uniform3fv(gl.getUniformLocation(pr, 'cBody'), rgb(tint.body));
+        gl.uniform3fv(gl.getUniformLocation(pr, 'cHi'), rgb(tint.hi));
+        gl.uniform3fv(gl.getUniformLocation(pr, 'cAcc'), rgb(tint.accent));
+      }
+    }
     let raf = 0, ready = false, last = 0, alive = true;
     const size = () => {
       const r = c.getBoundingClientRect(), k = Math.min(window.devicePixelRatio || 1, 2);
@@ -82,7 +105,7 @@ export default function WaveCanvas({ src, className, style, animate = true, fps 
     const onResize = () => { if (ready) { size(); if (!animate) draw(0); } };
     window.addEventListener('resize', onResize);
     return () => { alive = false; cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); gl.getExtension('WEBGL_lose_context')?.loseContext(); };
-  }, [src, animate, fps, fx]);
+  }, [src, animate, fps, fx, tintKey]); // eslint-disable-line react-hooks/exhaustive-deps
   if (failed) return <img src={src} alt="" className={className} style={style} />;
   return <canvas ref={ref} className={className} style={style} aria-hidden="true" />;
 }
