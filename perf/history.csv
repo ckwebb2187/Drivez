@@ -83,3 +83,4 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-11-10T01:53,five-dragons,build,528.7,983.8,,,pass
 2026-11-10T02:09,dragons-toggle,build,528.8,984,,,pass
 2026-11-10T02:14,scene-fx,build,530.3,985.4,,,pass
+2026-11-10T02:18,orbs-toggle,build,530.5,985.6,,,pass

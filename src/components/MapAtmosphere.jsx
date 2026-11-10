@@ -38,7 +38,7 @@ export function weatherKind(code, cloud) {
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 
-export default function MapAtmosphere({ theme, pos, active = true, lite = false, weatherFx = true, night = false, driving = false, dragons = true, sceneFx = null }) {
+export default function MapAtmosphere({ theme, pos, active = true, lite = false, weatherFx = true, night = false, driving = false, dragons = true, sceneFx = null, orbs = true }) {
   const fxKey = Object.keys(sceneFx || {}).filter((k) => sceneFx[k]).sort().join(',');
   const canvas = useRef(null);
   const wx = useLocalWeather(pos, weatherFx && !lite);
@@ -325,14 +325,14 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
       {theme === 'risingsun' && <>
         <div className="absolute inset-0" style={{ background: 'radial-gradient(60% 35% at 50% 100%, rgba(192,23,43,0.28), transparent 70%)' }} />
         <div className="absolute dz-rays" style={{ width: '220vmax', height: '220vmax', left: '50%', top: 'calc(114% - 35vmin)', marginLeft: '-110vmax', marginTop: '-110vmax', background: 'repeating-conic-gradient(rgba(186,24,42,0.30) 0 11.25deg, rgba(0,0,0,0.10) 11.25deg 22.5deg)', WebkitMaskImage: 'radial-gradient(circle 85vmax at 50% 50%, #000 12%, transparent 100%)', maskImage: 'radial-gradient(circle 85vmax at 50% 50%, #000 12%, transparent 100%)', animation: run ? undefined : 'none' }} />
-        <div className="absolute" style={{ left: '50%', bottom: '-14%', width: '70vmin', height: '70vmin', transform: 'translateX(-50%)', borderRadius: '50%', background: 'radial-gradient(circle, rgba(170,16,34,0.55) 0 60%, rgba(150,12,28,0.22) 70%, transparent 100%)' }} />
+        {orbs && <div className="absolute" style={{ left: '50%', bottom: '-14%', width: '70vmin', height: '70vmin', transform: 'translateX(-50%)', borderRadius: '50%', background: 'radial-gradient(circle, rgba(170,16,34,0.55) 0 60%, rgba(150,12,28,0.22) 70%, transparent 100%)' }} />}
       </>}
       {theme === 'samurai' && <div className="absolute inset-0" style={{ background: 'radial-gradient(90% 55% at 50% -10%, rgba(217,207,184,0.10), transparent 70%), radial-gradient(100% 50% at 50% 110%, rgba(179,32,44,0.14), transparent 60%)' }} />}
       {theme === 'minimal' && <div className="absolute inset-0" style={{ background: night ? 'radial-gradient(100% 45% at 50% 112%, rgba(242,155,48,0.16), transparent 65%)' : 'linear-gradient(180deg, rgba(215,216,214,0.5), rgba(215,216,214,0.05) 50%)' }} />}
       {theme === 'sakuranight' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 70% at 50% 110%, rgba(255,79,126,0.2), transparent 60%)' }} />}
       {theme === 'kawaii' && <div className="absolute inset-0" style={{ background: night ? 'radial-gradient(90% 50% at 50% -10%, rgba(185,163,255,0.22), transparent 70%), radial-gradient(100% 45% at 50% 112%, rgba(255,140,198,0.2), transparent 65%)' : 'radial-gradient(80% 50% at 50% -10%, rgba(255,182,220,0.35), transparent 70%)' }} />}
       {(theme === 'greatwave' || theme === 'crimsonwave') && <>
-        {theme === 'crimsonwave' && <div className="absolute" style={{ right: '-30vmin', top: '12%', width: '78vmin', height: '78vmin', borderRadius: '50%', background: 'radial-gradient(circle, rgba(214,52,36,0.92) 0 66%, rgba(214,52,36,0.3) 68.5%, transparent 71%)', opacity: driving ? 0.45 : 0.9, transition: 'opacity 1.5s' }} />}
+        {orbs && theme === 'crimsonwave' && <div className="absolute" style={{ right: '-30vmin', top: '12%', width: '78vmin', height: '78vmin', borderRadius: '50%', background: 'radial-gradient(circle, rgba(214,52,36,0.92) 0 66%, rgba(214,52,36,0.3) 68.5%, transparent 71%)', opacity: driving ? 0.45 : 0.9, transition: 'opacity 1.5s' }} />}
         <div className="absolute inset-0" style={{ background: theme === 'crimsonwave' ? 'radial-gradient(120% 60% at 50% 115%, rgba(224,65,46,0.14), transparent 60%)' : night ? 'radial-gradient(110% 60% at 50% -10%, rgba(232,217,176,0.10), transparent 65%)' : 'radial-gradient(130% 80% at 50% 40%, transparent 55%, rgba(170,150,110,0.28))' }} />
         {/* Hokusai's Great Wave (1831, public domain), the real print: light flows through the water and spray falls off the crest. Fades back while you drive. */}
         <Suspense fallback={null}>
@@ -341,7 +341,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
       </>}
       {dragon && <>
         <div className="absolute inset-0" style={{ background: theme === 'dragon' ? 'radial-gradient(90% 50% at 50% -10%, rgba(212,160,23,0.12), transparent 70%), radial-gradient(100% 50% at 50% 112%, rgba(179,32,44,0.16), transparent 60%)' : `radial-gradient(90% 50% at 50% -10%, ${dragon.accent}22, transparent 70%), radial-gradient(100% 50% at 50% 112%, ${dragon.accent2}29, transparent 60%)` }} />
-        {(dragon.sun || dragon.moon) && <div className="absolute" style={{ zIndex: 1, left: '-14vw', top: '120px', width: '46vmin', height: '46vmin', borderRadius: '50%', background: dragon.moon ? `radial-gradient(circle at 42% 40%, #fff7da 0, ${dragon.moon} 45%, ${dragon.moon}dd 64%, ${dragon.moon}55 67%, transparent 72%)` : `radial-gradient(circle, ${dragon.sun}d9 0 66%, ${dragon.sun}4d 68.5%, transparent 71%)`, boxShadow: dragon.moon ? `0 0 60px ${dragon.moon}55` : undefined, opacity: driving ? 0.35 : 0.88, transition: 'opacity 1.5s' }} />}
+        {orbs && (dragon.sun || dragon.moon) && <div className="absolute" style={{ zIndex: 1, left: '-14vw', top: '120px', width: '46vmin', height: '46vmin', borderRadius: '50%', background: dragon.moon ? `radial-gradient(circle at 42% 40%, #fff7da 0, ${dragon.moon} 45%, ${dragon.moon}dd 64%, ${dragon.moon}55 67%, transparent 72%)` : `radial-gradient(circle, ${dragon.sun}d9 0 66%, ${dragon.sun}4d 68.5%, transparent 71%)`, boxShadow: dragon.moon ? `0 0 60px ${dragon.moon}55` : undefined, opacity: driving ? 0.35 : 0.88, transition: 'opacity 1.5s' }} />}
         {/* Kuniyoshi's painted dragon ("Dragon and Waves", c. 1830, public domain) flying around the screen, alive and recolored per theme. Fades back while you drive. */}
         {dragons && <Suspense fallback={null}>
           <PaintedDragon theme={theme} tint={dragon.dragon || null} animate={run} fps={driving ? 15 : 30} style={{ opacity: driving ? 0.35 : 0.97 }} />

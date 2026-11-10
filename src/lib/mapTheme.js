@@ -273,7 +273,7 @@ const lowEndPhone = () => (navigator.deviceMemory && navigator.deviceMemory <= 2
 const read = () => {
   let s = {};
   try { s = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { s = {}; }
-  return { theme: s.theme || 'kaido', saver: s.saver || 'auto', mode: ['light', 'dark'].includes(s.mode) ? s.mode : 'auto', jpNames: !!s.jpNames, weatherFx: s.weatherFx !== false, legends: s.legends !== false, dragons: s.dragons !== false, routeStyles: s.routeStyles || {}, sceneFx: s.sceneFx || {} };
+  return { theme: s.theme || 'kaido', saver: s.saver || 'auto', mode: ['light', 'dark'].includes(s.mode) ? s.mode : 'auto', jpNames: !!s.jpNames, weatherFx: s.weatherFx !== false, legends: s.legends !== false, dragons: s.dragons !== false, routeStyles: s.routeStyles || {}, sceneFx: s.sceneFx || {}, orbs: s.orbs !== false };
 };
 export const isLite = (prefs) => prefs.saver === 'on' || (prefs.saver === 'auto' && lowEndPhone());
 

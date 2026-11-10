@@ -89,6 +89,13 @@ export default function MapLookSettings() {
         </div>
         {lite && <p className="text-[10px] text-muted-foreground mt-1">Turn battery saver off to see these.</p>}
       </div>
+      {(themeDragon(look.theme)?.sun || themeDragon(look.theme)?.moon || ['crimsonwave', 'risingsun'].includes(look.theme)) && (
+        <button onClick={() => update({ orbs: !look.orbs })} className="w-full flex items-center gap-2 text-left min-h-[40px]">
+          <span className="w-4 text-center shrink-0">{themeDragon(look.theme)?.moon ? '🌕' : '☀️'}</span>
+          <div className="flex-1 min-w-0"><div className="text-xs font-semibold text-foreground">Sun & moon</div><div className="text-[10px] text-muted-foreground truncate">The big sun or moon behind the map</div></div>
+          <Toggle on={look.orbs} />
+        </button>
+      )}
       {themeDragon(look.theme) && (
         <button onClick={() => update({ dragons: !look.dragons })} className="w-full flex items-center gap-2 text-left min-h-[40px]">
           <span className="w-4 text-center shrink-0">🐉</span>
