@@ -75,3 +75,4 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-11-10T00:44,dragon-cut,build,526.8,977.5,,,pass
 2026-11-10T00:49,dragon-themes,build,528.5,979.6,,,pass
 2026-11-10T00:54,wave-art,build,528.6,981.6,,,pass
+2026-11-10T00:57,wave-flow,build,528.7,979.8,,,pass

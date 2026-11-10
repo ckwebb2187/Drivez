@@ -3,7 +3,6 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { themeDragon } from '@/lib/mapTheme';
 
 const WaveCanvas = lazy(() => import('@/components/WaveCanvas'));
-const GreatWaveArt = lazy(() => import('@/components/GreatWaveArt'));
 
 // Animated layer over the drive map: real local weather (rain, snow, fog, clouds)
 // plus each theme's mood (petals, dust, smog, scanlines, searchlights).
@@ -80,6 +79,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
     if (theme === 'snowday') { parts.push({ t: 'snowman', side: 0, ph: 0 }); parts.push({ t: 'snowman', side: 1, ph: 3 }); }
     if (theme === 'xmas') parts.push({ t: 'lights' });
     if (theme === 'tide') parts.push({ t: 'swell' });
+    if (theme === 'greatwave' || theme === 'crimsonwave') add(45, () => ({ t: 'spray', life: Math.random() }));
     if (theme === 'tide') add(14, (init) => ({ t: 'bubble', x: rnd(0, w), y: init ? rnd(0, h) : h + 10, v: rnd(0.4, 1.1), r: rnd(2, 6), ph: rnd(0, 6) }));
     if (dragon || theme === 'ember') add(theme === 'ember' ? 40 : 22, (init) => ({ t: 'ember', x: rnd(0, w), y: init ? rnd(0, h) : h + 5, v: rnd(0.5, 1.6), r: rnd(0.8, 2.4), ph: rnd(0, 6), hue: Math.round(rnd(110, 200)) }));
     if (theme === 'ghost') add(5, (init) => ({ t: 'ghost', x: rnd(0.05, 0.95) * w, y: init ? rnd(0.2, 1) * h : h + 30, v: rnd(0.25, 0.6), r: rnd(10, 18), ph: rnd(0, 6) }));
@@ -190,6 +190,12 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
             for (let x = 0; x <= w + 12; x += 12) (x ? g.lineTo(x, y(x)) : g.moveTo(x, y(x)));
             g.stroke();
           }
+        } else if (p.t === 'spray') {
+          // Spray falling off the crest of the print.
+          const iw = w * 1.32, ih = iw * 506 / 920, il = -0.16 * w, it = h - 70 - ih;
+          if (p.life >= 1 || p.x == null) { p.x = il + iw * (0.33 + Math.random() * 0.22); p.y = it + ih * (0.1 + Math.random() * 0.22); p.vx = 0.3 + Math.random() * 1.2; p.vy = -0.4 - Math.random() * 0.8; p.r = 1.2 + Math.random() * 2.2; p.life = 0; }
+          p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.life += 0.012;
+          g.fillStyle = `rgba(241,234,214,${(1 - p.life) * 0.9})`; g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.fill();
         } else if (p.t === 'bubble') {
           p.y -= p.v; p.x += Math.sin(frame / 30 + p.ph) * 0.4;
           if (p.y < -10) { p.y = h + 10; p.x = rnd(0, w); }
@@ -262,9 +268,9 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
       {(theme === 'greatwave' || theme === 'crimsonwave') && <>
         {theme === 'crimsonwave' && <div className="absolute" style={{ right: '-12vmin', top: '14%', width: '78vmin', height: '78vmin', borderRadius: '50%', background: 'radial-gradient(circle, rgba(214,52,36,0.92) 0 66%, rgba(214,52,36,0.3) 68.5%, transparent 71%)', opacity: driving ? 0.45 : 0.9, transition: 'opacity 1.5s' }} />}
         <div className="absolute inset-0" style={{ background: theme === 'crimsonwave' ? 'radial-gradient(120% 60% at 50% 115%, rgba(224,65,46,0.14), transparent 60%)' : night ? 'radial-gradient(110% 60% at 50% -10%, rgba(232,217,176,0.10), transparent 65%)' : 'radial-gradient(130% 80% at 50% 40%, transparent 55%, rgba(170,150,110,0.28))' }} />
-        {/* Our own animated wave in the classic woodblock style. Fades back while you drive so the roads stay clear. */}
+        {/* Hokusai's Great Wave (1831, public domain), the real print: light flows through the water and spray falls off the crest. Fades back while you drive. */}
         <Suspense fallback={null}>
-          <GreatWaveArt animate={run} fps={driving ? 15 : 30} className={`dz-bigwave${run ? '' : ' dz-still'}`} style={{ opacity: driving ? 0.38 : night || theme === 'crimsonwave' ? 0.9 : 0.96 }} />
+          <WaveCanvas src="/great-wave.webp" animate={run} fps={driving ? 15 : 30} className={`dz-bigwave${run ? '' : ' dz-still'}`} style={{ opacity: driving ? 0.38 : night || theme === 'crimsonwave' ? 0.9 : 0.96 }} />
         </Suspense>
       </>}
       {dragon && <>

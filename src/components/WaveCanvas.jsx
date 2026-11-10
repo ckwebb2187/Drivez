@@ -32,18 +32,22 @@ void main(){
 const FS = `precision mediump float;
 uniform sampler2D img; uniform float t; varying vec2 v;
 void main(){
-  vec2 uv = v;
-  float h = 1.0 - uv.y;                                   // height above the bottom of the print
-  float crest = smoothstep(0.3, 0.95, h) * (1.0 - smoothstep(0.08, 0.32, abs(uv.x - 0.36)));
-  float surge = sin(t * 0.55) * 0.5 + sin(t * 0.23) * 0.5;  // slow, uneven breathing of the big wave
-  vec2 d = vec2(-0.016 * surge * crest * h, 0.006 * surge * crest);
-  float swell = 0.35 + 0.65 * smoothstep(0.0, 0.5, h);
-  d.x += sin(uv.y * 16.0 - t * 1.1 + uv.x * 4.0) * 0.0022 * swell;   // swells rolling through
-  d.y += sin(uv.x * 11.0 - t * 0.9) * 0.0035 * (1.0 - crest);
-  vec4 base = texture2D(img, uv);
-  float foam = smoothstep(0.62, 0.84, dot(base.rgb, vec3(0.3, 0.59, 0.11))) * base.a;
-  d += foam * vec2(sin(uv.y * 70.0 + t * 2.6), cos(uv.x * 64.0 + t * 2.2)) * 0.0014;  // foam shimmer
-  gl_FragColor = texture2D(img, uv + d);
+  // The print itself is never bent: water flows as moving light through the blue,
+  // following the curl of the crest up top and rolling sideways through the swells below.
+  vec4 c = texture2D(img, v);
+  if (c.a < 0.01) { gl_FragColor = c; return; }
+  vec3 rgb = c.rgb / c.a;
+  float lum = dot(rgb, vec3(0.3, 0.59, 0.11));
+  float water = clamp((rgb.b - rgb.r) * 3.5, 0.0, 1.0);
+  vec2 q = (v - vec2(0.40, 0.40)) * vec2(1.8, 1.0);
+  float curl = sin(atan(q.y, q.x) * 3.0 + length(q) * 16.0 - t * 1.5);
+  float roll = sin(v.x * 20.0 - v.y * 7.0 - t * 1.3 + sin(v.y * 9.0 + t * 0.4));
+  float crestZone = 1.0 - smoothstep(0.55, 0.75, v.y);
+  float flow = mix(smoothstep(0.55, 1.0, roll), smoothstep(0.55, 1.0, curl), crestZone);
+  rgb += water * flow * vec3(0.16, 0.2, 0.24);
+  float foam = smoothstep(0.62, 0.84, lum);
+  rgb += foam * 0.05 * sin(t * 2.6 + v.x * 45.0 + v.y * 33.0);
+  gl_FragColor = vec4(clamp(rgb, 0.0, 1.0) * c.a, c.a);
 }`;
 
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
