@@ -83,20 +83,28 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
     if (theme === 'tide') parts.push({ t: 'swell' });
     // Extra animations picked in Map look (any theme).
     const on = (id) => fxKey.split(',').includes(id);
-    const st0 = speedStyle(theme), glowCol = (st0.glow || st0.ring || '#ffd27a').replace('#', '');
-    const fcol = [0, 2, 4].map((i) => parseInt(glowCol.slice(i, i + 2), 16)).join(',');
+    // Theme palette: accent, second color, glow, text (all as "r,g,b"), so every extra animation matches the theme.
+    const st0 = speedStyle(theme);
+    const rgbOf = (hx) => { const c = (hx || '#ffd27a').replace('#', ''); return [0, 2, 4].map((i) => parseInt(c.slice(i, i + 2), 16)); };
+    const lift = (c, k) => c.map((v) => Math.round(v + (255 - v) * k)).join(',');
+    const pA = rgbOf(st0.ring), pB = rgbOf(st0.sub || st0.ring), pG = rgbOf(st0.glow || st0.ring), pT = rgbOf(st0.text);
+    const dayTheme = ((pT[0] + pT[1] + pT[2]) / 3) < 128; // dark text = light map
+    const A = pA.join(','), Bc = pB.join(','), Gc = pG.join(','), Tc = pT.join(',');
+    const soft = (c) => (dayTheme ? c.join(',') : lift(c, 0.45)); // light versions on dark maps, true color on light maps
+    const pick = (...cs) => cs[Math.floor(rnd(0, cs.length))];
+    const fcol = Gc;
     if (on('fireflies')) add(16, () => ({ t: 'firefly', x: rnd(0, w), y: rnd(0.15, 0.95) * h, vx: rnd(-0.4, 0.4), vy: rnd(-0.3, 0.3), ph: rnd(0, 6), c: fcol }));
-    if (on('stars')) add(28, () => ({ t: 'spark', x: rnd(0, w), y: rnd(0, 0.6) * h, ph: rnd(0, 6), s: 0.5 }));
-    if (on('shooting')) { parts.push({ t: 'shoot', wait: Math.floor(rnd(40, 160)) }); parts.push({ t: 'shoot', wait: Math.floor(rnd(200, 400)) }); }
-    if (on('lanterns')) add(9, (init) => ({ t: 'lantern', x: rnd(0.05, 0.95) * w, y: init ? rnd(0.2, 1.1) * h : h + 30, v: rnd(0.25, 0.55), s: rnd(0.7, 1.2), ph: rnd(0, 6) }));
-    if (on('aurora')) parts.push({ t: 'aurora' });
-    if (on('petals')) add(18, (init) => ({ t: 'petal', c: '255,182,206', x: rnd(0, w), y: init ? rnd(0, h) : -10, v: rnd(0.5, 1.2), r: rnd(3, 6), ph: rnd(0, 6), rot: rnd(0, 6) }));
-    if (on('leaves')) add(14, (init) => ({ t: 'petal', c: ['214,120,40', '190,70,30', '230,170,50', '160,90,40'][Math.floor(rnd(0, 4))], x: rnd(0, w), y: init ? rnd(0, h) : -10, v: rnd(0.6, 1.4), r: rnd(5, 8), ph: rnd(0, 6), rot: rnd(0, 6) }));
-    if (on('snow')) add(30, (init) => ({ t: 'flake', x: rnd(0, w), y: init ? rnd(0, h) : -10, v: rnd(0.5, 1.3), r: rnd(3, 6), ph: rnd(0, 6), rot: rnd(0, 6) }));
-    if (on('embers')) add(24, (init) => ({ t: 'ember', x: rnd(0, w), y: init ? rnd(0, h) : h + 5, v: rnd(0.5, 1.6), r: rnd(0.8, 2.4), ph: rnd(0, 6), hue: Math.round(rnd(110, 200)) }));
-    if (on('bubbles')) add(14, (init) => ({ t: 'bubble', x: rnd(0, w), y: init ? rnd(0, h) : h + 10, v: rnd(0.4, 1.1), r: rnd(2, 6), ph: rnd(0, 6) }));
-    if (on('birds')) add(2, () => ({ t: 'birds', x: rnd(-w, 0), y: rnd(0.12, 0.45) * h, v: rnd(0.8, 1.4), n: 3 + Math.floor(rnd(0, 4)), ph: rnd(0, 6) }));
-    if (on('butterflies')) add(6, () => ({ t: 'fly', x: rnd(0, w), y: rnd(0.2, 0.9) * h, ph: rnd(0, 6), hue: Math.floor(rnd(0, 360)), vx: rnd(-0.6, 0.6) }));
+    if (on('stars')) add(28, () => ({ t: 'spark', c: pick(soft(pT), soft(pB), soft(pA)), x: rnd(0, w), y: rnd(0, 0.6) * h, ph: rnd(0, 6), s: 0.5 }));
+    if (on('shooting')) { parts.push({ t: 'shoot', c: soft(pB), wait: Math.floor(rnd(40, 160)) }); parts.push({ t: 'shoot', c: soft(pA), wait: Math.floor(rnd(200, 400)) }); }
+    if (on('lanterns')) add(9, (init) => ({ t: 'lantern', c: pick(A, Gc), x: rnd(0.05, 0.95) * w, y: init ? rnd(0.2, 1.1) * h : h + 30, v: rnd(0.25, 0.55), s: rnd(0.7, 1.2), ph: rnd(0, 6) }));
+    if (on('aurora')) parts.push({ t: 'aurora', cols: [Gc, Bc, A] });
+    if (on('petals')) add(18, (init) => ({ t: 'petal', c: pick(lift(pA, 0.45), lift(pB, 0.5), lift(pA, 0.25)), x: rnd(0, w), y: init ? rnd(0, h) : -10, v: rnd(0.5, 1.2), r: rnd(3, 6), ph: rnd(0, 6), rot: rnd(0, 6) }));
+    if (on('leaves')) add(14, (init) => ({ t: 'petal', c: pick(A, Bc, Gc, pA.map((v) => Math.round(v * 0.7)).join(',')), x: rnd(0, w), y: init ? rnd(0, h) : -10, v: rnd(0.6, 1.4), r: rnd(5, 8), ph: rnd(0, 6), rot: rnd(0, 6) }));
+    if (on('snow')) add(30, (init) => ({ t: 'flake', c: dayTheme ? pick(A, Bc) : pick('255,255,255', soft(pB)), x: rnd(0, w), y: init ? rnd(0, h) : -10, v: rnd(0.5, 1.3), r: rnd(3, 6), ph: rnd(0, 6), rot: rnd(0, 6) }));
+    if (on('embers')) add(24, (init) => ({ t: 'ember', c: pick(A, Gc, soft(pA)), x: rnd(0, w), y: init ? rnd(0, h) : h + 5, v: rnd(0.5, 1.6), r: rnd(0.8, 2.4), ph: rnd(0, 6), hue: Math.round(rnd(110, 200)) }));
+    if (on('bubbles')) add(14, (init) => ({ t: 'bubble', c: soft(pB), x: rnd(0, w), y: init ? rnd(0, h) : h + 10, v: rnd(0.4, 1.1), r: rnd(2, 6), ph: rnd(0, 6) }));
+    if (on('birds')) add(2, () => ({ t: 'birds', c: Tc, x: rnd(-w, 0), y: rnd(0.12, 0.45) * h, v: rnd(0.8, 1.4), n: 3 + Math.floor(rnd(0, 4)), ph: rnd(0, 6) }));
+    if (on('butterflies')) add(6, () => ({ t: 'fly', c: pick(A, Bc, Gc), x: rnd(0, w), y: rnd(0.2, 0.9) * h, ph: rnd(0, 6), hue: Math.floor(rnd(0, 360)), vx: rnd(-0.6, 0.6) }));
     if (theme === 'greatwave' || theme === 'crimsonwave') add(80, () => ({ t: 'spray', life: Math.random() }));
     if (theme === 'tide') add(14, (init) => ({ t: 'bubble', x: rnd(0, w), y: init ? rnd(0, h) : h + 10, v: rnd(0.4, 1.1), r: rnd(2, 6), ph: rnd(0, 6) }));
     if (dragon || theme === 'ember') add(theme === 'ember' ? 40 : 22, (init) => ({ t: 'ember', x: rnd(0, w), y: init ? rnd(0, h) : h + 5, v: rnd(0.5, 1.6), r: rnd(0.8, 2.4), ph: rnd(0, 6), hue: Math.round(rnd(110, 200)) }));
@@ -135,7 +143,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
         } else if (p.t === 'spark') {
           const a = Math.max(0, Math.sin(frame / 12 + p.ph));
           if (a < 0.05) { p.x = rnd(0, w); p.y = rnd(0, h); }
-          g.fillStyle = `rgba(255,255,255,${a * 0.9})`;
+          g.fillStyle = `rgba(${p.c || '255,255,255'},${a * 0.9})`;
           const k = p.s || 1;
           g.fillRect(p.x - 0.5, p.y - 5 * a * k, 1, 10 * a * k); g.fillRect(p.x - 5 * a * k, p.y - 0.5, 10 * a * k, 1);
         } else if (p.t === 'dust') {
@@ -168,7 +176,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
           p.y += p.v; p.x += Math.sin(frame / 40 + p.ph) * 0.4; p.rot += 0.01;
           if (p.y > h + 10) { p.y = -10; p.x = rnd(0, w); }
           g.save(); g.translate(p.x, p.y); g.rotate(p.rot);
-          g.strokeStyle = theme === 'snowday' && !night ? 'rgba(90,150,210,0.75)' : 'rgba(255,255,255,0.85)'; g.lineWidth = 1.2; g.beginPath();
+          g.strokeStyle = p.c ? `rgba(${p.c},0.85)` : theme === 'snowday' && !night ? 'rgba(90,150,210,0.75)' : 'rgba(255,255,255,0.85)'; g.lineWidth = 1.2; g.beginPath();
           for (let i = 0; i < 6; i++) { g.rotate(Math.PI / 3); g.moveTo(0, 0); g.lineTo(0, -p.r); g.moveTo(0, -p.r * 0.55); g.lineTo(p.r * 0.28, -p.r * 0.8); g.moveTo(0, -p.r * 0.55); g.lineTo(-p.r * 0.28, -p.r * 0.8); }
           g.stroke(); g.restore();
         } else if (p.t === 'snowman') {
@@ -217,7 +225,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
         } else if (p.t === 'bubble') {
           p.y -= p.v; p.x += Math.sin(frame / 30 + p.ph) * 0.4;
           if (p.y < -10) { p.y = h + 10; p.x = rnd(0, w); }
-          g.strokeStyle = 'rgba(180,235,255,0.5)'; g.lineWidth = 1; g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.stroke();
+          g.strokeStyle = `rgba(${p.c || '180,235,255'},0.55)`; g.lineWidth = 1; g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.stroke();
           g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.arc(p.x - p.r * 0.35, p.y - p.r * 0.35, p.r * 0.25, 0, 7); g.fill();
         } else if (p.t === 'firefly') {
           p.x += p.vx + Math.sin(frame / 40 + p.ph) * 0.4; p.y += p.vy + Math.cos(frame / 47 + p.ph) * 0.3;
@@ -231,7 +239,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
           else {
             p.life += 1; p.x -= 9; p.y += 4;
             const a = Math.max(0, 1 - p.life / 40), lg = g.createLinearGradient(p.x, p.y, p.x + 90, p.y - 40);
-            lg.addColorStop(0, `rgba(255,255,255,${a})`); lg.addColorStop(1, 'rgba(255,255,255,0)');
+            lg.addColorStop(0, `rgba(${p.c || '255,255,255'},${a})`); lg.addColorStop(1, `rgba(${p.c || '255,255,255'},0)`);
             g.strokeStyle = lg; g.lineWidth = 2; g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x + 90, p.y - 40); g.stroke();
             if (p.life > 40) p.wait = Math.floor(rnd(120, 420));
           }
@@ -239,15 +247,15 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
           p.y -= p.v; p.x += Math.sin(frame / 60 + p.ph) * 0.25;
           if (p.y < -40) { p.y = h + 30; p.x = rnd(0.05, 0.95) * w; }
           const s = p.s, fl = 0.85 + 0.15 * Math.sin(frame / 5 + p.ph);
-          const rg = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, 26 * s); rg.addColorStop(0, `rgba(255,170,70,${0.35 * fl})`); rg.addColorStop(1, 'rgba(255,170,70,0)');
+          const rg = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, 26 * s); rg.addColorStop(0, `rgba(${p.c},${0.4 * fl})`); rg.addColorStop(1, `rgba(${p.c},0)`);
           g.fillStyle = rg; g.fillRect(p.x - 26 * s, p.y - 26 * s, 52 * s, 52 * s);
-          g.fillStyle = `rgba(255,${Math.round(150 + 40 * fl)},90,0.92)`; g.beginPath();
+          g.fillStyle = `rgba(${p.c},${0.75 + 0.2 * fl})`; g.beginPath();
           g.moveTo(p.x - 6 * s, p.y - 9 * s); g.lineTo(p.x + 6 * s, p.y - 9 * s); g.lineTo(p.x + 7.5 * s, p.y + 8 * s); g.lineTo(p.x - 7.5 * s, p.y + 8 * s); g.closePath(); g.fill();
           g.fillStyle = 'rgba(255,240,200,0.9)'; g.fillRect(p.x - 3 * s, p.y + 6 * s, 6 * s, 2 * s);
         } else if (p.t === 'aurora') {
           for (let b = 0; b < 3; b++) {
             const lg = g.createLinearGradient(0, 0, 0, h * 0.45);
-            const col = ['80,255,170', '90,180,255', '200,110,255'][b];
+            const col = (p.cols || ['80,255,170', '90,180,255', '200,110,255'])[b];
             lg.addColorStop(0, `rgba(${col},0)`); lg.addColorStop(0.5, `rgba(${col},0.16)`); lg.addColorStop(1, `rgba(${col},0)`);
             g.fillStyle = lg; g.beginPath(); g.moveTo(0, 0);
             for (let x = 0; x <= w + 20; x += 20) g.lineTo(x, h * (0.12 + b * 0.06) + Math.sin(x / (140 + b * 40) + frame / (90 + b * 30) + b) * 30);
@@ -255,7 +263,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
           }
         } else if (p.t === 'birds') {
           p.x += p.v; if (p.x > w + 120) { p.x = rnd(-w * 0.8, -60); p.y = rnd(0.12, 0.45) * h; }
-          g.strokeStyle = night ? 'rgba(230,230,240,0.7)' : 'rgba(40,40,45,0.7)'; g.lineWidth = 1.6;
+          g.strokeStyle = p.c ? `rgba(${p.c},0.7)` : night ? 'rgba(230,230,240,0.7)' : 'rgba(40,40,45,0.7)'; g.lineWidth = 1.6;
           for (let i = 0; i < p.n; i++) {
             const bx = p.x - i * 18 - (i % 2) * 6, by = p.y + (i % 2 ? 10 : -6) * Math.ceil(i / 2) * 0.6, f = Math.sin(frame / 4 + p.ph + i) * 4;
             g.beginPath(); g.moveTo(bx - 7, by - f); g.quadraticCurveTo(bx - 3, by - 2, bx, by); g.quadraticCurveTo(bx + 3, by - 2, bx + 7, by - f); g.stroke();
@@ -264,14 +272,14 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
           p.x += p.vx + Math.sin(frame / 30 + p.ph) * 0.8; p.y += Math.cos(frame / 23 + p.ph) * 0.7 - 0.05;
           if (p.x < -20) p.x = w + 20; if (p.x > w + 20) p.x = -20; if (p.y < -20) p.y = h + 20; if (p.y > h + 20) p.y = -20;
           const flap = Math.abs(Math.sin(frame / 3 + p.ph));
-          g.fillStyle = `hsla(${p.hue},85%,65%,0.85)`;
+          g.fillStyle = p.c ? `rgba(${p.c},0.85)` : `hsla(${p.hue},85%,65%,0.85)`;
           g.beginPath(); g.ellipse(p.x - 4 * flap, p.y, 5 * flap + 0.5, 4, -0.3, 0, 7); g.ellipse(p.x + 4 * flap, p.y, 5 * flap + 0.5, 4, 0.3, 0, 7); g.fill();
           g.fillStyle = 'rgba(30,30,30,0.8)'; g.fillRect(p.x - 0.7, p.y - 3, 1.4, 6);
         } else if (p.t === 'ember') {
           p.y -= p.v; p.x += Math.sin(frame / 20 + p.ph) * 0.5;
           if (p.y < -5) { p.y = h + 5; p.x = rnd(0, w); }
           const a = 0.4 + 0.5 * Math.abs(Math.sin(frame / 6 + p.ph));
-          g.fillStyle = `rgba(255,${p.hue},40,${a})`; g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.fill();
+          g.fillStyle = p.c ? `rgba(${p.c},${a})` : `rgba(255,${p.hue},40,${a})`; g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.fill();
         } else if (p.t === 'ghost') {
           // Little floating ghosts with red eyes and a cheeky grin, drifting up and fading.
           p.y -= p.v; const sx = p.x + Math.sin(frame / 35 + p.ph) * 14;
