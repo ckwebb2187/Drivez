@@ -137,7 +137,7 @@ input[type=range]::-webkit-slider-thumb {
 }
 .dz-bigwave.dz-still, .dz-dragon.dz-still { animation: none; }
 .dz-dragon {
-  position: absolute; left: 2vw; top: 128px; width: 48vw; max-width: 260px; pointer-events: none;
+  position: absolute; left: 0; top: 112px; width: 66vw; max-width: 340px; aspect-ratio: 672 / 807; pointer-events: none;
   transition: opacity 1.5s; will-change: transform; animation: dz-float 9s ease-in-out infinite alternate;
 }
 @keyframes dz-float { from { transform: translate3d(0, 0, 0) rotate(-1deg); } to { transform: translate3d(6px, -10px, 0) rotate(1deg); } }

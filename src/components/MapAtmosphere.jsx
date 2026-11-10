@@ -265,9 +265,11 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
       </>}
       {theme === 'dragon' && <>
         <div className="absolute inset-0" style={{ background: 'radial-gradient(90% 50% at 50% -10%, rgba(212,160,23,0.12), transparent 70%), radial-gradient(100% 50% at 50% 112%, rgba(179,32,44,0.16), transparent 60%)' }} />
-        <div className="absolute" style={{ left: '24vw', top: '110px', width: '38vmin', height: '38vmin', borderRadius: '50%', background: 'radial-gradient(circle, rgba(200,40,30,0.85) 0 66%, rgba(200,40,30,0.25) 69%, transparent 72%)', opacity: driving ? 0.35 : 0.85, transition: 'opacity 1.5s' }} />
-        {/* Utagawa Kuniyoshi, "Dragon and Waves" (c. 1827-31, public domain). Fades back while you drive. */}
-        <img src="/dragon-waves.webp" alt="" decoding="async" className={`dz-dragon${run ? '' : ' dz-still'}`} style={{ opacity: driving ? 0.3 : 0.9 }} />
+        <div className="absolute" style={{ left: '18vw', top: '120px', width: '46vmin', height: '46vmin', borderRadius: '50%', background: 'radial-gradient(circle, rgba(200,40,30,0.85) 0 66%, rgba(200,40,30,0.25) 69%, transparent 72%)', opacity: driving ? 0.35 : 0.85, transition: 'opacity 1.5s' }} />
+        {/* The dragon from Utagawa Kuniyoshi's "Dragon and Waves" (c. 1827-31, public domain), cut out and animated. Fades back while you drive. */}
+        <Suspense fallback={null}>
+          <WaveCanvas src="/dragon-waves.webp" fx="dragon" animate={run} fps={driving ? 15 : 30} className={`dz-dragon${run ? '' : ' dz-still'}`} style={{ opacity: driving ? 0.35 : 0.95 }} />
+        </Suspense>
       </>}
       {theme === 'xmas' && <div className="absolute inset-0" style={{ background: 'radial-gradient(100% 50% at 50% 112%, rgba(217,43,43,0.16), transparent 62%), radial-gradient(80% 40% at 50% -5%, rgba(242,193,78,0.12), transparent 70%)' }} />}
       {theme === 'snowday' && <div className="absolute inset-0" style={{ background: night ? 'radial-gradient(90% 50% at 50% -10%, rgba(143,208,255,0.18), transparent 70%)' : 'linear-gradient(180deg, rgba(255,255,255,0.45), rgba(230,240,250,0.05) 45%, rgba(220,235,248,0.3))' }} />}

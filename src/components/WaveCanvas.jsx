@@ -4,6 +4,19 @@ import { useEffect, useRef, useState } from 'react';
 // where each pixel of the real print is read from. The crest leans and settles, the swells roll,
 // and the foam "claws" shimmer, while every line and color stays the woodblock's own.
 const VS = 'attribute vec2 p; varying vec2 v; void main(){ v = vec2(p.x * 0.5 + 0.5, 0.5 - p.y * 0.5); gl_Position = vec4(p, 0.0, 1.0); }';
+// Kuniyoshi's dragon (cut out of "Dragon and Waves"): a slow serpentine ripple runs down the body,
+// the dangling claw swings, and the red flames lick upward. Same pixels, only moved.
+const DRAGON_FS = `precision mediump float;
+uniform sampler2D img; uniform float t; varying vec2 v;
+void main(){
+  vec2 uv = v;
+  vec2 d = vec2(sin(uv.y * 7.0 - t * 1.3) * 0.009 * (0.35 + 0.65 * uv.y), sin(uv.x * 6.0 - t * 0.9) * 0.005);
+  d.x += sin(t * 0.8) * 0.012 * smoothstep(0.55, 1.0, uv.y) * (1.0 - uv.x);   // the hanging claw swings
+  vec4 base = texture2D(img, uv);
+  float flame = clamp((base.r - base.g) * 4.0 - 0.6, 0.0, 1.0) * base.a;
+  d += flame * vec2(sin(uv.y * 34.0 + t * 4.2) * 0.006, -abs(sin(uv.x * 22.0 + t * 3.1)) * 0.007);
+  gl_FragColor = texture2D(img, uv + d);
+}`;
 const FS = `precision mediump float;
 uniform sampler2D img; uniform float t; varying vec2 v;
 void main(){
@@ -21,7 +34,7 @@ void main(){
   gl_FragColor = texture2D(img, uv + d);
 }`;
 
-export default function WaveCanvas({ src, className, style, animate = true, fps = 30 }) {
+export default function WaveCanvas({ src, className, style, animate = true, fps = 30, fx = 'wave' }) {
   const ref = useRef(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -30,7 +43,7 @@ export default function WaveCanvas({ src, className, style, animate = true, fps 
     if (!gl) { setFailed(true); return undefined; }
     const sh = (type, code) => { const s = gl.createShader(type); gl.shaderSource(s, code); gl.compileShader(s); return s; };
     const pr = gl.createProgram();
-    gl.attachShader(pr, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(pr);
+    gl.attachShader(pr, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fx === 'dragon' ? DRAGON_FS : FS)); gl.linkProgram(pr);
     if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) { setFailed(true); return undefined; }
     gl.useProgram(pr);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
@@ -69,7 +82,7 @@ export default function WaveCanvas({ src, className, style, animate = true, fps 
     const onResize = () => { if (ready) { size(); if (!animate) draw(0); } };
     window.addEventListener('resize', onResize);
     return () => { alive = false; cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); gl.getExtension('WEBGL_lose_context')?.loseContext(); };
-  }, [src, animate, fps]);
+  }, [src, animate, fps, fx]);
   if (failed) return <img src={src} alt="" className={className} style={style} />;
   return <canvas ref={ref} className={className} style={style} aria-hidden="true" />;
 }
