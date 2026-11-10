@@ -1,5 +1,5 @@
 import { Check, BatteryLow, CloudSun, Languages, Moon, SunMoon } from 'lucide-react';
-import { THEMES, useMapLook, isLite, featureName, hasNight, ROUTE_STYLES, routeStyleOf } from '@/lib/mapTheme';
+import { THEMES, useMapLook, isLite, featureName, hasNight, ROUTE_STYLES, routeStyleOf, themeDragon } from '@/lib/mapTheme';
 
 const Toggle = ({ on }) => (
   <span className={`w-9 h-5 rounded-full relative transition-colors shrink-0 ${on ? 'bg-[#34A853]' : 'bg-muted'}`}>
@@ -78,6 +78,13 @@ export default function MapLookSettings() {
         <div className="flex-1 min-w-0"><div className="text-xs font-semibold text-foreground">Live weather on the map</div><div className="text-[10px] text-muted-foreground truncate">Rain, fog, snow and clouds</div></div>
         <Toggle on={look.weatherFx} />
       </button>
+      {themeDragon(look.theme) && (
+        <button onClick={() => update({ dragons: !look.dragons })} className="w-full flex items-center gap-2 text-left min-h-[40px]">
+          <span className="w-4 text-center shrink-0">🐉</span>
+          <div className="flex-1 min-w-0"><div className="text-xs font-semibold text-foreground">Dragons</div><div className="text-[10px] text-muted-foreground truncate">Off keeps the theme's colors, sun and moon</div></div>
+          <Toggle on={look.dragons} />
+        </button>
+      )}
       <button onClick={() => update({ legends: !look.legends })} className="w-full flex items-center gap-2 text-left min-h-[40px]">
         <span className="w-4 text-center shrink-0">⛰️</span>
         <div className="flex-1 min-w-0"><div className="text-xs font-semibold text-foreground">Local legends</div><div className="text-[10px] text-muted-foreground truncate">Famous Louisiana roads and spots on the map</div></div>

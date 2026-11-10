@@ -38,7 +38,7 @@ export function weatherKind(code, cloud) {
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 
-export default function MapAtmosphere({ theme, pos, active = true, lite = false, weatherFx = true, night = false, driving = false }) {
+export default function MapAtmosphere({ theme, pos, active = true, lite = false, weatherFx = true, night = false, driving = false, dragons = true }) {
   const canvas = useRef(null);
   const wx = useLocalWeather(pos, weatherFx && !lite);
   const wk = weatherFx ? weatherKind(wx?.weather_code, wx?.cloud_cover) : null;
@@ -278,9 +278,9 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
         <div className="absolute inset-0" style={{ background: theme === 'dragon' ? 'radial-gradient(90% 50% at 50% -10%, rgba(212,160,23,0.12), transparent 70%), radial-gradient(100% 50% at 50% 112%, rgba(179,32,44,0.16), transparent 60%)' : `radial-gradient(90% 50% at 50% -10%, ${dragon.accent}22, transparent 70%), radial-gradient(100% 50% at 50% 112%, ${dragon.accent2}29, transparent 60%)` }} />
         {(dragon.sun || dragon.moon) && <div className="absolute" style={{ zIndex: 1, left: '-14vw', top: '120px', width: '46vmin', height: '46vmin', borderRadius: '50%', background: dragon.moon ? `radial-gradient(circle at 42% 40%, #fff7da 0, ${dragon.moon} 45%, ${dragon.moon}dd 64%, ${dragon.moon}55 67%, transparent 72%)` : `radial-gradient(circle, ${dragon.sun}d9 0 66%, ${dragon.sun}4d 68.5%, transparent 71%)`, boxShadow: dragon.moon ? `0 0 60px ${dragon.moon}55` : undefined, opacity: driving ? 0.35 : 0.88, transition: 'opacity 1.5s' }} />}
         {/* Kuniyoshi's painted dragon ("Dragon and Waves", c. 1830, public domain) flying around the screen, alive and recolored per theme. Fades back while you drive. */}
-        <Suspense fallback={null}>
+        {dragons && <Suspense fallback={null}>
           <PaintedDragon theme={theme} tint={dragon.dragon || null} animate={run} fps={driving ? 15 : 30} style={{ opacity: driving ? 0.35 : 0.97 }} />
-        </Suspense>
+        </Suspense>}
       </>}
       {theme === 'xmas' && <div className="absolute inset-0" style={{ background: 'radial-gradient(100% 50% at 50% 112%, rgba(217,43,43,0.16), transparent 62%), radial-gradient(80% 40% at 50% -5%, rgba(242,193,78,0.12), transparent 70%)' }} />}
       {theme === 'snowday' && <div className="absolute inset-0" style={{ background: night ? 'radial-gradient(90% 50% at 50% -10%, rgba(143,208,255,0.18), transparent 70%)' : 'linear-gradient(180deg, rgba(255,255,255,0.45), rgba(230,240,250,0.05) 45%, rgba(220,235,248,0.3))' }} />}

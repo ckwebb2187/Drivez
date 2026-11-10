@@ -81,3 +81,4 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-11-10T01:27,moons-side,build,528.7,981,,,pass
 2026-11-10T01:38,eel-dragon,build,528.7,983.4,,,pass
 2026-11-10T01:53,five-dragons,build,528.7,983.8,,,pass
+2026-11-10T02:09,dragons-toggle,build,528.8,984,,,pass

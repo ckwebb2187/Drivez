@@ -79,7 +79,7 @@ export default function DriveMap(props) {
   return (
     <>
       <DriveMapInner key={`${key}-${base}-${lite}-${gen}`} {...props} theme={key} base={base} lite={lite} onGraphicsLost={rebuild} routeStyle={routeStyleOf(look)} />
-      <MapAtmosphere theme={look.theme} night={night} pos={props.pos} active={props.active !== false} lite={lite} weatherFx={look.weatherFx} driving={!!props.driving} />
+      <MapAtmosphere theme={look.theme} night={night} pos={props.pos} active={props.active !== false} lite={lite} weatherFx={look.weatherFx} dragons={look.dragons} driving={!!props.driving} />
     </>
   );
 }
