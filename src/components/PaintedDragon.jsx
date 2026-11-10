@@ -4,17 +4,28 @@ import { useEffect, useRef } from 'react';
 // Utagawa Kuniyoshi's "Dragon and Waves" (c. 1830, public domain); the long body is a woodblock-
 // style scale strip (inked scales, cream belly, curling red flame ribbons) wrapped along a spine
 // that follows the flight path and ripples tail-ward. Recolored per theme in the shader.
+// Five painted dragons (all public domain). Head: painted head, where its neck joins (anchor) and
+// which way its mouth points (mouth), size in body widths. Body: the painting's own skin where it
+// could be lifted cleanly (straightened from the painting), else the woodblock scale strip.
+const ART = {
+  kuniyoshi: { head: 'kuniyoshi-head', anchor: [0.3, 0.12], mouth: [0.58, 0.68], hw: 5, body: 'woodblock-scales', flame: 1.125, claw: 'kuniyoshi-claw' }, // Utagawa Kuniyoshi, Dragon and Waves, c. 1830
+  hokusai: { head: 'hokusai-head', anchor: [0.98, 0.45], mouth: [0.08, 0.72], hw: 7, body: 'hokusai-scales', flame: 0 },                                    // Katsushika Hokusai, Dragon (ceiling), 1848
+  ryugu: { head: 'ryugu-head', anchor: [0.8, 0.05], mouth: [0.38, 0.8], hw: 4.2, body: 'ryugu-scales', flame: 0 },                                         // Utagawa Kuniyoshi, Ryugu Tamatori-hime, 1853
+  chinese: { head: 'chinese-head', anchor: [0.92, 0.08], mouth: [0.25, 0.72], hw: 6, body: 'woodblock-scales', flame: 1.125 },                            // Chinese school woodblock, 19th century
+  chen: { head: 'chen-head', anchor: [0.22, 0.2], mouth: [0.75, 0.8], hw: 6.5, body: 'woodblock-scales', flame: 1.125 },                                  // after Chen Rong, ink dragon
+};
+// Each theme: which dragon, how it flies, and whether it keeps the painting's own colors.
 const FLIGHT = {
-  dragon: { path: 'orbit', speed: 0.55, size: 1 },
-  fujidragon: { path: 'orbit', speed: 0.5, size: 1 },
-  peonydragon: { path: 'orbit', speed: 0.55, size: 0.95 },
-  moondragon: { path: 'orbit', speed: 0.45, size: 0.85, segs: 54 },
-  seiryu: { path: 'wave', speed: 0.9, size: 0.9, segs: 50 },
-  azuredragon: { path: 'wave', speed: 1.1, size: 0.85, segs: 50 },
-  sumidragon: { path: 'drift', speed: 0.45, size: 1.05 },
-  goldwave: { path: 'rise', speed: 0.6, size: 1.05 },
-  goldstorm: { path: 'stalk', speed: 0.5, size: 1.15, segs: 38 },
-  redgold: { path: 'eight', speed: 0.6, size: 1 },
+  dragon: { art: 'kuniyoshi', path: 'orbit', speed: 0.55, size: 1, tint: false },
+  fujidragon: { art: 'ryugu', path: 'orbit', speed: 0.5, size: 1, tint: false },
+  peonydragon: { art: 'ryugu', path: 'orbit', speed: 0.55, size: 0.95 },
+  azuredragon: { art: 'ryugu', path: 'wave', speed: 1.1, size: 0.9, segs: 50 },
+  redgold: { art: 'hokusai', path: 'eight', speed: 0.6, size: 1, tint: false },
+  goldstorm: { art: 'hokusai', path: 'stalk', speed: 0.5, size: 1.1, segs: 40 },
+  goldwave: { art: 'kuniyoshi', path: 'rise', speed: 0.6, size: 1.05 },
+  seiryu: { art: 'chinese', path: 'wave', speed: 0.9, size: 0.9, segs: 50 },
+  moondragon: { art: 'chinese', path: 'orbit', speed: 0.45, size: 0.85, segs: 54 },
+  sumidragon: { art: 'chen', path: 'drift', speed: 0.45, size: 1.05 },
 };
 
 const VS = `attribute vec2 p; attribute vec2 uv; uniform vec2 res; varying vec2 v;
@@ -37,14 +48,17 @@ void main(){
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
 const load = (src) => new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = src; });
 
-export default function PaintedDragon({ theme, tint, animate = true, fps = 30, style }) {
+export default function PaintedDragon({ theme, tint: tintIn, animate = true, fps = 30, style }) {
   const ref = useRef(null);
-  const tintKey = tint ? `${tint.body}${tint.hi}${tint.accent}` : '';
+  const tintKey = tintIn ? `${tintIn.body}${tintIn.hi}${tintIn.accent}` : '';
   useEffect(() => {
     const c = ref.current;
+    let tint = tintIn;
     const gl = c?.getContext('webgl', { premultipliedAlpha: true, alpha: true, antialias: true });
     if (!gl) return undefined;
     const F = { segs: 46, ...(FLIGHT[theme] || FLIGHT.dragon) };
+    const A = ART[F.art] || ART.kuniyoshi;
+    if (F.tint === false) tint = null;
     let alive = true, raf = 0;
     const sh = (type, code) => { const s = gl.createShader(type); gl.shaderSource(s, code); gl.compileShader(s); return s; };
     const pr = gl.createProgram();
@@ -85,7 +99,7 @@ export default function PaintedDragon({ theme, tint, animate = true, fps = 30, s
     const path = (u) => {
       const m = Math.min(w, h), cx = w * 0.5, cy = h * 0.36;
       switch (F.path) {
-        case 'orbit': { const r = 0.23 * m, ox = -0.14 * w + r + r * 0.9, oy = 120 + r; const a = u * 0.8; return [ox + r * 2.1 * Math.cos(a), oy + r * 1.3 * Math.sin(a) + r * 0.3]; }
+        case 'orbit': { const r = 0.23 * m, ox = Math.max(w * 0.5, -0.14 * w + r * 2.2), oy = 120 + r * 1.2; const a = u * 0.8; return [ox + Math.min(r * 1.8, w * 0.32) * Math.cos(a), oy + r * 1.1 * Math.sin(a)]; }
         case 'wave': { const span = w + 760 * k; return [((u * 85 * k) % span) - 120 * k, cy + h * 0.12 * Math.sin(u * 1.1)]; }
         case 'drift': return [cx + w * 0.3 * Math.sin(u * 0.37) + w * 0.08 * Math.sin(u * 0.9), cy + h * 0.13 * Math.sin(u * 0.5)];
         case 'rise': return [cx + w * 0.3 * Math.sin(u * 0.8), cy + h * 0.16 * Math.cos(u * 0.4)];
@@ -93,10 +107,10 @@ export default function PaintedDragon({ theme, tint, animate = true, fps = 30, s
         default: return [cx + w * 0.32 * Math.sin(u * 0.5), cy + h * 0.14 * Math.sin(u * 1.0)];
       }
     };
-    const R = () => 22 * k * F.size;       // body half-thickness at its widest
+    const R = () => 22 * k * F.size * (A.flame ? 1 : 1.35); // body half-thickness at its widest (painted skins have no flame fringe, so a bit thicker)
     const SP = () => R() * 0.8;            // spacing between spine points
     const hist = [];
-    let u = Math.random() * 30, last = 0, lastDraw = 0, face = 1;
+    let u = Math.random() * 30, last = 0, lastDraw = 0, face = 1, mirror = false;
     const prefill = () => { hist.length = 0; for (let i = 900; i >= 0; i--) hist.push(path(u - i * 0.01)); };
     prefill();
 
@@ -152,14 +166,14 @@ export default function PaintedDragon({ theme, tint, animate = true, fps = 30, s
       const sg = spine(t), n = sg.length, r0 = R();
       if (Math.abs(sg[0].tx) > 0.25) face = sg[0].tx > 0 ? 1 : -1;
       // Claws (behind the body), swinging as it swims.
-      [[0.2, 0], [0.52, 1.7]].forEach(([s, ph]) => {
+      if (T.claw) [[0.2, 0], [0.52, 1.7]].forEach(([s, ph]) => {
         const q = sg[Math.round(s * (n - 1))], wd = width(s);
         const bx = q.x + (-q.ty) * -wd * 0.6 * face, by = q.y + q.tx * -wd * 0.6 * face;
         const ang = Math.atan2(q.ty, q.tx) + (face > 0 ? 0 : Math.PI) + Math.sin(t * 3 * F.speed + ph) * 0.35;
         sprite(T.claw, bx, by, ang, r0 * 2.8, 0.12, 0.08, face < 0);
       });
       // Body: a ribbon along the spine; flames ride on top, belly below.
-      const flameH = 1.125, tileW = 12.5 * r0, arr = [];
+      const flameH = A.flame, tileW = (T.scales.w / T.scales.h) * r0 * (2 + flameH), arr = [];
       let arc = 0;
       for (let j = 0; j < n; j++) {
         const q = sg[j], s = j / (n - 1), wd = width(s);
@@ -170,16 +184,20 @@ export default function PaintedDragon({ theme, tint, animate = true, fps = 30, s
         arr.push(q.x - nx * wd, q.y - ny * wd, uu, 1);
       }
       draw(arr, T.scales, gl.TRIANGLE_STRIP);
-      // Head, its neck tucked into the front of the body, mouth leading the way.
-      const hq = sg[0], swim = Math.atan2(-hq.ty, -hq.tx); // direction of travel
-      const neck = Math.atan2(-0.5 * T.head.h, (face > 0 ? -0.25 : 0.25) * T.head.w);
-      const bob = Math.sin(t * 1.3) * 0.08;
-      sprite(T.head, hq.x, hq.y, swim + Math.PI - neck + bob, r0 * 5, face > 0 ? 0.3 : 0.7, 0.12, face < 0);
+      // Head: its neck sits on the front of the body and the mouth leads the way; flipped when
+      // needed so the dragon never swims upside down.
+      const hq = sg[0], swim = Math.atan2(-hq.ty, -hq.tx);
+      const W = T.head.w, H = T.head.h;
+      const faceAng = (m) => Math.atan2((A.mouth[1] - A.anchor[1]) * H, ((m ? 1 - A.mouth[0] : A.mouth[0]) - (m ? 1 - A.anchor[0] : A.anchor[0])) * W);
+      if (Math.cos(swim - faceAng(mirror)) < -0.15) mirror = !mirror;
+      const bob = Math.sin(t * 1.3) * 0.07;
+      sprite(T.head, hq.x, hq.y, swim - faceAng(mirror) + bob, r0 * A.hw, mirror ? 1 - A.anchor[0] : A.anchor[0], A.anchor[1], mirror);
     };
     const loop = (now) => { raf = requestAnimationFrame(loop); if (now - lastDraw < 1000 / fps - 2) return; lastDraw = now; frame(now); };
-    Promise.all([load('/dragon-scales.webp'), load('/dragon-head.webp'), load('/dragon-claw.webp')]).then(([sc, hd, cl]) => {
+    const D = (n) => load(`/dragons/${n}.webp`);
+    Promise.all([D(A.body), D(A.head), A.claw ? D(A.claw) : Promise.resolve(null)]).then(([sc, hd, cl]) => {
       if (!alive) return;
-      T = { scales: tex(sc, true), head: tex(hd, false), claw: tex(cl, false) };
+      T = { scales: tex(sc, true), head: tex(hd, false), claw: cl ? tex(cl, false) : null };
       if (animate) raf = requestAnimationFrame(loop); else frame(performance.now());
     }).catch(() => {});
     const onResize = () => { size(); prefill(); };
