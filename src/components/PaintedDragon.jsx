@@ -29,7 +29,7 @@ export default function PaintedDragon({ theme, tint, animate = true, fps = 30, s
       const w = window.innerWidth, h = window.innerHeight, m = Math.min(w, h);
       const cx = w * 0.5, cy = h * 0.38;
       switch (F.path) {
-        case 'orbit': { const ox = 0.18 * w + 0.23 * m, oy = 120 + 0.23 * m, r = 0.23 * m; const a = u2 * 0.9; return [ox + r * 2.0 * Math.cos(a), oy + r * 1.25 * Math.sin(a) + r * 0.25, Math.sin(a)]; }
+        case 'orbit': { const r = 0.23 * m, ox = -0.14 * w + r + r * 0.7, oy = 120 + r; const a = u2 * 0.9; return [ox + r * 2.0 * Math.cos(a), oy + r * 1.25 * Math.sin(a) + r * 0.25, Math.sin(a)]; }
         case 'wave': { const span = w + 300; return [((u2 * 90) % span) - 150, cy + h * 0.12 * Math.sin(u2 * 1.2), 1]; }
         case 'drift': return [cx + w * 0.28 * Math.sin(u2 * 0.37) + w * 0.08 * Math.sin(u2 * 0.9), cy + h * 0.12 * Math.sin(u2 * 0.5), 1];
         case 'rise': return [cx + w * 0.28 * Math.sin(u2 * 0.8), cy + h * 0.16 * Math.cos(u2 * 0.4), 1];

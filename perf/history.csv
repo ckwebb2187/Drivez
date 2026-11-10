@@ -78,3 +78,4 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-11-10T00:57,wave-flow,build,528.7,979.8,,,pass
 2026-11-10T01:17,flying-dragons,build,528.6,983.8,,,pass
 2026-11-10T01:24,painted-dragon,build,528.7,981.1,,,pass
+2026-11-10T01:27,moons-side,build,528.7,981,,,pass
