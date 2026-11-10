@@ -10,11 +10,11 @@ const DRAGON_FS = `precision mediump float;
 uniform sampler2D img; uniform float t; uniform float tint; uniform vec3 cBody, cHi, cAcc; varying vec2 v;
 void main(){
   vec2 uv = v;
-  vec2 d = vec2(sin(uv.y * 7.0 - t * 1.3) * 0.009 * (0.35 + 0.65 * uv.y), sin(uv.x * 6.0 - t * 0.9) * 0.005);
-  d.x += sin(t * 0.8) * 0.012 * smoothstep(0.55, 1.0, uv.y) * (1.0 - uv.x);   // the hanging claw swings
+  vec2 d = vec2(sin(uv.y * 7.0 - t * 2.0) * 0.016 * (0.35 + 0.65 * uv.y), sin(uv.x * 6.0 - t * 1.4) * 0.009);
+  d.x += sin(t * 1.2) * 0.022 * smoothstep(0.55, 1.0, uv.y) * (1.0 - uv.x);   // the hanging claw swings
   vec4 base = texture2D(img, uv);
   float flame = clamp((base.r - base.g) * 4.0 - 0.6, 0.0, 1.0) * base.a;
-  d += flame * vec2(sin(uv.y * 34.0 + t * 4.2) * 0.006, -abs(sin(uv.x * 22.0 + t * 3.1)) * 0.007);
+  d += flame * vec2(sin(uv.y * 34.0 + t * 5.0) * 0.009, -abs(sin(uv.x * 22.0 + t * 3.8)) * 0.011);
   vec4 c = texture2D(img, uv + d);
   if (tint > 0.5 && c.a > 0.01) {
     // Recolor for the dragon themes: ink lines stay dark, scales take the body color, highlights
@@ -32,21 +32,28 @@ void main(){
 const FS = `precision mediump float;
 uniform sampler2D img; uniform float t; varying vec2 v;
 void main(){
-  // The print itself is never bent: water flows as moving light through the blue,
+  // Water flows as moving light through the blue,
   // following the curl of the crest up top and rolling sideways through the swells below.
-  vec4 c = texture2D(img, v);
+  // Real motion: the crest leans forward and settles, the swells roll, the claws shimmer.
+  float h = 1.0 - v.y;
+  float crestM = smoothstep(0.3, 0.95, h) * (1.0 - smoothstep(0.08, 0.34, abs(v.x - 0.36)));
+  float surge = sin(t * 0.7) * 0.6 + sin(t * 0.29) * 0.4;
+  vec2 d = vec2(-0.022 * surge * crestM * h, 0.008 * surge * crestM);
+  d.x += sin(v.y * 14.0 - t * 1.6 + v.x * 4.0) * 0.004 * (0.3 + 0.7 * smoothstep(0.0, 0.5, h));
+  d.y += sin(v.x * 10.0 - t * 1.2) * 0.006 * (1.0 - crestM);
+  vec4 c = texture2D(img, v + d);
   if (c.a < 0.01) { gl_FragColor = c; return; }
   vec3 rgb = c.rgb / c.a;
   float lum = dot(rgb, vec3(0.3, 0.59, 0.11));
   float water = clamp((rgb.b - rgb.r) * 3.5, 0.0, 1.0);
   vec2 q = (v - vec2(0.40, 0.40)) * vec2(1.8, 1.0);
-  float curl = sin(atan(q.y, q.x) * 3.0 + length(q) * 16.0 - t * 1.5);
-  float roll = sin(v.x * 20.0 - v.y * 7.0 - t * 1.3 + sin(v.y * 9.0 + t * 0.4));
+  float curl = sin(atan(q.y, q.x) * 3.0 + length(q) * 16.0 - t * 2.2);
+  float roll = sin(v.x * 20.0 - v.y * 7.0 - t * 2.0 + sin(v.y * 9.0 + t * 0.4));
   float crestZone = 1.0 - smoothstep(0.55, 0.75, v.y);
-  float flow = mix(smoothstep(0.55, 1.0, roll), smoothstep(0.55, 1.0, curl), crestZone);
-  rgb += water * flow * vec3(0.16, 0.2, 0.24);
+  float flow = mix(smoothstep(0.4, 1.0, roll), smoothstep(0.4, 1.0, curl), crestZone);
+  rgb += water * flow * vec3(0.26, 0.32, 0.36);
   float foam = smoothstep(0.62, 0.84, lum);
-  rgb += foam * 0.05 * sin(t * 2.6 + v.x * 45.0 + v.y * 33.0);
+  rgb += foam * 0.09 * sin(t * 3.2 + v.x * 45.0 + v.y * 33.0);
   gl_FragColor = vec4(clamp(rgb, 0.0, 1.0) * c.a, c.a);
 }`;
 

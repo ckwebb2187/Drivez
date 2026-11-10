@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { themeDragon } from '@/lib/mapTheme';
 
 const WaveCanvas = lazy(() => import('@/components/WaveCanvas'));
-const FlyingDragon = lazy(() => import('@/components/FlyingDragon'));
+const PaintedDragon = lazy(() => import('@/components/PaintedDragon'));
 
 // Animated layer over the drive map: real local weather (rain, snow, fog, clouds)
 // plus each theme's mood (petals, dust, smog, scanlines, searchlights).
@@ -80,7 +80,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
     if (theme === 'snowday') { parts.push({ t: 'snowman', side: 0, ph: 0 }); parts.push({ t: 'snowman', side: 1, ph: 3 }); }
     if (theme === 'xmas') parts.push({ t: 'lights' });
     if (theme === 'tide') parts.push({ t: 'swell' });
-    if (theme === 'greatwave' || theme === 'crimsonwave') add(45, () => ({ t: 'spray', life: Math.random() }));
+    if (theme === 'greatwave' || theme === 'crimsonwave') add(80, () => ({ t: 'spray', life: Math.random() }));
     if (theme === 'tide') add(14, (init) => ({ t: 'bubble', x: rnd(0, w), y: init ? rnd(0, h) : h + 10, v: rnd(0.4, 1.1), r: rnd(2, 6), ph: rnd(0, 6) }));
     if (dragon || theme === 'ember') add(theme === 'ember' ? 40 : 22, (init) => ({ t: 'ember', x: rnd(0, w), y: init ? rnd(0, h) : h + 5, v: rnd(0.5, 1.6), r: rnd(0.8, 2.4), ph: rnd(0, 6), hue: Math.round(rnd(110, 200)) }));
     if (theme === 'ghost') add(5, (init) => ({ t: 'ghost', x: rnd(0.05, 0.95) * w, y: init ? rnd(0.2, 1) * h : h + 30, v: rnd(0.25, 0.6), r: rnd(10, 18), ph: rnd(0, 6) }));
@@ -193,7 +193,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
           }
         } else if (p.t === 'spray') {
           // Spray falling off the crest of the print.
-          const iw = w * 1.32, ih = iw * 506 / 920, il = -0.16 * w, it = h - 70 - ih;
+          const iw = w * 1.4, ih = iw * 506 / 920, il = -0.2 * w, it = h + 0.06 * w - ih;
           if (p.life >= 1 || p.x == null) { p.x = il + iw * (0.33 + Math.random() * 0.22); p.y = it + ih * (0.1 + Math.random() * 0.22); p.vx = 0.3 + Math.random() * 1.2; p.vy = -0.4 - Math.random() * 0.8; p.r = 1.2 + Math.random() * 2.2; p.life = 0; }
           p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.life += 0.012;
           g.fillStyle = `rgba(241,234,214,${(1 - p.life) * 0.9})`; g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.fill();
@@ -276,9 +276,10 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
       </>}
       {dragon && <>
         <div className="absolute inset-0" style={{ background: theme === 'dragon' ? 'radial-gradient(90% 50% at 50% -10%, rgba(212,160,23,0.12), transparent 70%), radial-gradient(100% 50% at 50% 112%, rgba(179,32,44,0.16), transparent 60%)' : `radial-gradient(90% 50% at 50% -10%, ${dragon.accent}22, transparent 70%), radial-gradient(100% 50% at 50% 112%, ${dragon.accent2}29, transparent 60%)` }} />
-        {/* A living dragon for each dragon theme: it flies, slithers and roars (coiling around its sun / moon, or chasing a flaming pearl). Fades back while you drive. */}
+        {(dragon.sun || dragon.moon) && <div className="absolute" style={{ zIndex: 1, left: '18vw', top: '120px', width: '46vmin', height: '46vmin', borderRadius: '50%', background: dragon.moon ? `radial-gradient(circle at 42% 40%, #fff7da 0, ${dragon.moon} 45%, ${dragon.moon}dd 64%, ${dragon.moon}55 67%, transparent 72%)` : `radial-gradient(circle, ${dragon.sun}d9 0 66%, ${dragon.sun}4d 68.5%, transparent 71%)`, boxShadow: dragon.moon ? `0 0 60px ${dragon.moon}55` : undefined, opacity: driving ? 0.35 : 0.88, transition: 'opacity 1.5s' }} />}
+        {/* Kuniyoshi's painted dragon ("Dragon and Waves", c. 1830, public domain) flying around the screen, alive and recolored per theme. Fades back while you drive. */}
         <Suspense fallback={null}>
-          <FlyingDragon theme={theme} orb={dragon.sun || dragon.moon ? { sun: dragon.sun, moon: dragon.moon } : null} animate={run} fps={driving ? 15 : 30} className="absolute inset-0 w-full h-full" style={{ opacity: driving ? 0.35 : 1, transition: 'opacity 1.5s' }} />
+          <PaintedDragon theme={theme} tint={dragon.dragon || null} animate={run} fps={driving ? 15 : 30} style={{ opacity: driving ? 0.35 : 0.97 }} />
         </Suspense>
       </>}
       {theme === 'xmas' && <div className="absolute inset-0" style={{ background: 'radial-gradient(100% 50% at 50% 112%, rgba(217,43,43,0.16), transparent 62%), radial-gradient(80% 40% at 50% -5%, rgba(242,193,78,0.12), transparent 70%)' }} />}

@@ -131,17 +131,17 @@ input[type=range]::-webkit-slider-thumb {
 }
 @keyframes dz-sweep { from { transform: translateX(-50%) rotate(155deg); } to { transform: translateX(-50%) rotate(205deg); } }
 .dz-bigwave {
-  position: absolute; left: -16vw; width: 132vw; max-width: none; aspect-ratio: 920 / 506; bottom: 70px; pointer-events: none;
+  position: absolute; left: -20vw; width: 140vw; max-width: none; aspect-ratio: 920 / 506; bottom: -6vw; pointer-events: none;
   transform-origin: 30% 100%; transition: opacity 1.5s; will-change: transform;
-  animation: dz-bob 7s ease-in-out infinite alternate;
+  animation: dz-bob 6s ease-in-out infinite alternate;
 }
 .dz-bigwave.dz-still, .dz-dragon.dz-still { animation: none; }
 .dz-dragon {
-  position: absolute; left: 0; top: 112px; width: 66vw; max-width: 340px; aspect-ratio: 672 / 807; pointer-events: none;
-  transition: opacity 1.5s; will-change: transform; animation: dz-float 9s ease-in-out infinite alternate;
+  position: absolute; left: 0; top: 0; width: 60vw; max-width: 320px; aspect-ratio: 672 / 807; pointer-events: none;
+  transition: opacity 1.5s; will-change: transform;
 }
 @keyframes dz-float { from { transform: translate3d(0, 0, 0) rotate(-1deg); } to { transform: translate3d(6px, -10px, 0) rotate(1deg); } }
-@keyframes dz-bob { from { transform: translate3d(0, 5px, 0) rotate(-0.8deg); } to { transform: translate3d(-12px, -6px, 0) rotate(0.8deg); } }
+@keyframes dz-bob { 0% { transform: translate3d(0, 14px, 0) rotate(-1.6deg); } 50% { transform: translate3d(-14px, -10px, 0) rotate(1.2deg); } 100% { transform: translate3d(6px, 6px, 0) rotate(-0.4deg); } }
 @media (prefers-reduced-motion: reduce) { .dz-scanlines, .dz-searchlight, .dz-bigwave, .dz-dragon { animation: none; } }
 
 /* Theme fonts for headings (Matrix uses code type, Zen Town a book serif). */
