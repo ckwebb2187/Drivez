@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+
+const WaveCanvas = lazy(() => import('@/components/WaveCanvas'));
 
 // Animated layer over the drive map: real local weather (rain, snow, fog, clouds)
 // plus each theme's mood (petals, dust, smog, scanlines, searchlights).
@@ -257,7 +259,9 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
         {theme === 'crimsonwave' && <div className="absolute" style={{ right: '-12vmin', top: '14%', width: '78vmin', height: '78vmin', borderRadius: '50%', background: 'radial-gradient(circle, rgba(214,52,36,0.92) 0 66%, rgba(214,52,36,0.3) 68.5%, transparent 71%)', opacity: driving ? 0.45 : 0.9, transition: 'opacity 1.5s' }} />}
         <div className="absolute inset-0" style={{ background: theme === 'crimsonwave' ? 'radial-gradient(120% 60% at 50% 115%, rgba(224,65,46,0.14), transparent 60%)' : night ? 'radial-gradient(110% 60% at 50% -10%, rgba(232,217,176,0.10), transparent 65%)' : 'radial-gradient(130% 80% at 50% 40%, transparent 55%, rgba(170,150,110,0.28))' }} />
         {/* Hokusai's Great Wave (1831, public domain), cut out of its paper sky. Fades back while you drive so the roads stay clear. */}
-        <img src="/great-wave.webp" alt="" decoding="async" className={`dz-bigwave${run ? '' : ' dz-still'}`} style={{ opacity: driving ? 0.38 : night || theme === 'crimsonwave' ? 0.88 : 0.95 }} />
+        <Suspense fallback={null}>
+          <WaveCanvas src="/great-wave.webp" animate={run} fps={driving ? 15 : 30} className={`dz-bigwave${run ? '' : ' dz-still'}`} style={{ opacity: driving ? 0.38 : night || theme === 'crimsonwave' ? 0.88 : 0.95 }} />
+        </Suspense>
       </>}
       {theme === 'dragon' && <>
         <div className="absolute inset-0" style={{ background: 'radial-gradient(90% 50% at 50% -10%, rgba(212,160,23,0.12), transparent 70%), radial-gradient(100% 50% at 50% 112%, rgba(179,32,44,0.16), transparent 60%)' }} />

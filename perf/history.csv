@@ -71,3 +71,4 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-11-10T00:25,themes,build,526.7,975.7,,,pass
 2026-11-10T00:31,waves,build,527,975.9,,,pass
 2026-11-10T00:35,dragon,build,526.7,975.6,,,pass
+2026-11-10T00:38,wave-motion,build,526.8,977.3,,,pass

@@ -131,7 +131,7 @@ input[type=range]::-webkit-slider-thumb {
 }
 @keyframes dz-sweep { from { transform: translateX(-50%) rotate(155deg); } to { transform: translateX(-50%) rotate(205deg); } }
 .dz-bigwave {
-  position: absolute; left: -16vw; width: 132vw; max-width: none; bottom: 70px; pointer-events: none;
+  position: absolute; left: -16vw; width: 132vw; max-width: none; aspect-ratio: 920 / 506; bottom: 70px; pointer-events: none;
   transform-origin: 30% 100%; transition: opacity 1.5s; will-change: transform;
   animation: dz-bob 7s ease-in-out infinite alternate;
 }
