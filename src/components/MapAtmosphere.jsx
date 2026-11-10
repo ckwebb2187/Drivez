@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { themeDragon } from '@/lib/mapTheme';
 
 const WaveCanvas = lazy(() => import('@/components/WaveCanvas'));
+const FlyingDragon = lazy(() => import('@/components/FlyingDragon'));
 
 // Animated layer over the drive map: real local weather (rain, snow, fog, clouds)
 // plus each theme's mood (petals, dust, smog, scanlines, searchlights).
@@ -275,10 +276,9 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
       </>}
       {dragon && <>
         <div className="absolute inset-0" style={{ background: theme === 'dragon' ? 'radial-gradient(90% 50% at 50% -10%, rgba(212,160,23,0.12), transparent 70%), radial-gradient(100% 50% at 50% 112%, rgba(179,32,44,0.16), transparent 60%)' : `radial-gradient(90% 50% at 50% -10%, ${dragon.accent}22, transparent 70%), radial-gradient(100% 50% at 50% 112%, ${dragon.accent2}29, transparent 60%)` }} />
-        {(dragon.sun || dragon.moon) && <div className="absolute" style={{ left: '18vw', top: '120px', width: '46vmin', height: '46vmin', borderRadius: '50%', background: dragon.moon ? `radial-gradient(circle at 42% 40%, #fff7da 0, ${dragon.moon} 45%, ${dragon.moon}dd 64%, ${dragon.moon}55 67%, transparent 72%)` : `radial-gradient(circle, ${dragon.sun}d9 0 66%, ${dragon.sun}4d 68.5%, transparent 71%)`, boxShadow: dragon.moon ? `0 0 60px ${dragon.moon}55` : undefined, opacity: driving ? 0.35 : 0.88, transition: 'opacity 1.5s' }} />}
-        {/* The dragon from Utagawa Kuniyoshi's "Dragon and Waves" (c. 1827-31, public domain), cut out, animated and recolored per theme. Fades back while you drive. */}
+        {/* A living dragon for each dragon theme: it flies, slithers and roars (coiling around its sun / moon, or chasing a flaming pearl). Fades back while you drive. */}
         <Suspense fallback={null}>
-          <WaveCanvas src="/dragon-waves.webp" fx="dragon" tint={dragon.dragon || null} animate={run} fps={driving ? 15 : 30} className={`dz-dragon${run ? '' : ' dz-still'}`} style={{ opacity: driving ? 0.35 : 0.95 }} />
+          <FlyingDragon theme={theme} orb={dragon.sun || dragon.moon ? { sun: dragon.sun, moon: dragon.moon } : null} animate={run} fps={driving ? 15 : 30} className="absolute inset-0 w-full h-full" style={{ opacity: driving ? 0.35 : 1, transition: 'opacity 1.5s' }} />
         </Suspense>
       </>}
       {theme === 'xmas' && <div className="absolute inset-0" style={{ background: 'radial-gradient(100% 50% at 50% 112%, rgba(217,43,43,0.16), transparent 62%), radial-gradient(80% 40% at 50% -5%, rgba(242,193,78,0.12), transparent 70%)' }} />}
