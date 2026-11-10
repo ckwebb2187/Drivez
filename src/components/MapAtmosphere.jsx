@@ -33,7 +33,7 @@ export function weatherKind(code, cloud) {
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 
-export default function MapAtmosphere({ theme, pos, active = true, lite = false, weatherFx = true, night = false }) {
+export default function MapAtmosphere({ theme, pos, active = true, lite = false, weatherFx = true, night = false, driving = false }) {
   const canvas = useRef(null);
   const wx = useLocalWeather(pos, weatherFx && !lite);
   const wk = weatherFx ? weatherKind(wx?.weather_code, wx?.cloud_cover) : null;
@@ -73,7 +73,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
     if (theme === 'snowday' || theme === 'xmas') add(theme === 'snowday' ? 40 : 26, (init) => ({ t: 'flake', x: rnd(0, w), y: init ? rnd(0, h) : -10, v: rnd(0.5, 1.3), r: rnd(3, 7), ph: rnd(0, 6), rot: rnd(0, 6) }));
     if (theme === 'snowday') { parts.push({ t: 'snowman', side: 0, ph: 0 }); parts.push({ t: 'snowman', side: 1, ph: 3 }); }
     if (theme === 'xmas') parts.push({ t: 'lights' });
-    if (theme === 'greatwave' || theme === 'tide') parts.push({ t: 'swell', big: theme === 'greatwave' });
+    if (theme === 'tide') parts.push({ t: 'swell' });
     if (theme === 'tide') add(14, (init) => ({ t: 'bubble', x: rnd(0, w), y: init ? rnd(0, h) : h + 10, v: rnd(0.4, 1.1), r: rnd(2, 6), ph: rnd(0, 6) }));
     if (theme === 'dragon') parts.push({ t: 'dragon', x: -100, y: 0.25 * h });
     if (theme === 'dragon' || theme === 'ember') add(theme === 'ember' ? 40 : 22, (init) => ({ t: 'ember', x: rnd(0, w), y: init ? rnd(0, h) : h + 5, v: rnd(0.5, 1.6), r: rnd(0.8, 2.4), ph: rnd(0, 6), hue: Math.round(rnd(110, 200)) }));
@@ -174,42 +174,16 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
           }
         } else if (p.t === 'swell') {
           // Layered woodblock-style waves along the bottom with foam on the crests.
-          const cols = p.big ? ['rgba(20,50,95,0.55)', 'rgba(29,79,134,0.5)', 'rgba(42,98,160,0.45)'] : ['rgba(8,50,90,0.45)', 'rgba(14,74,128,0.4)', 'rgba(47,164,255,0.25)'];
+          const cols = ['rgba(8,50,90,0.45)', 'rgba(14,74,128,0.4)', 'rgba(47,164,255,0.25)'];
           for (let L = 0; L < 3; L++) {
-            const A = (p.big ? 16 : 10) + L * 5, base = h * (0.8 + L * 0.06), sp = 0.02 + L * 0.008;
+            const A = 10 + L * 5, base = h * (0.8 + L * 0.06), sp = 0.02 + L * 0.008;
             const y = (x) => base - A * Math.sin(x / (90 + L * 30) + frame * sp + L) - A * 0.35 * Math.sin(x / 33 - frame * sp * 1.7);
             g.fillStyle = cols[L]; g.beginPath(); g.moveTo(0, h);
             for (let x = 0; x <= w + 12; x += 12) g.lineTo(x, y(x));
             g.lineTo(w, h); g.closePath(); g.fill();
-            g.strokeStyle = p.big ? 'rgba(243,239,226,0.6)' : 'rgba(200,240,255,0.45)'; g.lineWidth = 2; g.beginPath();
+            g.strokeStyle = 'rgba(200,240,255,0.45)'; g.lineWidth = 2; g.beginPath();
             for (let x = 0; x <= w + 12; x += 12) (x ? g.lineTo(x, y(x)) : g.moveTo(x, y(x)));
             g.stroke();
-            if (p.big && L === 0) { // the big curling crest rising on the left, woodblock style
-              const b = Math.sin(frame / 60) * 5, X = (f) => f * w, Y = (f) => f * h + b;
-              g.fillStyle = 'rgba(18,44,86,0.5)'; g.beginPath();
-              g.moveTo(0, h); g.lineTo(0, Y(0.74));
-              g.bezierCurveTo(X(0.06), Y(0.62), X(0.24), Y(0.55), X(0.4), Y(0.6));
-              g.bezierCurveTo(X(0.46), Y(0.62), X(0.45), Y(0.68), X(0.37), Y(0.68));
-              g.bezierCurveTo(X(0.31), Y(0.665), X(0.28), Y(0.7), X(0.31), Y(0.75));
-              g.bezierCurveTo(X(0.36), Y(0.83), X(0.5), Y(0.85), X(0.62), Y(0.87));
-              g.lineTo(X(0.62), h); g.closePath(); g.fill();
-              g.strokeStyle = 'rgba(120,170,220,0.35)'; g.lineWidth = 1.5;
-              for (let k = 1; k <= 3; k++) { g.beginPath(); g.moveTo(0, Y(0.74 + k * 0.03)); g.bezierCurveTo(X(0.08), Y(0.64 + k * 0.03), X(0.2), Y(0.6 + k * 0.03), X(0.3 - k * 0.02), Y(0.66 + k * 0.035)); g.stroke(); }
-              g.strokeStyle = 'rgba(243,239,226,0.9)'; g.lineWidth = 2.5; g.beginPath();
-              g.moveTo(0, Y(0.74)); g.bezierCurveTo(X(0.06), Y(0.62), X(0.24), Y(0.55), X(0.4), Y(0.6));
-              g.bezierCurveTo(X(0.46), Y(0.62), X(0.45), Y(0.68), X(0.37), Y(0.68)); g.stroke();
-              // foam "fingers" curling off the lip
-              g.lineWidth = 2;
-              for (let k = 0; k < 7; k++) {
-                const t = k / 6, fx = X(0.16 + t * 0.27), fy = Y(0.575 + Math.abs(t - 0.6) * 0.05) - 2;
-                const wig = Math.sin(frame / 14 + k) * 2;
-                g.beginPath(); g.arc(fx, fy - 4 + wig, 4, Math.PI * 0.2, Math.PI * 1.4, true); g.stroke();
-              }
-            }
-            if (p.big) { // little "claw" foam dots on the peaks
-              g.fillStyle = 'rgba(243,239,226,0.8)';
-              for (let x = 6; x < w; x += 12) if (y(x) < y(x - 6) && y(x) < y(x + 6)) { for (let k = 0; k < 4; k++) { g.beginPath(); g.arc(x + k * 4 - 6, y(x) - 3 - (k % 2) * 3, 1.6, 0, 7); g.fill(); } }
-            }
           }
         } else if (p.t === 'bubble') {
           p.y -= p.v; p.x += Math.sin(frame / 30 + p.ph) * 0.4;
@@ -301,7 +275,12 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
       {theme === 'minimal' && <div className="absolute inset-0" style={{ background: night ? 'radial-gradient(100% 45% at 50% 112%, rgba(242,155,48,0.16), transparent 65%)' : 'linear-gradient(180deg, rgba(215,216,214,0.5), rgba(215,216,214,0.05) 50%)' }} />}
       {theme === 'sakuranight' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 70% at 50% 110%, rgba(255,79,126,0.2), transparent 60%)' }} />}
       {theme === 'kawaii' && <div className="absolute inset-0" style={{ background: night ? 'radial-gradient(90% 50% at 50% -10%, rgba(185,163,255,0.22), transparent 70%), radial-gradient(100% 45% at 50% 112%, rgba(255,140,198,0.2), transparent 65%)' : 'radial-gradient(80% 50% at 50% -10%, rgba(255,182,220,0.35), transparent 70%)' }} />}
-      {theme === 'greatwave' && <div className="absolute inset-0" style={{ background: 'radial-gradient(110% 60% at 50% -10%, rgba(232,217,176,0.10), transparent 65%), radial-gradient(120% 60% at 50% 115%, rgba(79,155,224,0.18), transparent 60%)' }} />}
+      {(theme === 'greatwave' || theme === 'crimsonwave') && <>
+        {theme === 'crimsonwave' && <div className="absolute" style={{ right: '-12vmin', top: '14%', width: '78vmin', height: '78vmin', borderRadius: '50%', background: 'radial-gradient(circle, rgba(214,52,36,0.92) 0 66%, rgba(214,52,36,0.3) 68.5%, transparent 71%)', opacity: driving ? 0.45 : 0.9, transition: 'opacity 1.5s' }} />}
+        <div className="absolute inset-0" style={{ background: theme === 'crimsonwave' ? 'radial-gradient(120% 60% at 50% 115%, rgba(224,65,46,0.14), transparent 60%)' : night ? 'radial-gradient(110% 60% at 50% -10%, rgba(232,217,176,0.10), transparent 65%)' : 'radial-gradient(130% 80% at 50% 40%, transparent 55%, rgba(170,150,110,0.28))' }} />
+        {/* Hokusai's Great Wave (1831, public domain), cut out of its paper sky. Fades back while you drive so the roads stay clear. */}
+        <img src="/great-wave.webp" alt="" decoding="async" className={`dz-bigwave${run ? '' : ' dz-still'}`} style={{ opacity: driving ? 0.38 : night || theme === 'crimsonwave' ? 0.88 : 0.95 }} />
+      </>}
       {theme === 'dragon' && <div className="absolute inset-0" style={{ background: 'radial-gradient(90% 50% at 50% -10%, rgba(212,160,23,0.14), transparent 70%), radial-gradient(100% 50% at 50% 112%, rgba(179,32,44,0.16), transparent 60%)' }} />}
       {theme === 'xmas' && <div className="absolute inset-0" style={{ background: 'radial-gradient(100% 50% at 50% 112%, rgba(217,43,43,0.16), transparent 62%), radial-gradient(80% 40% at 50% -5%, rgba(242,193,78,0.12), transparent 70%)' }} />}
       {theme === 'snowday' && <div className="absolute inset-0" style={{ background: night ? 'radial-gradient(90% 50% at 50% -10%, rgba(143,208,255,0.18), transparent 70%)' : 'linear-gradient(180deg, rgba(255,255,255,0.45), rgba(230,240,250,0.05) 45%, rgba(220,235,248,0.3))' }} />}

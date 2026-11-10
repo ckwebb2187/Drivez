@@ -69,3 +69,4 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-11-09T16:40,obd-auto,build,519.5,968.6,,,pass
 2026-11-10T00:22,themes,build,526.3,975.4,,,pass
 2026-11-10T00:25,themes,build,526.7,975.7,,,pass
+2026-11-10T00:31,waves,build,527,975.9,,,pass
