@@ -273,7 +273,7 @@ const lowEndPhone = () => (navigator.deviceMemory && navigator.deviceMemory <= 2
 const read = () => {
   let s = {};
   try { s = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { s = {}; }
-  return { theme: s.theme || 'kaido', saver: s.saver || 'auto', mode: ['light', 'dark'].includes(s.mode) ? s.mode : 'auto', jpNames: !!s.jpNames, weatherFx: s.weatherFx !== false, legends: s.legends !== false, dragons: s.dragons !== false, routeStyles: s.routeStyles || {} };
+  return { theme: s.theme || 'kaido', saver: s.saver || 'auto', mode: ['light', 'dark'].includes(s.mode) ? s.mode : 'auto', jpNames: !!s.jpNames, weatherFx: s.weatherFx !== false, legends: s.legends !== false, dragons: s.dragons !== false, routeStyles: s.routeStyles || {}, sceneFx: s.sceneFx || {} };
 };
 export const isLite = (prefs) => prefs.saver === 'on' || (prefs.saver === 'auto' && lowEndPhone());
 
@@ -559,6 +559,13 @@ export function useActiveLook() {
   return { look, ...resolveLook(look.theme, look.mode, day) };
 }
 
+// Extra animations you can add to any theme (Map look), mixed freely.
+export const SCENE_FX = [
+  { id: 'fireflies', title: 'Fireflies' }, { id: 'stars', title: 'Twinkling stars' }, { id: 'shooting', title: 'Shooting stars' },
+  { id: 'lanterns', title: 'Sky lanterns' }, { id: 'aurora', title: 'Aurora' }, { id: 'petals', title: 'Cherry petals' },
+  { id: 'leaves', title: 'Autumn leaves' }, { id: 'snow', title: 'Snowflakes' }, { id: 'embers', title: 'Embers' },
+  { id: 'bubbles', title: 'Bubbles' }, { id: 'birds', title: 'Birds' }, { id: 'butterflies', title: 'Butterflies' },
+];
 // How the route line moves. Picked per theme (Map look); slow neon pulse by default.
 export const ROUTE_STYLES = [
   { id: 'pulse', title: 'Neon pulse' }, { id: 'heartbeat', title: 'Heartbeat' }, { id: 'flow', title: 'Light flow' },

@@ -1,5 +1,5 @@
 import { Check, BatteryLow, CloudSun, Languages, Moon, SunMoon } from 'lucide-react';
-import { THEMES, useMapLook, isLite, featureName, hasNight, ROUTE_STYLES, routeStyleOf, themeDragon } from '@/lib/mapTheme';
+import { THEMES, useMapLook, isLite, featureName, hasNight, ROUTE_STYLES, routeStyleOf, themeDragon, SCENE_FX } from '@/lib/mapTheme';
 
 const Toggle = ({ on }) => (
   <span className={`w-9 h-5 rounded-full relative transition-colors shrink-0 ${on ? 'bg-[#34A853]' : 'bg-muted'}`}>
@@ -78,6 +78,17 @@ export default function MapLookSettings() {
         <div className="flex-1 min-w-0"><div className="text-xs font-semibold text-foreground">Live weather on the map</div><div className="text-[10px] text-muted-foreground truncate">Rain, fog, snow and clouds</div></div>
         <Toggle on={look.weatherFx} />
       </button>
+      <div>
+        <div className="text-[10px] font-bold text-muted-foreground tracking-wider mb-1">EXTRA ANIMATIONS (TAP TO MIX)</div>
+        <div className="flex flex-wrap gap-1.5">
+          {SCENE_FX.map((f) => {
+            const sel = !!look.sceneFx?.[f.id];
+            return <button key={f.id} onClick={() => update({ sceneFx: { ...look.sceneFx, [f.id]: !sel } })}
+              className={`px-3 min-h-[32px] rounded-full text-xs font-semibold border ${sel ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/80 text-foreground border-border'}`}>{f.title}</button>;
+          })}
+        </div>
+        {lite && <p className="text-[10px] text-muted-foreground mt-1">Turn battery saver off to see these.</p>}
+      </div>
       {themeDragon(look.theme) && (
         <button onClick={() => update({ dragons: !look.dragons })} className="w-full flex items-center gap-2 text-left min-h-[40px]">
           <span className="w-4 text-center shrink-0">🐉</span>
