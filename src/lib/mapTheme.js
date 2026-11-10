@@ -30,7 +30,7 @@ export const THEMES = [
   { key: 'harajuku', label: 'Harajuku', jp: 'Harajuku 原宿', text: 'Loud candy colors and street pop.', swatch: ['#fff6d6', '#ff5c8a', '#4dd4ff'] },
   { key: 'greatwave', label: 'Great Wave', jp: 'Ōnami 大波', text: "Hokusai's woodblock wave rolling in under the map: paper and indigo by day, deep blue at night.", swatch: ['#ece3cc', '#1f4e86', '#f3efe2'] },
   { key: 'crimsonwave', label: 'Crimson Wave', jp: 'Akai Nami 赤い波', text: 'The great wave in front of a huge red sun on a near-black night.', swatch: ['#0b0a0c', '#e0412e', '#f3efe2'] },
-  { key: 'dragon', label: 'Dragon Gate', jp: 'Ryūmon 龍門', text: 'A golden dragon winding through a jade night, embers in the air.', swatch: ['#0a1210', '#d4a017', '#b3202c'] },
+  { key: 'dragon', label: 'Dragon Gate', jp: 'Ryūmon 龍門', text: 'Kuniyoshi\'s storm dragon rising over the waves, red sun and drifting embers on a jade night.', swatch: ['#0a1210', '#d4a017', '#b3202c'] },
   { key: 'xmas', label: 'Christmas Lights', jp: 'Kurisumasu クリスマス', text: 'Strings of twinkling lights, red and gold, gentle snow.', swatch: ['#0b1a12', '#d92b2b', '#f2c14e'] },
   { key: 'snowday', label: 'Snow Day', jp: 'Yuki no Hi 雪の日', text: 'Icy blue and white, drifting snowflakes and little snowmen.', swatch: ['#eef4fa', '#4a9be0', '#ff7a3d'] },
   { key: 'heat', label: 'Street Heat', jp: 'Hīto ヒート', text: 'Pink and purple street-race nights, neon on wet roads (NFS Heat vibe).', swatch: ['#120a1e', '#ff2e88', '#7a3cff'] },

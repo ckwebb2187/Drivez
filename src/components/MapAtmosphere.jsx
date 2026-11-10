@@ -75,7 +75,6 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
     if (theme === 'xmas') parts.push({ t: 'lights' });
     if (theme === 'tide') parts.push({ t: 'swell' });
     if (theme === 'tide') add(14, (init) => ({ t: 'bubble', x: rnd(0, w), y: init ? rnd(0, h) : h + 10, v: rnd(0.4, 1.1), r: rnd(2, 6), ph: rnd(0, 6) }));
-    if (theme === 'dragon') parts.push({ t: 'dragon', x: -100, y: 0.25 * h });
     if (theme === 'dragon' || theme === 'ember') add(theme === 'ember' ? 40 : 22, (init) => ({ t: 'ember', x: rnd(0, w), y: init ? rnd(0, h) : h + 5, v: rnd(0.5, 1.6), r: rnd(0.8, 2.4), ph: rnd(0, 6), hue: Math.round(rnd(110, 200)) }));
     if (theme === 'ghost') add(5, (init) => ({ t: 'ghost', x: rnd(0.05, 0.95) * w, y: init ? rnd(0.2, 1) * h : h + 30, v: rnd(0.25, 0.6), r: rnd(10, 18), ph: rnd(0, 6) }));
     if (theme === 'tokyo' || theme === 'cyberpunk') add(6, () => ({ t: 'trail', x: rnd(0, w), y: rnd(0.55, 1) * h, v: rnd(2, 5), len: rnd(40, 90), hue: theme === 'tokyo' ? (Math.random() < 0.5 ? '255,45,149' : '0,229,255') : (Math.random() < 0.5 ? '176,38,255' : '0,255,213') }));
@@ -190,27 +189,6 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
           if (p.y < -10) { p.y = h + 10; p.x = rnd(0, w); }
           g.strokeStyle = 'rgba(180,235,255,0.5)'; g.lineWidth = 1; g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.stroke();
           g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.arc(p.x - p.r * 0.35, p.y - p.r * 0.35, p.r * 0.25, 0, 7); g.fill();
-        } else if (p.t === 'dragon') {
-          // A long golden dragon snaking across the sky now and then.
-          p.x += 0.9;
-          const N = 40, gap = 11;
-          if (p.x - N * gap > w + 40) { p.x = -rnd(150, 900); p.y = rnd(0.12, 0.38) * h; }
-          const at = (i) => { const x = p.x - i * gap; return [x, p.y + Math.sin(x / 55 + frame / 28) * 24]; };
-          for (let i = N - 1; i >= 0; i--) {
-            const [x, y] = at(i);
-            if (x < -20 || x > w + 20) continue;
-            const r = 4 + 7 * Math.sin(Math.PI * Math.min(1, (i + 2) / N));
-            g.fillStyle = `rgba(212,160,23,${0.35 + 0.25 * (1 - i / N)})`; g.strokeStyle = 'rgba(120,70,0,0.5)'; g.lineWidth = 1;
-            g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.stroke();
-            if (i % 3 === 0 && i > 2) { g.fillStyle = 'rgba(200,40,40,0.55)'; g.beginPath(); g.moveTo(x - 3, y - r + 1); g.lineTo(x, y - r - 6); g.lineTo(x + 3, y - r + 1); g.fill(); }
-          }
-          const [hx, hy] = at(0);
-          g.fillStyle = 'rgba(232,180,40,0.75)'; g.beginPath(); g.ellipse(hx + 5, hy, 14, 10, 0, 0, 7); g.fill();
-          g.strokeStyle = 'rgba(232,180,40,0.6)'; g.lineWidth = 1.5; g.beginPath();
-          g.moveTo(hx - 2, hy - 6); g.lineTo(hx - 10, hy - 16); g.moveTo(hx + 2, hy - 7); g.lineTo(hx - 4, hy - 18);
-          g.moveTo(hx + 13, hy + 2); g.quadraticCurveTo(hx + 26, hy + 4 + Math.sin(frame / 10) * 6, hx + 34, hy - 6);
-          g.moveTo(hx + 13, hy + 4); g.quadraticCurveTo(hx + 22, hy + 14, hx + 30, hy + 12 + Math.sin(frame / 12) * 5); g.stroke();
-          g.fillStyle = 'rgba(255,60,40,0.95)'; g.beginPath(); g.arc(hx + 6, hy - 3, 1.8, 0, 7); g.fill();
         } else if (p.t === 'ember') {
           p.y -= p.v; p.x += Math.sin(frame / 20 + p.ph) * 0.5;
           if (p.y < -5) { p.y = h + 5; p.x = rnd(0, w); }
@@ -281,7 +259,12 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
         {/* Hokusai's Great Wave (1831, public domain), cut out of its paper sky. Fades back while you drive so the roads stay clear. */}
         <img src="/great-wave.webp" alt="" decoding="async" className={`dz-bigwave${run ? '' : ' dz-still'}`} style={{ opacity: driving ? 0.38 : night || theme === 'crimsonwave' ? 0.88 : 0.95 }} />
       </>}
-      {theme === 'dragon' && <div className="absolute inset-0" style={{ background: 'radial-gradient(90% 50% at 50% -10%, rgba(212,160,23,0.14), transparent 70%), radial-gradient(100% 50% at 50% 112%, rgba(179,32,44,0.16), transparent 60%)' }} />}
+      {theme === 'dragon' && <>
+        <div className="absolute inset-0" style={{ background: 'radial-gradient(90% 50% at 50% -10%, rgba(212,160,23,0.12), transparent 70%), radial-gradient(100% 50% at 50% 112%, rgba(179,32,44,0.16), transparent 60%)' }} />
+        <div className="absolute" style={{ left: '24vw', top: '110px', width: '38vmin', height: '38vmin', borderRadius: '50%', background: 'radial-gradient(circle, rgba(200,40,30,0.85) 0 66%, rgba(200,40,30,0.25) 69%, transparent 72%)', opacity: driving ? 0.35 : 0.85, transition: 'opacity 1.5s' }} />
+        {/* Utagawa Kuniyoshi, "Dragon and Waves" (c. 1827-31, public domain). Fades back while you drive. */}
+        <img src="/dragon-waves.webp" alt="" decoding="async" className={`dz-dragon${run ? '' : ' dz-still'}`} style={{ opacity: driving ? 0.3 : 0.9 }} />
+      </>}
       {theme === 'xmas' && <div className="absolute inset-0" style={{ background: 'radial-gradient(100% 50% at 50% 112%, rgba(217,43,43,0.16), transparent 62%), radial-gradient(80% 40% at 50% -5%, rgba(242,193,78,0.12), transparent 70%)' }} />}
       {theme === 'snowday' && <div className="absolute inset-0" style={{ background: night ? 'radial-gradient(90% 50% at 50% -10%, rgba(143,208,255,0.18), transparent 70%)' : 'linear-gradient(180deg, rgba(255,255,255,0.45), rgba(230,240,250,0.05) 45%, rgba(220,235,248,0.3))' }} />}
       {theme === 'heat' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 70% at 50% 110%, rgba(255,46,136,0.22), transparent 60%), radial-gradient(90% 50% at 50% -10%, rgba(122,60,255,0.18), transparent 60%)' }} />}

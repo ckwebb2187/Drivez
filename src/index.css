@@ -135,9 +135,14 @@ input[type=range]::-webkit-slider-thumb {
   transform-origin: 30% 100%; transition: opacity 1.5s; will-change: transform;
   animation: dz-bob 7s ease-in-out infinite alternate;
 }
-.dz-bigwave.dz-still { animation: none; }
+.dz-bigwave.dz-still, .dz-dragon.dz-still { animation: none; }
+.dz-dragon {
+  position: absolute; left: 2vw; top: 128px; width: 48vw; max-width: 260px; pointer-events: none;
+  transition: opacity 1.5s; will-change: transform; animation: dz-float 9s ease-in-out infinite alternate;
+}
+@keyframes dz-float { from { transform: translate3d(0, 0, 0) rotate(-1deg); } to { transform: translate3d(6px, -10px, 0) rotate(1deg); } }
 @keyframes dz-bob { from { transform: translate3d(0, 5px, 0) rotate(-0.8deg); } to { transform: translate3d(-12px, -6px, 0) rotate(0.8deg); } }
-@media (prefers-reduced-motion: reduce) { .dz-scanlines, .dz-searchlight, .dz-bigwave { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .dz-scanlines, .dz-searchlight, .dz-bigwave, .dz-dragon { animation: none; } }
 
 /* Theme fonts for headings (Matrix uses code type, Zen Town a book serif). */
 h1, h2, h3 { font-family: var(--font-heading); }
