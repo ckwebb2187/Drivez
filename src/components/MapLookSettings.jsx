@@ -1,5 +1,5 @@
 import { Check, BatteryLow, CloudSun, Languages, Moon, SunMoon } from 'lucide-react';
-import { THEMES, useMapLook, isLite, featureName, hasNight } from '@/lib/mapTheme';
+import { THEMES, useMapLook, isLite, featureName, hasNight, ROUTE_STYLES, routeStyleOf } from '@/lib/mapTheme';
 
 const Toggle = ({ on }) => (
   <span className={`w-9 h-5 rounded-full relative transition-colors shrink-0 ${on ? 'bg-[#34A853]' : 'bg-muted'}`}>
@@ -41,6 +41,17 @@ export function ThemePicker() {
         })}
       </div>
       {cur && <p className="text-[10px] text-muted-foreground mt-1.5 leading-tight">{cur.text}{hasNight(cur.key) ? ' Has a night version.' : ''}</p>}
+      {cur && (
+        <div className="mt-2">
+          <div className="text-[10px] font-bold text-muted-foreground tracking-wider mb-1">ROUTE LINE · {cur.label.toUpperCase()}</div>
+          <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none]">
+            {ROUTE_STYLES.map((r) => (
+              <button key={r.id} onClick={() => update({ routeStyles: { ...look.routeStyles, [look.theme]: r.id } })}
+                className={`shrink-0 px-3 min-h-[34px] rounded-full text-xs font-semibold border whitespace-nowrap ${routeStyleOf(look) === r.id ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/80 text-foreground border-border'}`}>{r.title}</button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

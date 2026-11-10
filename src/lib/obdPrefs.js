@@ -25,6 +25,8 @@ export const useObdDemo = () => useSyncExternalStore((f) => { demoSubs.add(f); r
 
 // Animation choices. "auto" picks one per world theme; several can be mixed (fxList).
 const AUTO_FX = {
+  greatwave: 'ripple', dragon: 'plasma', xmas: 'starfield', snowday: 'breathe', heat: 'orbit', carbon: 'comet', underground: 'circuit',
+  ghost: 'aurora', thunder: 'glitch', ember: 'plasma', tide: 'sonar', leaf: 'breathe', psychic: 'holo',
   kaido: 'orbit', tokyo: 'orbit', sakuranight: 'orbit', harajuku: 'orbit', cyberpunk: 'glitch', matrix: 'circuit', y2k: 'holo',
   vapor: 'aurora', galaxy: 'starfield', kawaii: 'ripple', rose: 'ripple', bayshore: 'comet', daikoku: 'radar', shuto: 'sonar',
   dystopian: 'radar', wasteland: 'radar', risingsun: 'plasma', samurai: 'reactor', tougedawn: 'heartbeat',

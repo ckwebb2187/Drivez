@@ -56,16 +56,28 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
     if (wk === 'rain' || wk === 'heavyrain' || wk === 'storm') add(wk === 'rain' ? 70 : 140, rain(wk !== 'rain'));
     if (wk === 'snow') add(70, (init) => ({ t: 'snow', x: rnd(0, w), y: init ? rnd(0, h) : -5, v: rnd(0.6, 1.6), r: rnd(1.2, 2.8), ph: rnd(0, 6) }));
     if (wk === 'clouds' || wk === 'fog' || wk === 'storm') add(4, () => ({ t: 'cloud', x: rnd(-0.3, 1) * w, y: rnd(0.05, 0.9) * h, r: rnd(0.35, 0.6) * Math.max(w, h), v: rnd(0.08, 0.2) }));
-    const PETALS = { kawaii: '255,170,205', sakura: '255,182,206', lavender: '190,160,235', rose: '232,165,152', sakuranight: '255,150,190', zen: '120,150,80', samurai: '170,28,40' };
+    const PETALS = { kawaii: '255,170,205', sakura: '255,182,206', lavender: '190,160,235', rose: '232,165,152', sakuranight: '255,150,190', leaf: '110,190,80', zen: '120,150,80', samurai: '170,28,40' };
     if (PETALS[theme]) add(theme === 'rose' || theme === 'samurai' ? 10 : 22, (init) => ({ t: 'petal', c: PETALS[theme], x: rnd(0, w), y: init ? rnd(0, h) : -10, v: rnd(0.5, 1.2), r: rnd(3, 6), ph: rnd(0, 6), rot: rnd(0, 6) }));
-    const SPARKS = { kawaii: 10, y2k: 18, harajuku: 14, galaxy: 45 };
+    const SPARKS = { kawaii: 10, y2k: 18, harajuku: 14, galaxy: 45, thunder: 16, psychic: 22, xmas: 8 };
     if (SPARKS[theme]) add(SPARKS[theme], () => ({ t: 'spark', x: rnd(0, w), y: rnd(0, h), ph: rnd(0, 6), s: theme === 'galaxy' ? 0.5 : 1 }));
     if (theme === 'matrix') add(26, (init) => ({ t: 'code', x: Math.floor(rnd(0, w / 14)) * 14, y: init ? rnd(-h, h) : rnd(-300, 0), v: rnd(2, 5), len: Math.floor(rnd(6, 18)) }));
     if (theme === 'vapor' || theme === 'galaxy') add(5, () => ({ t: 'trail', x: rnd(0, w), y: rnd(0.55, 1) * h, v: rnd(2, 5), len: rnd(40, 90), hue: theme === 'vapor' ? (Math.random() < 0.5 ? '255,113,206' : '1,205,254') : (Math.random() < 0.5 ? '124,77,255' : '58,209,255') }));
     if (theme === 'wasteland') add(55, (init) => ({ t: 'dust', x: init ? rnd(0, w) : -5, y: rnd(0, h), v: rnd(0.4, 1.4), r: rnd(0.8, 2) }));
     const LIGHTS = { bayshore: ['255,154,60', '223,234,255'], daikoku: ['255,59,48', '255,255,255'], shuto: ['255,179,71', '255,255,255'] };
     if (LIGHTS[theme]) add(5, () => ({ t: 'trail', x: rnd(0, w), y: rnd(0.55, 1) * h, v: rnd(2, 5), len: rnd(40, 90), hue: LIGHTS[theme][Math.random() < 0.5 ? 0 : 1] }));
-    if (theme === 'tougedawn' || theme === 'daikoku') add(3, () => ({ t: 'mist', x: rnd(-0.3, 1) * w, y: rnd(0.3, 0.9) * h, r: rnd(0.4, 0.6) * Math.max(w, h), v: rnd(0.1, 0.22) }));
+    if (theme === 'tougedawn' || theme === 'daikoku' || theme === 'ghost') add(3, () => ({ t: 'mist', x: rnd(-0.3, 1) * w, y: rnd(0.3, 0.9) * h, r: rnd(0.4, 0.6) * Math.max(w, h), v: rnd(0.1, 0.22) }));
+    const TRAILS = { heat: ['255,46,136', '122,60,255'], carbon: ['255,122,0', '220,225,235'], underground: ['124,255,60', '0,179,255'] };
+    if (TRAILS[theme]) add(6, () => ({ t: 'trail', x: rnd(0, w), y: rnd(0.55, 1) * h, v: rnd(2, 5), len: rnd(40, 90), hue: TRAILS[theme][Math.random() < 0.5 ? 0 : 1] }));
+    if (theme === 'underground' && !wk) add(35, rain(false));
+    // Snow themes: real six-armed snowflakes; Snow Day has two snowmen peeking in from the sides.
+    if (theme === 'snowday' || theme === 'xmas') add(theme === 'snowday' ? 40 : 26, (init) => ({ t: 'flake', x: rnd(0, w), y: init ? rnd(0, h) : -10, v: rnd(0.5, 1.3), r: rnd(3, 7), ph: rnd(0, 6), rot: rnd(0, 6) }));
+    if (theme === 'snowday') { parts.push({ t: 'snowman', side: 0, ph: 0 }); parts.push({ t: 'snowman', side: 1, ph: 3 }); }
+    if (theme === 'xmas') parts.push({ t: 'lights' });
+    if (theme === 'greatwave' || theme === 'tide') parts.push({ t: 'swell', big: theme === 'greatwave' });
+    if (theme === 'tide') add(14, (init) => ({ t: 'bubble', x: rnd(0, w), y: init ? rnd(0, h) : h + 10, v: rnd(0.4, 1.1), r: rnd(2, 6), ph: rnd(0, 6) }));
+    if (theme === 'dragon') parts.push({ t: 'dragon', x: -100, y: 0.25 * h });
+    if (theme === 'dragon' || theme === 'ember') add(theme === 'ember' ? 40 : 22, (init) => ({ t: 'ember', x: rnd(0, w), y: init ? rnd(0, h) : h + 5, v: rnd(0.5, 1.6), r: rnd(0.8, 2.4), ph: rnd(0, 6), hue: Math.round(rnd(110, 200)) }));
+    if (theme === 'ghost') add(5, (init) => ({ t: 'ghost', x: rnd(0.05, 0.95) * w, y: init ? rnd(0.2, 1) * h : h + 30, v: rnd(0.25, 0.6), r: rnd(10, 18), ph: rnd(0, 6) }));
     if (theme === 'tokyo' || theme === 'cyberpunk') add(6, () => ({ t: 'trail', x: rnd(0, w), y: rnd(0.55, 1) * h, v: rnd(2, 5), len: rnd(40, 90), hue: theme === 'tokyo' ? (Math.random() < 0.5 ? '255,45,149' : '0,229,255') : (Math.random() < 0.5 ? '176,38,255' : '0,255,213') }));
 
     if (theme === 'samurai') add(2, () => ({ t: 'slash', x: rnd(0.1, 0.9) * w, y: rnd(0.1, 0.8) * h, len: rnd(60, 120), a: 0, ph: rnd(0, 300) }));
@@ -118,7 +130,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
         } else if (p.t === 'mist') {
           p.x += p.v; if (p.x - p.r > w) p.x = -p.r;
           const mg = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
-          mg.addColorStop(0, theme === 'daikoku' ? 'rgba(255,190,110,0.07)' : 'rgba(255,255,255,0.13)'); mg.addColorStop(1, 'rgba(0,0,0,0)');
+          mg.addColorStop(0, theme === 'daikoku' ? 'rgba(255,190,110,0.07)' : theme === 'ghost' ? 'rgba(138,92,214,0.14)' : 'rgba(255,255,255,0.13)'); mg.addColorStop(1, 'rgba(0,0,0,0)');
           g.fillStyle = mg; g.fillRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
         } else if (p.t === 'slash') {
           const k = ((frame + p.ph) % 300) / 300; const a = k < 0.12 ? k / 0.12 : k < 0.3 ? 1 - (k - 0.12) / 0.18 : 0;
@@ -129,6 +141,121 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
           const lg = g.createLinearGradient(p.x, p.y, p.x, p.y + p.len);
           lg.addColorStop(0, `rgba(${p.hue},0.5)`); lg.addColorStop(1, `rgba(${p.hue},0)`);
           g.strokeStyle = lg; g.lineWidth = 2; g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x, p.y + p.len); g.stroke();
+        } else if (p.t === 'flake') {
+          p.y += p.v; p.x += Math.sin(frame / 40 + p.ph) * 0.4; p.rot += 0.01;
+          if (p.y > h + 10) { p.y = -10; p.x = rnd(0, w); }
+          g.save(); g.translate(p.x, p.y); g.rotate(p.rot);
+          g.strokeStyle = theme === 'snowday' && !night ? 'rgba(90,150,210,0.75)' : 'rgba(255,255,255,0.85)'; g.lineWidth = 1.2; g.beginPath();
+          for (let i = 0; i < 6; i++) { g.rotate(Math.PI / 3); g.moveTo(0, 0); g.lineTo(0, -p.r); g.moveTo(0, -p.r * 0.55); g.lineTo(p.r * 0.28, -p.r * 0.8); g.moveTo(0, -p.r * 0.55); g.lineTo(-p.r * 0.28, -p.r * 0.8); }
+          g.stroke(); g.restore();
+        } else if (p.t === 'snowman') {
+          const peek = (Math.sin(frame / 140 + p.ph) + 1) / 2; // slides in, waves, slides back out
+          const x = p.side ? w + 16 - peek * 34 : -16 + peek * 34, y = h * 0.58, s = 0.9;
+          g.save(); g.translate(x, y); g.rotate((p.side ? -1 : 1) * Math.sin(frame / 25) * 0.06);
+          g.fillStyle = 'rgba(255,255,255,0.95)'; g.strokeStyle = 'rgba(120,160,200,0.9)'; g.lineWidth = 1.5;
+          [[0, 0, 16], [0, -24, 12], [0, -43, 9]].forEach(([cx, cy, cr]) => { g.beginPath(); g.arc(cx * s, cy * s, cr * s, 0, 7); g.fill(); g.stroke(); });
+          g.fillStyle = '#1a1a1a'; g.beginPath(); g.arc(-3 * s, -45 * s, 1.4, 0, 7); g.arc(3 * s, -45 * s, 1.4, 0, 7); g.fill();
+          g.fillStyle = '#ff7a3d'; g.beginPath(); g.moveTo(0, -42 * s); g.lineTo((p.side ? -9 : 9) * s, -41 * s); g.lineTo(0, -40 * s); g.fill();
+          g.fillStyle = '#d92b2b'; g.fillRect(-10 * s, -35 * s, 20 * s, 4 * s);
+          g.fillStyle = '#1a1a1a'; [-30, -24, -18].forEach((cy) => { g.beginPath(); g.arc(0, cy * s, 1.3, 0, 7); g.fill(); });
+          g.restore();
+        } else if (p.t === 'lights') {
+          // A string of bulbs swagging across the top, each twinkling on its own beat.
+          const sag = (x) => 14 + 26 * (1 - ((x - w / 2) / (w / 2)) ** 2);
+          g.strokeStyle = 'rgba(15,35,20,0.9)'; g.lineWidth = 1.5; g.beginPath();
+          for (let x = 0; x <= w; x += 12) (x ? g.lineTo(x, sag(x)) : g.moveTo(x, sag(x)));
+          g.stroke();
+          const cols = ['255,60,60', '255,200,70', '70,220,110', '80,160,255'];
+          for (let i = 0, x = 12; x < w; x += 30, i++) {
+            const a = 0.45 + 0.55 * Math.max(0, Math.sin(frame / 9 + i * 1.7)), y = sag(x) + 6, c = cols[i % 4];
+            const rg = g.createRadialGradient(x, y, 0, x, y, 11); rg.addColorStop(0, `rgba(${c},${a * 0.7})`); rg.addColorStop(1, `rgba(${c},0)`);
+            g.fillStyle = rg; g.fillRect(x - 11, y - 11, 22, 22);
+            g.fillStyle = `rgba(${c},${0.5 + a * 0.5})`; g.beginPath(); g.ellipse(x, y, 3, 4.5, 0, 0, 7); g.fill();
+          }
+        } else if (p.t === 'swell') {
+          // Layered woodblock-style waves along the bottom with foam on the crests.
+          const cols = p.big ? ['rgba(20,50,95,0.55)', 'rgba(29,79,134,0.5)', 'rgba(42,98,160,0.45)'] : ['rgba(8,50,90,0.45)', 'rgba(14,74,128,0.4)', 'rgba(47,164,255,0.25)'];
+          for (let L = 0; L < 3; L++) {
+            const A = (p.big ? 16 : 10) + L * 5, base = h * (0.8 + L * 0.06), sp = 0.02 + L * 0.008;
+            const y = (x) => base - A * Math.sin(x / (90 + L * 30) + frame * sp + L) - A * 0.35 * Math.sin(x / 33 - frame * sp * 1.7);
+            g.fillStyle = cols[L]; g.beginPath(); g.moveTo(0, h);
+            for (let x = 0; x <= w + 12; x += 12) g.lineTo(x, y(x));
+            g.lineTo(w, h); g.closePath(); g.fill();
+            g.strokeStyle = p.big ? 'rgba(243,239,226,0.6)' : 'rgba(200,240,255,0.45)'; g.lineWidth = 2; g.beginPath();
+            for (let x = 0; x <= w + 12; x += 12) (x ? g.lineTo(x, y(x)) : g.moveTo(x, y(x)));
+            g.stroke();
+            if (p.big && L === 0) { // the big curling crest rising on the left, woodblock style
+              const b = Math.sin(frame / 60) * 5, X = (f) => f * w, Y = (f) => f * h + b;
+              g.fillStyle = 'rgba(18,44,86,0.5)'; g.beginPath();
+              g.moveTo(0, h); g.lineTo(0, Y(0.74));
+              g.bezierCurveTo(X(0.06), Y(0.62), X(0.24), Y(0.55), X(0.4), Y(0.6));
+              g.bezierCurveTo(X(0.46), Y(0.62), X(0.45), Y(0.68), X(0.37), Y(0.68));
+              g.bezierCurveTo(X(0.31), Y(0.665), X(0.28), Y(0.7), X(0.31), Y(0.75));
+              g.bezierCurveTo(X(0.36), Y(0.83), X(0.5), Y(0.85), X(0.62), Y(0.87));
+              g.lineTo(X(0.62), h); g.closePath(); g.fill();
+              g.strokeStyle = 'rgba(120,170,220,0.35)'; g.lineWidth = 1.5;
+              for (let k = 1; k <= 3; k++) { g.beginPath(); g.moveTo(0, Y(0.74 + k * 0.03)); g.bezierCurveTo(X(0.08), Y(0.64 + k * 0.03), X(0.2), Y(0.6 + k * 0.03), X(0.3 - k * 0.02), Y(0.66 + k * 0.035)); g.stroke(); }
+              g.strokeStyle = 'rgba(243,239,226,0.9)'; g.lineWidth = 2.5; g.beginPath();
+              g.moveTo(0, Y(0.74)); g.bezierCurveTo(X(0.06), Y(0.62), X(0.24), Y(0.55), X(0.4), Y(0.6));
+              g.bezierCurveTo(X(0.46), Y(0.62), X(0.45), Y(0.68), X(0.37), Y(0.68)); g.stroke();
+              // foam "fingers" curling off the lip
+              g.lineWidth = 2;
+              for (let k = 0; k < 7; k++) {
+                const t = k / 6, fx = X(0.16 + t * 0.27), fy = Y(0.575 + Math.abs(t - 0.6) * 0.05) - 2;
+                const wig = Math.sin(frame / 14 + k) * 2;
+                g.beginPath(); g.arc(fx, fy - 4 + wig, 4, Math.PI * 0.2, Math.PI * 1.4, true); g.stroke();
+              }
+            }
+            if (p.big) { // little "claw" foam dots on the peaks
+              g.fillStyle = 'rgba(243,239,226,0.8)';
+              for (let x = 6; x < w; x += 12) if (y(x) < y(x - 6) && y(x) < y(x + 6)) { for (let k = 0; k < 4; k++) { g.beginPath(); g.arc(x + k * 4 - 6, y(x) - 3 - (k % 2) * 3, 1.6, 0, 7); g.fill(); } }
+            }
+          }
+        } else if (p.t === 'bubble') {
+          p.y -= p.v; p.x += Math.sin(frame / 30 + p.ph) * 0.4;
+          if (p.y < -10) { p.y = h + 10; p.x = rnd(0, w); }
+          g.strokeStyle = 'rgba(180,235,255,0.5)'; g.lineWidth = 1; g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.stroke();
+          g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.arc(p.x - p.r * 0.35, p.y - p.r * 0.35, p.r * 0.25, 0, 7); g.fill();
+        } else if (p.t === 'dragon') {
+          // A long golden dragon snaking across the sky now and then.
+          p.x += 0.9;
+          const N = 40, gap = 11;
+          if (p.x - N * gap > w + 40) { p.x = -rnd(150, 900); p.y = rnd(0.12, 0.38) * h; }
+          const at = (i) => { const x = p.x - i * gap; return [x, p.y + Math.sin(x / 55 + frame / 28) * 24]; };
+          for (let i = N - 1; i >= 0; i--) {
+            const [x, y] = at(i);
+            if (x < -20 || x > w + 20) continue;
+            const r = 4 + 7 * Math.sin(Math.PI * Math.min(1, (i + 2) / N));
+            g.fillStyle = `rgba(212,160,23,${0.35 + 0.25 * (1 - i / N)})`; g.strokeStyle = 'rgba(120,70,0,0.5)'; g.lineWidth = 1;
+            g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.stroke();
+            if (i % 3 === 0 && i > 2) { g.fillStyle = 'rgba(200,40,40,0.55)'; g.beginPath(); g.moveTo(x - 3, y - r + 1); g.lineTo(x, y - r - 6); g.lineTo(x + 3, y - r + 1); g.fill(); }
+          }
+          const [hx, hy] = at(0);
+          g.fillStyle = 'rgba(232,180,40,0.75)'; g.beginPath(); g.ellipse(hx + 5, hy, 14, 10, 0, 0, 7); g.fill();
+          g.strokeStyle = 'rgba(232,180,40,0.6)'; g.lineWidth = 1.5; g.beginPath();
+          g.moveTo(hx - 2, hy - 6); g.lineTo(hx - 10, hy - 16); g.moveTo(hx + 2, hy - 7); g.lineTo(hx - 4, hy - 18);
+          g.moveTo(hx + 13, hy + 2); g.quadraticCurveTo(hx + 26, hy + 4 + Math.sin(frame / 10) * 6, hx + 34, hy - 6);
+          g.moveTo(hx + 13, hy + 4); g.quadraticCurveTo(hx + 22, hy + 14, hx + 30, hy + 12 + Math.sin(frame / 12) * 5); g.stroke();
+          g.fillStyle = 'rgba(255,60,40,0.95)'; g.beginPath(); g.arc(hx + 6, hy - 3, 1.8, 0, 7); g.fill();
+        } else if (p.t === 'ember') {
+          p.y -= p.v; p.x += Math.sin(frame / 20 + p.ph) * 0.5;
+          if (p.y < -5) { p.y = h + 5; p.x = rnd(0, w); }
+          const a = 0.4 + 0.5 * Math.abs(Math.sin(frame / 6 + p.ph));
+          g.fillStyle = `rgba(255,${p.hue},40,${a})`; g.beginPath(); g.arc(p.x, p.y, p.r, 0, 7); g.fill();
+        } else if (p.t === 'ghost') {
+          // Little floating ghosts with red eyes and a cheeky grin, drifting up and fading.
+          p.y -= p.v; const sx = p.x + Math.sin(frame / 35 + p.ph) * 14;
+          if (p.y < -40) { p.y = h + 30; p.x = rnd(0.05, 0.95) * w; }
+          const life = Math.min(1, (h + 30 - p.y) / 120, (p.y + 40) / 160);
+          const r = p.r, y = p.y;
+          g.globalAlpha = 0.75 * life;
+          g.fillStyle = 'rgba(122,78,200,0.85)'; g.beginPath();
+          g.arc(sx, y, r, Math.PI, 0); g.lineTo(sx + r, y + r * 1.1);
+          for (let k = 0; k < 4; k++) { const x0 = sx + r - (k + 0.5) * (r / 2); g.quadraticCurveTo(x0, y + r * (k % 2 ? 1.5 : 0.8) + Math.sin(frame / 8 + k) * 2, sx + r - (k + 1) * (r / 2), y + r * 1.1); }
+          g.closePath(); g.fill();
+          g.fillStyle = '#ff3b5c'; g.beginPath(); g.ellipse(sx - r * 0.38, y - r * 0.15, r * 0.2, r * 0.13, 0.4, 0, 7); g.ellipse(sx + r * 0.38, y - r * 0.15, r * 0.2, r * 0.13, -0.4, 0, 7); g.fill();
+          g.strokeStyle = 'rgba(255,255,255,0.9)'; g.lineWidth = 1.2; g.beginPath(); g.arc(sx, y + r * 0.15, r * 0.45, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
+          g.globalAlpha = 1;
         }
       }
     };
@@ -136,7 +263,7 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
 
     // Lightning flashes in a storm.
     let flashT;
-    if (wk === 'storm') {
+    if (wk === 'storm' || theme === 'thunder') {
       const strike = () => { setFlash(true); setTimeout(() => setFlash(false), 120); flashT = setTimeout(strike, rnd(6000, 15000)); };
       flashT = setTimeout(strike, rnd(3000, 8000));
     }
@@ -174,9 +301,22 @@ export default function MapAtmosphere({ theme, pos, active = true, lite = false,
       {theme === 'minimal' && <div className="absolute inset-0" style={{ background: night ? 'radial-gradient(100% 45% at 50% 112%, rgba(242,155,48,0.16), transparent 65%)' : 'linear-gradient(180deg, rgba(215,216,214,0.5), rgba(215,216,214,0.05) 50%)' }} />}
       {theme === 'sakuranight' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 70% at 50% 110%, rgba(255,79,126,0.2), transparent 60%)' }} />}
       {theme === 'kawaii' && <div className="absolute inset-0" style={{ background: night ? 'radial-gradient(90% 50% at 50% -10%, rgba(185,163,255,0.22), transparent 70%), radial-gradient(100% 45% at 50% 112%, rgba(255,140,198,0.2), transparent 65%)' : 'radial-gradient(80% 50% at 50% -10%, rgba(255,182,220,0.35), transparent 70%)' }} />}
+      {theme === 'greatwave' && <div className="absolute inset-0" style={{ background: 'radial-gradient(110% 60% at 50% -10%, rgba(232,217,176,0.10), transparent 65%), radial-gradient(120% 60% at 50% 115%, rgba(79,155,224,0.18), transparent 60%)' }} />}
+      {theme === 'dragon' && <div className="absolute inset-0" style={{ background: 'radial-gradient(90% 50% at 50% -10%, rgba(212,160,23,0.14), transparent 70%), radial-gradient(100% 50% at 50% 112%, rgba(179,32,44,0.16), transparent 60%)' }} />}
+      {theme === 'xmas' && <div className="absolute inset-0" style={{ background: 'radial-gradient(100% 50% at 50% 112%, rgba(217,43,43,0.16), transparent 62%), radial-gradient(80% 40% at 50% -5%, rgba(242,193,78,0.12), transparent 70%)' }} />}
+      {theme === 'snowday' && <div className="absolute inset-0" style={{ background: night ? 'radial-gradient(90% 50% at 50% -10%, rgba(143,208,255,0.18), transparent 70%)' : 'linear-gradient(180deg, rgba(255,255,255,0.45), rgba(230,240,250,0.05) 45%, rgba(220,235,248,0.3))' }} />}
+      {theme === 'heat' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 70% at 50% 110%, rgba(255,46,136,0.22), transparent 60%), radial-gradient(90% 50% at 50% -10%, rgba(122,60,255,0.18), transparent 60%)' }} />}
+      {theme === 'carbon' && <div className="absolute inset-0" style={{ background: 'radial-gradient(110% 55% at 50% 112%, rgba(255,122,0,0.16), transparent 60%), repeating-linear-gradient(45deg, rgba(255,255,255,0.025) 0 3px, transparent 3px 6px), repeating-linear-gradient(-45deg, rgba(0,0,0,0.12) 0 3px, transparent 3px 6px)' }} />}
+      {theme === 'underground' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 60% at 50% 112%, rgba(124,255,60,0.14), transparent 60%), radial-gradient(90% 50% at 50% -10%, rgba(0,179,255,0.14), transparent 65%)' }} />}
+      {theme === 'ghost' && <div className="absolute inset-0" style={{ background: 'radial-gradient(110% 60% at 50% 112%, rgba(138,92,214,0.24), transparent 62%), radial-gradient(70% 40% at 50% -5%, rgba(255,59,92,0.08), transparent 70%)' }} />}
+      {theme === 'thunder' && <div className="absolute inset-0" style={{ background: 'radial-gradient(90% 50% at 50% -10%, rgba(255,212,0,0.14), transparent 70%)' }} />}
+      {theme === 'ember' && <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 60% at 50% 112%, rgba(255,90,31,0.25), transparent 62%)' }} />}
+      {theme === 'tide' && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(124,232,255,0.08), transparent 40%, rgba(47,164,255,0.14))' }} />}
+      {theme === 'leaf' && <div className="absolute inset-0" style={{ background: night ? 'radial-gradient(100% 45% at 50% 112%, rgba(108,201,90,0.16), transparent 65%)' : 'radial-gradient(80% 50% at 50% -10%, rgba(255,240,170,0.3), transparent 70%)' }} />}
+      {theme === 'psychic' && <div className="absolute inset-0" style={{ background: 'radial-gradient(100% 55% at 50% 112%, rgba(255,90,209,0.2), transparent 62%), radial-gradient(80% 45% at 50% -8%, rgba(195,139,255,0.18), transparent 70%)' }} />}
       {wk === 'fog' && <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(200,205,215,0.55), rgba(200,205,215,0.15) 55%, rgba(200,205,215,0.3))' }} />}
       {run && <canvas ref={canvas} className="absolute inset-0 w-full h-full" />}
-      {flash && <div className="absolute inset-0 bg-white/40" />}
+      {flash && <div className="absolute inset-0" style={{ background: theme === 'thunder' && wk !== 'storm' ? 'rgba(255,236,140,0.3)' : 'rgba(255,255,255,0.4)' }} />}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { applyTheme, animateWater, useActiveLook, isDaytime, isLite, routeColors, themePalette } from '@/lib/mapTheme';
+import { applyTheme, animateWater, useActiveLook, isDaytime, isLite, routeColors, themePalette, routeStyleOf } from '@/lib/mapTheme';
 import { addCityLife } from '@/lib/cityLife';
 import MapAtmosphere from '@/components/MapAtmosphere';
 import maplibregl from 'maplibre-gl';
@@ -78,7 +78,7 @@ export default function DriveMap(props) {
   const rebuild = useCallback(() => setGen((g) => g + 1), []);
   return (
     <>
-      <DriveMapInner key={`${key}-${base}-${lite}-${gen}`} {...props} theme={key} base={base} lite={lite} onGraphicsLost={rebuild} />
+      <DriveMapInner key={`${key}-${base}-${lite}-${gen}`} {...props} theme={key} base={base} lite={lite} onGraphicsLost={rebuild} routeStyle={routeStyleOf(look)} />
       <MapAtmosphere theme={look.theme} night={night} pos={props.pos} active={props.active !== false} lite={lite} weatherFx={look.weatherFx} />
     </>
   );
@@ -87,7 +87,7 @@ export default function DriveMap(props) {
 function DriveMapInner({
   pos, heading, speed = 0, car, driving, routeCoords, dest, stops = [], guide, trail, reports = [],
   follow = true, onUserMove, className = '', active = true, theme = 'standard', base = 'day', lite = false, fitCoords = null,
-  friends = [], onFriendTap, pins = [], onPinTap, onGraphicsLost, driveFx = null, callout = null, highway = null, arrived = false,
+  friends = [], onFriendTap, pins = [], onPinTap, onGraphicsLost, driveFx = null, callout = null, highway = null, arrived = false, routeStyle = 'pulse',
 }) {
   const fxRef = useRef(driveFx);
   fxRef.current = driveFx;
@@ -108,7 +108,7 @@ function DriveMapInner({
   friendTap.current = onFriendTap;
   const anim = useRef({ from: null, to: null, t0: 0, dur: 1000, shown: null, brg: 0, brgTarget: 0, zoom: 16, lastFix: 0, lastPos: null });
   const live = useRef({});
-  live.current = { ...live.current, follow, driving, speed, onUserMove, active, previewing: !!fitCoords, arrived, hasRoute: !!(routeCoords && routeCoords.length > 1) };
+  live.current = { ...live.current, follow, driving, speed, onUserMove, active, previewing: !!fitCoords, arrived, hasRoute: !!(routeCoords && routeCoords.length > 1), routeStyle };
   const routeIdx = useRef(0);
   const wx = useWeatherTiles();
   const liveTraffic = useLiveTraffic();
@@ -173,7 +173,9 @@ function DriveMapInner({
       map.addLayer({ id: 'dz-behind', type: 'line', source: 'dz-behind', layout: round, paint: { 'line-color': '#9aa0a6', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 5, 18, 14], 'line-opacity': 0.75 } }, firstSymbol);
       // Route ribbon in the theme's colors: glow, casing, gradient core, chevrons and a moving light flow.
       const rc = routeColors(theme, base !== 'day');
-      if (rc.glow && !lite) map.addLayer({ id: 'dz-ahead-glow', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-color': rc.glow, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 16, 18, 40], 'line-blur': ['interpolate', ['linear'], ['zoom'], 12, 8, 18, 18], 'line-opacity': 0.55 } }, firstSymbol);
+      const glowW = (k = 1) => ['interpolate', ['linear'], ['zoom'], 12, 16 * k, 18, 40 * k];
+      const glowBase = rc.glow ? 0.55 : 0;
+      if (!lite) map.addLayer({ id: 'dz-ahead-glow', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-color': rc.glow || rc.core[0], 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 16, 18, 40], 'line-blur': ['interpolate', ['linear'], ['zoom'], 12, 8, 18, 18], 'line-opacity': glowBase } }, firstSymbol);
       map.addLayer({ id: 'dz-ahead-casing', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-color': rc.casing, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 8, 18, 22] } }, firstSymbol);
       if (rc.gap) map.addLayer({ id: 'dz-ahead-gap', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-color': rc.gap, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 6.5, 18, 18] } }, firstSymbol);
       map.addLayer({ id: 'dz-ahead', type: 'line', source: 'dz-ahead', layout: round, paint: { 'line-gradient': ['interpolate', ['linear'], ['line-progress'], 0, rc.core[0], 1, rc.core[1]], 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 5, 18, 15] } }, firstSymbol);
@@ -193,16 +195,34 @@ function DriveMapInner({
           map.addImage('dz-chevron', g.getImageData(0, 0, 48, 48), { pixelRatio: 2 });
           map.addLayer({ id: 'dz-ahead-chev', type: 'symbol', source: 'dz-ahead', layout: { 'symbol-placement': 'line', 'symbol-spacing': 70, 'icon-image': 'dz-chevron', 'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-size': ['interpolate', ['linear'], ['zoom'], 12, 0.5, 18, 1] } }, firstSymbol);
         } catch { /* chevrons are optional */ }
-        // Light flowing along the route (dash pattern stepped like an ant trail).
+        // Route animation (picked per theme in Map look): a slow neon pulse, a heartbeat, light flowing
+        // along the route like an ant trail, pulse + flow, or still. Stepped a few times a second to save battery.
         const steps = [[0, 4, 3], [0.5, 4, 2.5], [1, 4, 2], [1.5, 4, 1.5], [2, 4, 1], [2.5, 4, 0.5], [3, 4, 0], [0, 0.5, 3, 3.5], [0, 1, 3, 3], [0, 1.5, 3, 2.5], [0, 2, 3, 2], [0, 2.5, 3, 1.5], [0, 3, 3, 1], [0, 3.5, 3, 0.5]];
-        let k = 0;
+        let k = 0, shown = null, tick = 0;
+        const t0 = performance.now();
+        const setP = (id, prop, v) => { try { map.setPaintProperty(id, prop, v); } catch { /* gone */ } };
         const flowTimer = setInterval(() => {
           if (!live.current.active || document.hidden || !readyRef.current) return;
-          const src = map.getSource('dz-ahead');
-          if (!src || !live.current.hasRoute) return;
-          k = (k + 1) % steps.length;
-          try { map.setPaintProperty('dz-ahead-flow', 'line-dasharray', steps[k]); } catch { /* gone */ }
-        }, 140);
+          if (!map.getSource('dz-ahead') || !live.current.hasRoute) return;
+          const st = live.current.routeStyle || 'pulse';
+          const flow = st === 'flow' || st === 'pulseflow';
+          const pulse = st === 'pulse' || st === 'heartbeat' || st === 'pulseflow';
+          if (st !== shown) {
+            shown = st;
+            setP('dz-ahead-flow', 'line-opacity', flow ? 1 : 0);
+            if (!pulse) { setP('dz-ahead-glow', 'line-opacity', glowBase); setP('dz-ahead-glow', 'line-width', glowW()); }
+          }
+          tick++;
+          if (flow && (st === 'flow' || tick % 2 === 0)) { k = (k + 1) % steps.length; setP('dz-ahead-flow', 'line-dasharray', steps[k]); }
+          if (pulse) {
+            const t = (performance.now() - t0) / 1000;
+            let a;
+            if (st === 'heartbeat') { const ph = t % 1.6; a = Math.max(Math.exp(-((ph - 0.15) ** 2) / 0.006), 0.75 * Math.exp(-((ph - 0.45) ** 2) / 0.006)); }
+            else a = 0.5 - 0.5 * Math.cos((t / 2.8) * 2 * Math.PI); // one slow breath every ~3 s
+            setP('dz-ahead-glow', 'line-opacity', 0.18 + 0.67 * a);
+            setP('dz-ahead-glow', 'line-width', glowW(0.85 + 0.45 * a));
+          }
+        }, 110);
         live.current.stopFlow = () => clearInterval(flowTimer);
       }
       readyRef.current = true;

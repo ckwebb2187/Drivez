@@ -28,6 +28,19 @@ export const THEMES = [
   { key: 'minimal', label: 'Minimalism', jp: 'Minimarizumu ミニマリズム', text: 'Concrete grays with orange accents.', swatch: ['#d9dad8', '#555555', '#f29b30'] },
   { key: 'sakuranight', label: 'Sakura Night', jp: 'Sakura-michi no Machi 桜道の町', text: 'Navy night, pink neon and blossoms.', swatch: ['#0d0f19', '#ff4f7e', '#ffb3cf'] },
   { key: 'harajuku', label: 'Harajuku', jp: 'Harajuku 原宿', text: 'Loud candy colors and street pop.', swatch: ['#fff6d6', '#ff5c8a', '#4dd4ff'] },
+  { key: 'greatwave', label: 'Great Wave', jp: 'Ōnami 大波', text: 'Classic Japanese woodblock wave: indigo sea, curling foam crests.', swatch: ['#0d1f3a', '#f3efe2', '#4f9be0'] },
+  { key: 'dragon', label: 'Dragon Gate', jp: 'Ryūmon 龍門', text: 'A golden dragon winding through a jade night, embers in the air.', swatch: ['#0a1210', '#d4a017', '#b3202c'] },
+  { key: 'xmas', label: 'Christmas Lights', jp: 'Kurisumasu クリスマス', text: 'Strings of twinkling lights, red and gold, gentle snow.', swatch: ['#0b1a12', '#d92b2b', '#f2c14e'] },
+  { key: 'snowday', label: 'Snow Day', jp: 'Yuki no Hi 雪の日', text: 'Icy blue and white, drifting snowflakes and little snowmen.', swatch: ['#eef4fa', '#4a9be0', '#ff7a3d'] },
+  { key: 'heat', label: 'Street Heat', jp: 'Hīto ヒート', text: 'Pink and purple street-race nights, neon on wet roads (NFS Heat vibe).', swatch: ['#120a1e', '#ff2e88', '#7a3cff'] },
+  { key: 'carbon', label: 'Carbon Canyon', jp: 'Kābon カーボン', text: 'Carbon black and burnt orange canyon runs (NFS Carbon vibe).', swatch: ['#0e0e10', '#ff7a00', '#9aa0aa'] },
+  { key: 'underground', label: 'Underground Glow', jp: 'Andāguraundo アンダーグラウンド', text: 'Rainy tuner city, lime and cyan underglow (NFSU2 vibe).', swatch: ['#07141b', '#7cff3c', '#00b3ff'] },
+  { key: 'ghost', label: 'Ghost Type', jp: 'Gōsuto ゴースト', text: 'Purple shadows, mischievous floating ghosts, red-eyed grins (Gengar vibe).', swatch: ['#120a1f', '#8a5cd6', '#ff3b5c'] },
+  { key: 'thunder', label: 'Thunder Type', jp: 'Kaminari 雷', text: 'Electric yellow sparks and lightning flashes.', swatch: ['#141310', '#ffd400', '#ff5a36'] },
+  { key: 'ember', label: 'Fire Type', jp: 'Honō 炎', text: 'Glowing embers rising off a burning orange city.', swatch: ['#1a0c07', '#ff5a1f', '#ffc23d'] },
+  { key: 'tide', label: 'Water Type', jp: 'Ushio 潮', text: 'Deep ocean blues, rolling swells and bubbles.', swatch: ['#061829', '#2fa4ff', '#7ce8ff'] },
+  { key: 'leaf', label: 'Grass Type', jp: 'Ha 葉', text: 'Fresh greens and drifting leaves.', swatch: ['#e6f2d8', '#4caf50', '#e0a91a'] },
+  { key: 'psychic', label: 'Psychic Type', jp: 'Nen 念', text: 'Pink and violet mind-glow with shimmering sparkles.', swatch: ['#160a1c', '#ff5ad1', '#c38bff'] },
 ];
 
 // Colors for each part of the map. null = keep the base style's color.
@@ -55,6 +68,19 @@ const P = {
   minimal: { base: 'day', bg: '#cfd0cf', water: ['#9aa3a6', '#a6aeb1'], park: '#b9bdb5', wood: '#adb2a9', land: '#c8c9c7', road: '#ececeb', roadMajor: '#f6f6f5', casing: '#8c8c8a', bldg: '#a9aaa8', bldgTop: '#bdbebc', windows: ['#ffb347', '#e8e8e8', '#6b6b6b'], text: '#2f2f2f', halo: '#ececeb', glow: null },
   sakuranight: { base: 'dark', bg: '#12141f', water: ['#1a2236', '#202a42'], park: '#2a1e2e', wood: '#251a2a', land: '#161827', road: '#262a3d', roadMajor: '#3a2b45', casing: '#12141f', bldg: '#1d2032', bldgTop: '#2a2d45', windows: ['#ff6fa3', '#ffb3cf', '#ffd27a'], text: '#ffd0e2', halo: '#12141f', glow: ['#ff3b6b', '#ff8fb3'] },
   kawaii: { base: 'day', bg: '#fdeef6', water: ['#c9e4ff', '#d8ecff'], park: '#d8f5d0', wood: '#c9eec0', land: '#fbe6f1', road: '#ffffff', roadMajor: '#fff3fa', casing: '#f3b6d6', bldg: '#f6d0ea', bldgTop: '#ffe3f3', windows: ['#ffffff', '#ffd1ea', '#d9ccff'], text: '#7a4a8c', halo: '#ffffff', glow: null },
+  greatwave: { base: 'dark', bg: '#0d1f3a', water: ['#1d4f86', '#2a62a0'], park: '#16324a', wood: '#122b40', land: '#10233d', road: '#22406a', roadMajor: '#2f5a8c', casing: '#08162b', bldg: '#173257', bldgTop: '#24497a', windows: ['#f3efe2', '#9cc3e6', '#e8d9b0'], waves: true, text: '#f3efe2', halo: '#0d1f3a', glow: ['#5fa8e8', '#f3efe2'] },
+  dragon: { base: 'dark', bg: '#0a1210', water: ['#0b2a26', '#0f3830'], park: '#0f2a1e', wood: '#0c2218', land: '#0c1512', road: '#24302a', roadMajor: '#4a3a1a', casing: '#050806', bldg: '#16201b', bldgTop: '#2a2a1c', windows: ['#d4a017', '#ff5a3c', '#ffe08a'], text: '#f5e6b8', halo: '#0a1210', glow: ['#d4a017', '#b3202c'] },
+  xmas: { base: 'dark', bg: '#0b1a12', water: ['#0e2638', '#123048'], park: '#123a24', wood: '#0f3220', land: '#0e1f16', road: '#2a3a30', roadMajor: '#5a2020', casing: '#06100a', bldg: '#18291f', bldgTop: '#24382b', windows: ['#f2c14e', '#d92b2b', '#3ccf6e'], text: '#fff3dc', halo: '#0b1a12', glow: ['#d92b2b', '#3ccf6e'] },
+  snowday: { base: 'day', bg: '#eef4fa', water: ['#bcd8ee', '#cde2f4'], park: '#e3eef2', wood: '#d4e4ea', land: '#f4f8fb', road: '#ffffff', roadMajor: '#f0f6fc', casing: '#9fbfda', bldg: '#dde8f1', bldgTop: '#ffffff', windows: ['#ffe7a8', '#bcd8ee', '#ffffff'], text: '#2b4a66', halo: '#ffffff', glow: null },
+  heat: { base: 'dark', bg: '#120a1e', water: ['#1a0f3a', '#22134a'], park: '#1a1030', wood: '#160d2a', land: '#150c24', road: '#2c1a46', roadMajor: '#4a1f5e', casing: '#0a0614', bldg: '#1e1236', bldgTop: '#2e1a52', windows: ['#ff2e88', '#7a3cff', '#3de0ff'], text: '#ffd9ef', halo: '#120a1e', glow: ['#ff2e88', '#7a3cff'] },
+  carbon: { base: 'dark', bg: '#0e0e10', water: ['#14181e', '#1a2028'], park: '#141614', wood: '#111311', land: '#121214', road: '#2a2b2f', roadMajor: '#4a3420', casing: '#060607', bldg: '#1c1d20', bldgTop: '#2a2b30', windows: ['#ff7a00', '#ffb347', '#d8dce4'], text: '#f2f2f2', halo: '#0e0e10', glow: ['#ff7a00', '#ffb347'] },
+  underground: { base: 'dark', bg: '#07141b', water: ['#082436', '#0b3048'], park: '#0a2018', wood: '#081a14', land: '#091820', road: '#16303a', roadMajor: '#1f4a4a', casing: '#03090c', bldg: '#10242c', bldgTop: '#183640', windows: ['#7cff3c', '#00b3ff', '#ffe14d'], text: '#d9fff0', halo: '#07141b', glow: ['#7cff3c', '#00b3ff'] },
+  ghost: { base: 'dark', bg: '#120a1f', water: ['#1c1238', '#241646'], park: '#1a1030', wood: '#160d2a', land: '#150c24', road: '#2a1c44', roadMajor: '#3e2466', casing: '#0a0614', bldg: '#1e1434', bldgTop: '#2c1d4c', windows: ['#a77bff', '#ff3b5c', '#e6d8ff'], text: '#ecdcff', halo: '#120a1f', glow: ['#8a5cd6', '#ff3b5c'] },
+  thunder: { base: 'dark', bg: '#141310', water: ['#1c2230', '#222a3a'], park: '#1d1f14', wood: '#191b11', land: '#181712', road: '#34322a', roadMajor: '#5a4e14', casing: '#0a0a08', bldg: '#24231c', bldgTop: '#33311f', windows: ['#ffd400', '#fff3a0', '#ff5a36'], text: '#fff6c2', halo: '#141310', glow: ['#ffd400', '#ff5a36'] },
+  ember: { base: 'dark', bg: '#1a0c07', water: ['#1c1418', '#24181c'], park: '#24140c', wood: '#1f110a', land: '#1c0e08', road: '#3a2016', roadMajor: '#6a2a10', casing: '#0c0503', bldg: '#2a1610', bldgTop: '#3c1e12', windows: ['#ff5a1f', '#ffc23d', '#ffe3a8'], text: '#ffe3c8', halo: '#1a0c07', glow: ['#ff5a1f', '#ffc23d'] },
+  tide: { base: 'dark', bg: '#061829', water: ['#0a3a66', '#0e4a80'], park: '#0a2a30', wood: '#08242a', land: '#081d30', road: '#16324e', roadMajor: '#1f4a72', casing: '#030c16', bldg: '#0f2840', bldgTop: '#173a5a', windows: ['#7ce8ff', '#2fa4ff', '#ffffff'], waves: true, text: '#dff6ff', halo: '#061829', glow: ['#2fa4ff', '#7ce8ff'] },
+  leaf: { base: 'day', bg: '#e6f2d8', water: ['#a8d8e8', '#b8e2ef'], park: '#bfe3a0', wood: '#a6d685', land: '#eef6e2', road: '#ffffff', roadMajor: '#f6fbe9', casing: '#5aa83a', bldg: '#d6e8c0', bldgTop: '#f2f9e6', windows: ['#ffffff', '#ffe27a', '#8fd16a'], text: '#24461a', halo: '#ffffff', glow: null },
+  psychic: { base: 'dark', bg: '#160a1c', water: ['#24123a', '#2e1848'], park: '#1e0f2a', wood: '#1a0d24', land: '#180b20', road: '#341a42', roadMajor: '#5a1f5e', casing: '#0b050e', bldg: '#24122e', bldgTop: '#361a44', windows: ['#ff5ad1', '#c38bff', '#ffe0f6'], text: '#ffe0f6', halo: '#160a1c', glow: ['#ff5ad1', '#c38bff'] },
 };
 
 export const themePalette = (theme) => P[theme] || null;
@@ -245,7 +271,7 @@ const lowEndPhone = () => (navigator.deviceMemory && navigator.deviceMemory <= 2
 const read = () => {
   let s = {};
   try { s = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { s = {}; }
-  return { theme: s.theme || 'kaido', saver: s.saver || 'auto', mode: ['light', 'dark'].includes(s.mode) ? s.mode : 'auto', jpNames: !!s.jpNames, weatherFx: s.weatherFx !== false, legends: s.legends !== false };
+  return { theme: s.theme || 'kaido', saver: s.saver || 'auto', mode: ['light', 'dark'].includes(s.mode) ? s.mode : 'auto', jpNames: !!s.jpNames, weatherFx: s.weatherFx !== false, legends: s.legends !== false, routeStyles: s.routeStyles || {} };
 };
 export const isLite = (prefs) => prefs.saver === 'on' || (prefs.saver === 'auto' && lowEndPhone());
 
@@ -294,6 +320,19 @@ const SPEED = {
   samurai: { bg: '#0c0b0a', text: '#efe6d0', ring: '#b3202c', sub: '#c9a24a' },
   minimal: { bg: '#eeeeed', text: '#2b2b2b', ring: '#f29b30', sub: '#7a7a78' },
   sakuranight: { bg: '#0d0f19', text: '#ffe9f1', ring: '#ff4f7e', sub: '#ffb3cf', glow: '#ff4f7e' },
+  greatwave: { bg: '#0d1f3a', text: '#f3efe2', ring: '#5fa8e8', sub: '#e8d9b0', glow: '#5fa8e8' },
+  dragon: { bg: '#0a1210', text: '#f5e6b8', ring: '#d4a017', sub: '#ff5a3c', glow: '#d4a017' },
+  xmas: { bg: '#0b1a12', text: '#ffffff', ring: '#d92b2b', sub: '#f2c14e', glow: '#d92b2b' },
+  snowday: { bg: '#ffffff', text: '#2b4a66', ring: '#7fb6e6', sub: '#ff7a3d' },
+  heat: { bg: '#120a1e', text: '#ffffff', ring: '#ff2e88', sub: '#3de0ff', glow: '#ff2e88' },
+  carbon: { bg: '#0e0e10', text: '#ffffff', ring: '#ff7a00', sub: '#9aa0aa', glow: '#ff7a00' },
+  underground: { bg: '#07141b', text: '#eafff4', ring: '#7cff3c', sub: '#00b3ff', glow: '#7cff3c' },
+  ghost: { bg: '#140c22', text: '#ffffff', ring: '#8a5cd6', sub: '#ff3b5c', glow: '#9a6bff' },
+  thunder: { bg: '#141310', text: '#fff6c2', ring: '#ffd400', sub: '#ff5a36', glow: '#ffd400' },
+  ember: { bg: '#1a0c07', text: '#ffffff', ring: '#ff5a1f', sub: '#ffc23d', glow: '#ff5a1f' },
+  tide: { bg: '#061829', text: '#ffffff', ring: '#2fa4ff', sub: '#7ce8ff', glow: '#2fa4ff' },
+  leaf: { bg: '#f6fbef', text: '#24461a', ring: '#4caf50', sub: '#e0a91a' },
+  psychic: { bg: '#160a1c', text: '#ffffff', ring: '#ff5ad1', sub: '#c38bff', glow: '#ff5ad1' },
 };
 export const speedStyle = (theme) => SPEED[theme] || SPEED.standard;
 
@@ -323,6 +362,19 @@ const ROUTE = {
   samurai: { casing: '#3a0a10', core: ['#c4202e', '#e85a5f'], glow: null, chev: '#efe6d0', flow: 'rgba(255,255,255,0.75)' },
   minimal: { casing: '#b86a10', core: ['#f29b30', '#ffb85c'], glow: null, chev: '#ffffff', flow: 'rgba(255,255,255,0.75)' },
   sakuranight: { casing: '#3a0a1c', core: ['#ff3b6b', '#ff8fb3'], glow: '#ff3b6b', chev: '#ffffff', flow: 'rgba(255,255,255,0.75)' },
+  greatwave: { casing: '#08162b', core: ['#5fa8e8', '#f3efe2'], glow: '#3d8fe0', chev: '#0d1f3a', flow: 'rgba(255,255,255,0.75)' },
+  dragon: { casing: '#3a0a0e', core: ['#d4a017', '#ff5a3c'], glow: '#d4a017', chev: '#0a1210', flow: 'rgba(255,240,200,0.75)' },
+  xmas: { casing: '#3a0808', core: ['#e8343a', '#f2c14e'], glow: '#e8343a', chev: '#ffffff', flow: 'rgba(255,255,255,0.8)' },
+  snowday: { casing: '#2b6cb0', core: ['#4a9be0', '#8fd0ff'], glow: null, chev: '#ffffff', flow: 'rgba(255,255,255,0.85)' },
+  heat: { casing: '#2a0620', core: ['#ff2e88', '#7a3cff'], glow: '#ff2e88', chev: '#3de0ff', flow: 'rgba(255,255,255,0.75)' },
+  carbon: { casing: '#2a1400', core: ['#ff7a00', '#ffc061'], glow: '#ff7a00', chev: '#0e0e10', flow: 'rgba(255,255,255,0.75)' },
+  underground: { casing: '#062a10', core: ['#7cff3c', '#00b3ff'], glow: '#7cff3c', chev: '#07141b', flow: 'rgba(255,255,255,0.7)' },
+  ghost: { casing: '#1e0f36', core: ['#8a5cd6', '#c9a6ff'], glow: '#9a6bff', chev: '#ff3b5c', flow: 'rgba(255,255,255,0.7)' },
+  thunder: { casing: '#3a2e00', core: ['#ffd400', '#fff3a0'], glow: '#ffd400', chev: '#141310', flow: 'rgba(20,19,16,0.55)' },
+  ember: { casing: '#3a1004', core: ['#ff5a1f', '#ffc23d'], glow: '#ff5a1f', chev: '#1a0c07', flow: 'rgba(255,255,255,0.7)' },
+  tide: { casing: '#03203a', core: ['#2fa4ff', '#7ce8ff'], glow: '#2fa4ff', chev: '#ffffff', flow: 'rgba(255,255,255,0.75)' },
+  leaf: { casing: '#2e7d32', core: ['#4caf50', '#a5e07a'], glow: null, chev: '#ffffff', flow: 'rgba(255,255,255,0.85)' },
+  psychic: { casing: '#2a0a2a', core: ['#ff5ad1', '#c38bff'], glow: '#ff5ad1', chev: '#ffffff', flow: 'rgba(255,255,255,0.75)' },
 };
 
 // Whole-app look per theme: panels, buttons, text and accents follow the world theme.
@@ -350,6 +402,19 @@ const SKIN = {
   samurai: { bg: '#0a0908', card: '#14120f', sec: '#1e1b17', border: '#3a342b', fg: '#efe6d0', muted: '#9c9482', primary: '#b3202c', pfg: '#ffffff', accent: '#c9a24a' },
   minimal: { bg: '#d9dad8', card: '#eeeeed', sec: '#e2e2e1', border: '#c3c4c2', fg: '#2b2b2b', muted: '#6f6f6d', primary: '#e8891a', pfg: '#ffffff', accent: '#555555', light: true },
   sakuranight: { bg: '#0d0f19', card: '#161927', sec: '#1f2335', border: '#2f3550', fg: '#ffe9f1', muted: '#a68aa0', primary: '#ff4f7e', pfg: '#ffffff', accent: '#ffb3cf' },
+  greatwave: { bg: '#0a1830', card: '#112443', sec: '#183056', border: '#24426e', fg: '#f3efe2', muted: '#9fb3cc', primary: '#4f9be0', pfg: '#06101f', accent: '#e8d9b0' },
+  dragon: { bg: '#070d0b', card: '#101a16', sec: '#17241f', border: '#2a3a2f', fg: '#f5e6b8', muted: '#a3a283', primary: '#d4a017', pfg: '#120c00', accent: '#e0303c' },
+  xmas: { bg: '#08140d', card: '#0f2016', sec: '#162c1f', border: '#24402d', fg: '#fff3dc', muted: '#a8bfa8', primary: '#d92b2b', pfg: '#ffffff', accent: '#f2c14e' },
+  snowday: { bg: '#f2f7fc', card: '#ffffff', sec: '#e4eef8', border: '#c9dcee', fg: '#24405a', muted: '#7891a8', primary: '#3d8ad6', pfg: '#ffffff', accent: '#ff7a3d', light: true },
+  heat: { bg: '#0c0716', card: '#170e28', sec: '#221438', border: '#3a2258', fg: '#fff0fa', muted: '#a68ac0', primary: '#ff2e88', pfg: '#ffffff', accent: '#3de0ff' },
+  carbon: { bg: '#0b0b0c', card: '#151517', sec: '#1e1f22', border: '#303237', fg: '#f2f2f2', muted: '#8f9399', primary: '#ff7a00', pfg: '#140800', accent: '#9aa0aa' },
+  underground: { bg: '#05101a', card: '#0b1b26', sec: '#112633', border: '#1d3a48', fg: '#e6fff4', muted: '#86a8a0', primary: '#7cff3c', pfg: '#04140a', accent: '#00b3ff' },
+  ghost: { bg: '#0e0818', card: '#181028', sec: '#22163a', border: '#3a2860', fg: '#f2e8ff', muted: '#a090c4', primary: '#8a5cd6', pfg: '#ffffff', accent: '#ff3b5c' },
+  thunder: { bg: '#100f0c', card: '#1b1a15', sec: '#26241c', border: '#3c3a2a', fg: '#fff8d6', muted: '#aaa27a', primary: '#ffd400', pfg: '#141000', accent: '#ff5a36' },
+  ember: { bg: '#140905', card: '#21110a', sec: '#2e180e', border: '#4a2616', fg: '#ffeede', muted: '#b8927a', primary: '#ff5a1f', pfg: '#ffffff', accent: '#ffc23d' },
+  tide: { bg: '#04121f', card: '#0a1e30', sec: '#102a42', border: '#1c4060', fg: '#e6f8ff', muted: '#88a8c0', primary: '#2fa4ff', pfg: '#ffffff', accent: '#7ce8ff' },
+  leaf: { bg: '#f2f8ea', card: '#ffffff', sec: '#e4f0d6', border: '#c4dea8', fg: '#20391a', muted: '#6f8a62', primary: '#3f9a3a', pfg: '#ffffff', accent: '#e0a91a', light: true },
+  psychic: { bg: '#110716', card: '#1c0e24', sec: '#281434', border: '#42204f', fg: '#ffeefa', muted: '#b08ab8', primary: '#ff5ad1', pfg: '#ffffff', accent: '#c38bff' },
 };
 const hsl = (hex) => {
   const n = parseInt(hex.slice(1), 16);
@@ -394,6 +459,8 @@ const NIGHT_P = {
   zen: { bg: '#0c120d', water: ['#10242a', '#16323a'], park: '#16281a', wood: '#112014', land: '#121510', road: '#2e2a20', roadMajor: '#5a4824', casing: '#070a07', bldg: '#2a2216', bldgTop: '#3d3220', windows: ['#ffb84d', '#ffd27a', '#f2a03a'], text: '#f1e2b8', halo: '#0c120d', glow: ['#ffb84d', '#7fa86a'] },
   minimal: { bg: '#1b1c1d', water: ['#232a2e', '#2b343a'], park: '#222522', wood: '#1e211e', land: '#202122', road: '#3c3d3f', roadMajor: '#55565a', casing: '#0e0e0f', bldg: '#2c2d2f', bldgTop: '#3b3c3f', windows: ['#ffb347', '#d8d8d8', '#7a7a7a'], text: '#ececec', halo: '#1b1c1d', glow: ['#f29b30', '#8a8a8a'] },
   tougedawn: { bg: '#10192a', water: ['#1c3050', '#243c62'], park: '#1a2e2c', wood: '#14261f', land: '#141d2c', road: '#364258', roadMajor: '#556078', casing: '#0a0f1a', bldg: '#232d42', bldgTop: '#34405a', windows: ['#ffd9a8', '#ffb590', '#cfe0f0'], text: '#e8eefc', halo: '#10192a', glow: ['#ffb590', '#8fb4d9'] },
+  snowday: { bg: '#0e1a2a', water: ['#16314d', '#1c3b5c'], park: '#1a2a36', wood: '#16242f', land: '#122033', road: '#2a3c52', roadMajor: '#3a5270', casing: '#081220', bldg: '#1c2c40', bldgTop: '#2a3e58', windows: ['#ffe7a8', '#9cc8f0', '#ffffff'], text: '#e6f2ff', halo: '#0e1a2a' },
+  leaf: { bg: '#0c160c', water: ['#10283a', '#163248'], park: '#173018', wood: '#122814', land: '#101a10', road: '#28362a', roadMajor: '#3a5a2a', casing: '#060c06', bldg: '#182418', bldgTop: '#243624', windows: ['#ffe27a', '#8fd16a', '#ffffff'], text: '#e2f6d8', halo: '#0c160c' },
 };
 const NIGHT_SKIN = {
   kawaii: { bg: '#170c26', card: '#24143a', sec: '#321c4e', border: '#4a2d6e', fg: '#ffe6f5', muted: '#b896d0', primary: '#ff8cc6', pfg: '#2a0f3a', accent: '#b9a3ff' },
@@ -404,6 +471,8 @@ const NIGHT_SKIN = {
   zen: { bg: '#090e0a', card: '#131b14', sec: '#1c261d', border: '#33402f', fg: '#f1e6c8', muted: '#9aa585', primary: '#e0a23a', pfg: '#1a1000', accent: '#7fa86a', font: "'Iowan Old Style','Palatino Linotype',Georgia,serif" },
   minimal: { bg: '#141415', card: '#1e1f20', sec: '#282a2c', border: '#3a3c3e', fg: '#ececec', muted: '#9a9b9d', primary: '#f29b30', pfg: '#1a0f00', accent: '#b0b0b0' },
   tougedawn: { bg: '#0b1220', card: '#141e32', sec: '#1d2a44', border: '#2e3e5e', fg: '#eaf0ff', muted: '#97a6c4', primary: '#ff9a6c', pfg: '#2a1006', accent: '#8fb4d9' },
+  snowday: { bg: '#0a1422', card: '#122036', sec: '#1a2c48', border: '#2a4264', fg: '#eaf4ff', muted: '#98aecb', primary: '#6fb2f0', pfg: '#06101f', accent: '#ff8a52' },
+  leaf: { bg: '#081008', card: '#101c10', sec: '#182818', border: '#2a402a', fg: '#e8f8e0', muted: '#94ac88', primary: '#6cc95a', pfg: '#061006', accent: '#f0c040' },
 };
 const NIGHT_ROUTE = {
   kawaii: { casing: '#2a0f3a', core: ['#ff8cc6', '#b9a3ff'], glow: '#ff8cc6' },
@@ -414,6 +483,8 @@ const NIGHT_ROUTE = {
   zen: { casing: '#3a2606', core: ['#ffb84d', '#ffd98a'], glow: '#ffb84d' },
   minimal: { casing: '#3a2206', core: ['#f29b30', '#ffb85c'], glow: '#f29b30' },
   tougedawn: { casing: '#3a1a10', core: ['#ff8a5c', '#ffc09a'], glow: '#ff8a5c' },
+  snowday: { casing: '#0a2a4a', core: ['#6fb2f0', '#cfeaff'], glow: '#8fd0ff' },
+  leaf: { casing: '#0a2a0c', core: ['#6cc95a', '#c5f09a'], glow: '#6cc95a' },
 };
 const NIGHT_SPEED = {
   kawaii: { bg: '#24143a', text: '#ffd9f0', ring: '#ff8cc6', sub: '#b9a3ff', glow: '#ff8cc6' },
@@ -424,6 +495,8 @@ const NIGHT_SPEED = {
   zen: { bg: '#131b14', text: '#f1e2b8', ring: '#e0a23a', sub: '#7fa86a' },
   minimal: { bg: '#1e1f20', text: '#ececec', ring: '#f29b30', sub: '#9a9b9d' },
   tougedawn: { bg: '#10192a', text: '#e8eefc', ring: '#ffb590', sub: '#8fb4d9' },
+  snowday: { bg: '#122036', text: '#eaf4ff', ring: '#8fd0ff', sub: '#ff8a52', glow: '#8fd0ff' },
+  leaf: { bg: '#101c10', text: '#e8f8e0', ring: '#6cc95a', sub: '#f0c040', glow: '#6cc95a' },
 };
 // Night keys look like 'sakura@n'; every lookup (map, route, speed bubble, app skin) just works on the key.
 const addNight = (table, night, extra) => Object.keys(night).forEach((k) => { table[`${k}@n`] = { ...table[k], ...night[k], ...extra }; });
@@ -448,4 +521,10 @@ export function useActiveLook() {
   return { look, ...resolveLook(look.theme, look.mode, day) };
 }
 
+// How the route line moves. Picked per theme (Map look); slow neon pulse by default.
+export const ROUTE_STYLES = [
+  { id: 'pulse', title: 'Neon pulse' }, { id: 'heartbeat', title: 'Heartbeat' }, { id: 'flow', title: 'Light flow' },
+  { id: 'pulseflow', title: 'Pulse + flow' }, { id: 'still', title: 'Still glow' },
+];
+export const routeStyleOf = (look) => look.routeStyles?.[look.theme] || 'pulse';
 export const routeColors = (theme, night = false) => (theme === 'standard' && night ? { ...ROUTE.standard, glow: '#4c8bf5' } : ROUTE[theme] || ROUTE.standard);
