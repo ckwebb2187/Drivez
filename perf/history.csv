@@ -88,3 +88,4 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-11-11T23:22,knock-watch,build,530.7,987.4,,,pass
 2026-11-11T23:25,dam-hud,build,530.7,987.5,,,pass
 2026-11-11T23:32,ap-screen,build,530.7,988.3,,,pass
+2026-11-11T23:37,ap-names,build,530.7,989.1,,,pass

@@ -16,40 +16,40 @@ export const GROUPS = [
   { id: 'more', title: 'Electrical & trip' },
 ];
 export const METRICS = [
-  { id: 'boost', g: 'air', label: 'Boost', unit: 'psi', kind: 'boost', min: 0, max: 22, dec: 1, on: true, big: true, needs: ['map', 'baro'] },
+  { id: 'boost', g: 'air', label: 'Boost', unit: 'psi', kind: 'boost', min: 0, max: 22, dec: 1, on: true, big: true, needs: ['map', 'baro'], short: 'BOOST' },
   { id: 'map', g: 'air', label: 'Manifold', unit: 'kPa', min: 0, max: 255, dec: 0 },
-  { id: 'maf', g: 'air', label: 'MAF', unit: 'g/s', min: 0, max: 250, dec: 0 },
+  { id: 'maf', g: 'air', label: 'Mass Airflow', unit: 'g/s', min: 0, max: 250, dec: 0, short: 'MAF' },
   { id: 'baro', g: 'air', label: 'Baro', unit: 'kPa', min: 70, max: 105, dec: 0 },
   { id: 'rpm', g: 'engine', label: 'RPM', unit: 'rpm', min: 0, max: 7000, dec: 0, warn: 6200, hot: 6600 },
-  { id: 'load', g: 'engine', label: 'Load', unit: '%', min: 0, max: 100, dec: 0 },
+  { id: 'load', g: 'engine', label: 'Calc Load', unit: '%', min: 0, max: 100, dec: 0, short: 'LOAD' },
   { id: 'absLoad', g: 'engine', label: 'Abs load', unit: '%', min: 0, max: 200, dec: 0 },
-  { id: 'timing', g: 'engine', label: 'Timing', unit: '°', min: -10, max: 30, dec: 1, on: true },
-  { id: 'dam', g: 'engine', label: 'DAM (est.)', unit: '', min: 0, max: 1, dec: 2, warnLow: 0.85, hotLow: 0.7, needs: ['timing', 'rpm', 'load', 'map', 'baro'] },
-  { id: 'pull', g: 'engine', label: 'FBK (est.)', unit: '°', min: 0, max: 8, dec: 1, warn: 2, hot: 4, needs: ['timing', 'rpm', 'load', 'map', 'baro'] },
-  { id: 'knockScore', g: 'engine', label: 'Knock health', unit: '%', min: 0, max: 100, dec: 0, warnLow: 85, hotLow: 70, needs: ['timing', 'rpm', 'load', 'map', 'baro'] },
-  { id: 'throttle', g: 'engine', label: 'Throttle', unit: '%', min: 0, max: 100, dec: 0 },
+  { id: 'timing', g: 'engine', label: 'Ignition Timing', unit: '°', min: -10, max: 30, dec: 1, on: true, short: 'TIMING' },
+  { id: 'dam', g: 'engine', label: 'DAM (est.)', unit: '', min: 0, max: 1, dec: 2, warnLow: 0.99, hotLow: 0.75, needs: ['timing', 'rpm', 'load', 'map', 'baro'], short: 'DAM' },
+  { id: 'pull', g: 'engine', label: 'Feedback Knock (est.)', unit: '°', min: 0, max: -8, dec: 1, needs: ['timing', 'rpm', 'load', 'map', 'baro'], short: 'FB KNOCK', warnLow: -2, hotLow: -4, peakLow: true },
+  { id: 'knockScore', g: 'engine', label: 'Knock health (est.)', unit: '%', min: 0, max: 100, dec: 0, warnLow: 85, hotLow: 70, needs: ['timing', 'rpm', 'load', 'map', 'baro'], short: 'KNOCK HP' },
+  { id: 'throttle', g: 'engine', label: 'Throttle Pos', unit: '%', min: 0, max: 100, dec: 0, short: 'THROTTLE' },
   { id: 'relThrottle', g: 'engine', label: 'Rel throttle', unit: '%', min: 0, max: 100, dec: 0 },
   { id: 'cmdThrottle', g: 'engine', label: 'Cmd throttle', unit: '%', min: 0, max: 100, dec: 0 },
   { id: 'pedal', g: 'engine', label: 'Pedal', unit: '%', min: 0, max: 100, dec: 0 },
   { id: 'demandTorque', g: 'engine', label: 'Torque ask', unit: '%', min: -25, max: 100, dec: 0 },
   { id: 'actualTorque', g: 'engine', label: 'Torque', unit: '%', min: -25, max: 100, dec: 0 },
   { id: 'runtime', g: 'engine', label: 'Run time', unit: 'min', kind: 'time', min: 0, max: 3600, dec: 0 },
-  { id: 'afr', g: 'fuel', label: 'AFR', unit: ':1', min: 10, max: 18, dec: 1, needs: ['lambda', 'lambdaW'] },
-  { id: 'cmdAfr', g: 'fuel', label: 'Target AFR', unit: ':1', min: 10, max: 18, dec: 1, needs: ['cmdLambda'] },
-  { id: 'stft1', g: 'fuel', label: 'STFT B1', unit: '%', min: -25, max: 25, dec: 1, warn: 10, hot: 20, abs: true },
-  { id: 'ltft1', g: 'fuel', label: 'LTFT B1', unit: '%', min: -25, max: 25, dec: 1, warn: 8, hot: 15, abs: true },
-  { id: 'stft2', g: 'fuel', label: 'STFT B2', unit: '%', min: -25, max: 25, dec: 1, warn: 10, hot: 20, abs: true },
-  { id: 'ltft2', g: 'fuel', label: 'LTFT B2', unit: '%', min: -25, max: 25, dec: 1, warn: 8, hot: 15, abs: true },
-  { id: 'railPress', g: 'fuel', label: 'Rail (DI)', unit: 'psi', kind: 'psi', min: 0, max: 3000, dec: 0 },
+  { id: 'afr', g: 'fuel', label: 'AF Ratio (Sensor 1)', unit: ':1', min: 10, max: 18, dec: 1, short: 'AFR', boostLean: true, needs: ['lambda', 'lambdaW', 'map', 'baro'] },
+  { id: 'cmdAfr', g: 'fuel', label: 'AF Ratio Target', unit: ':1', min: 10, max: 18, dec: 1, needs: ['cmdLambda'], short: 'AFR TGT' },
+  { id: 'stft1', g: 'fuel', label: 'AF Correction 1', unit: '%', min: -25, max: 25, dec: 1, warn: 10, hot: 15, abs: true, short: 'AF CORR' },
+  { id: 'ltft1', g: 'fuel', label: 'AF Learning 1', unit: '%', min: -25, max: 25, dec: 1, warn: 8, hot: 10, abs: true, short: 'AF LEARN' },
+  { id: 'stft2', g: 'fuel', label: 'AF Correction 2', unit: '%', min: -25, max: 25, dec: 1, warn: 10, hot: 20, abs: true, short: 'AF CORR 2' },
+  { id: 'ltft2', g: 'fuel', label: 'AF Learning 2', unit: '%', min: -25, max: 25, dec: 1, warn: 8, hot: 10, abs: true, short: 'AF LEARN 2' },
+  { id: 'railPress', g: 'fuel', label: 'Fuel Pressure (High)', unit: 'psi', kind: 'psi', min: 0, max: 3000, dec: 0, short: 'FUEL HP' },
   { id: 'railRel', g: 'fuel', label: 'Rail rel', unit: 'psi', kind: 'psi', min: 0, max: 100, dec: 0 },
   { id: 'fuelPress', g: 'fuel', label: 'Fuel press', unit: 'psi', kind: 'psi', min: 0, max: 110, dec: 0 },
   { id: 'fuelLevel', g: 'fuel', label: 'Fuel', unit: '%', min: 0, max: 100, dec: 0, warnLow: 15, hotLow: 8 },
   { id: 'fuelRate', g: 'fuel', label: 'Fuel rate', unit: 'gal/h', kind: 'galh', min: 0, max: 10, dec: 1 },
   { id: 'mpg', g: 'fuel', label: 'Economy', unit: 'mpg', kind: 'mpg', min: 0, max: 60, dec: 0, needs: ['speed', 'maf'] },
   { id: 'ethanol', g: 'fuel', label: 'Ethanol', unit: '%', min: 0, max: 100, dec: 0 },
-  { id: 'coolant', g: 'temps', label: 'Coolant', unit: '°F', kind: 'temp', min: 120, max: 250, dec: 0, warn: 215, hot: 225, on: true },
-  { id: 'iat', g: 'temps', label: 'Intake', unit: '°F', kind: 'temp', min: 40, max: 160, dec: 0, warn: 110, hot: 130, on: true },
-  { id: 'oil', g: 'temps', label: 'Oil', unit: '°F', kind: 'temp', min: 120, max: 300, dec: 0, warn: 250, hot: 270 },
+  { id: 'coolant', g: 'temps', label: 'Coolant Temp', unit: '°F', kind: 'temp', min: 120, max: 250, dec: 0, warn: 220, hot: 230, on: true, short: 'COOLANT' },
+  { id: 'iat', g: 'temps', label: 'Intake Temp', unit: '°F', kind: 'temp', min: 40, max: 160, dec: 0, warn: 120, hot: 140, on: true, short: 'INTAKE' },
+  { id: 'oil', g: 'temps', label: 'Oil Temp', unit: '°F', kind: 'temp', min: 120, max: 300, dec: 0, warn: 240, hot: 260, short: 'OIL' },
   { id: 'catTemp', g: 'temps', label: 'Catalyst', unit: '°F', kind: 'temp', min: 200, max: 1800, dec: 0, warn: 1500, hot: 1650 },
   { id: 'ambient', g: 'temps', label: 'Outside', unit: '°F', kind: 'temp', min: 0, max: 120, dec: 0 },
   { id: 'voltage', g: 'more', label: 'Battery', unit: 'V', min: 10, max: 16, dec: 1, warnLow: 12.2, hotLow: 11.5, warn: 15, hot: 15.5 },
@@ -199,6 +199,7 @@ function derive(s) {
   if (v.cmdLambda != null) v.cmdAfr = v.cmdLambda * 14.7;
   if (v.speed != null && v.maf > 0.5) v.mpg = Math.min(99, (v.speed * 7.718) / v.maf); // gasoline, stoich
   if (s.status === 'live' || s.status === 'demo') knockFeed(v); // timing-pull watch (stand-in for Subaru DAM)
+  lastVals = v;
   return s;
 }
 
@@ -245,8 +246,10 @@ export function display(m, v) {
   return { text: v.toFixed(m.dec), unit: m.unit };
 }
 const unitOf = (m) => (isMetric() ? ({ speed: 'km/h', dist: 'km', boost: 'bar', psi: 'bar', galh: 'L/h', mpg: 'L/100km' }[m.kind] || m.unit) : m.unit);
+let lastVals = {};
 export function level(m, v) {
   if (v == null) return 0;
+  if (m.boostLean) return (lastVals.boost ?? 0) > 2 ? (v >= 12.3 ? 2 : v >= 11.8 ? 1 : 0) : 0;
   const x = m.abs ? Math.abs(v) : v;
   if ((m.hot != null && x >= m.hot) || (m.hotLow != null && v <= m.hotLow)) return 2;
   if ((m.warn != null && x >= m.warn) || (m.warnLow != null && v <= m.warnLow)) return 1;

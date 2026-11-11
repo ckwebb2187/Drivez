@@ -46,7 +46,7 @@ export function knockFeed(v) {
   }
   if (loaded && !cur && dt) score = Math.min(100, score + 0.15 * dt); // clean driving under load slowly earns it back, like DAM
   save(now);
-  lastOut = { pull: loaded ? Math.round(pull * 10) / 10 : 0, knockScore: Math.round(score), dam: Math.round(score) / 100, knockEvents: drive };
+  lastOut = { pull: loaded && pull ? -Math.round(pull * 10) / 10 : 0, knockScore: Math.round(score), dam: Math.round(score) / 100, knockEvents: drive };
   Object.assign(v, lastOut);
   return v;
 }

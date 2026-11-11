@@ -172,7 +172,7 @@ function ShapeBubble({ shape, m, v, peak, best, size, c, opacity, fx, valueFx, g
             {!live && <rect x="14" y="46" width="40" height="7" rx="3.5" fill={c.accent} fillOpacity=".5" className="a-idle2" />}
           </>
         )}
-        <text x={T.lx} y={T.ly} textAnchor={T.la} fontSize={10.5 * (def.bar ? 1.05 : tk)} fontWeight="600" letterSpacing="1.2" fill={c.label}>{m.label.toUpperCase()}</text>
+        <text x={T.lx} y={T.ly} textAnchor={T.la} fontSize={10.5 * (def.bar ? 1.05 : tk)} fontWeight="600" letterSpacing="1.2" fill={c.label}>{(m.short || m.label).toUpperCase()}</text>
         {valueFx === 'glow' && live && valueText({ fill: 'none', stroke: col, strokeWidth: 4 + g, strokeOpacity: 0.9, strokeLinejoin: 'round', opacity: 0.3, className: `speed-font ${calm ? '' : 'a-vglow'}` })}
         {valueFx === 'chroma' && live && <>{valueText({ x: T.vx - 1.2, fill: '#ff2bd6', opacity: 0.55 })}{valueText({ x: T.vx + 1.2, fill: '#2bf0ff', opacity: 0.55 })}</>}
         {valueFx === 'outline' && live
@@ -254,7 +254,7 @@ function Bubble({ m, v, peak, best, size, c, opacity, fx, valueFx, glow = 1, ex 
           </g>
         )}
         {pk != null && live && <circle cx={50 + R * Math.cos(pk)} cy={50 + R * Math.sin(pk)} r="3.2" fill={c.text} stroke={col} strokeWidth="1.5" />}
-        <text x="50" y="35" textAnchor="middle" fontSize="10.5" fontWeight="600" letterSpacing="1.2" fill={c.label}>{m.label.toUpperCase()}</text>
+        <text x="50" y="35" textAnchor="middle" fontSize="10.5" fontWeight="600" letterSpacing="1.2" fill={c.label}>{(m.short || m.label).toUpperCase()}</text>
         {valueFx === 'glow' && live && (
           <text x="50" y="60" textAnchor="middle" fontSize={big} fontWeight="800" className={`speed-font ${calm ? '' : 'a-vglow'}`} fill="none" stroke={col} strokeWidth={4 + g} strokeOpacity=".9" strokeLinejoin="round" opacity=".3">{d.text}</text>
         )}
@@ -307,13 +307,13 @@ function ApScreen({ shown, s, live, best, low, pos }) {
         {list.map((m, i) => {
           const v = live ? s.values?.[m.id] : null;
           const d = display(m, v), lv = level(m, v);
-          const pk = m.id === 'dam' ? low[m.id] : best[m.id];
+          const lowWorse = m.id === 'dam' || m.peakLow; const pk = lowWorse ? low[m.id] : best[m.id];
           const col = lv === 2 ? HOT : lv === 1 ? WARN : '#ffffff';
           return (
             <div key={m.id} className={`px-2.5 py-1.5 ${list.length % 2 && i === list.length - 1 ? 'col-span-2' : ''}`} style={{ background: 'rgba(8,9,11,0.86)' }}>
               <div className="flex items-baseline justify-between">
                 <span className="text-[9px] font-bold tracking-wider uppercase" style={{ color: '#9aa0a8' }}>{m.label}</span>
-                {pk != null && <span className="text-[9px] font-mono" style={{ color: '#6f757d' }}>{m.id === 'dam' ? 'min' : 'max'} {display(m, pk).text}</span>}
+                {pk != null && <span className="text-[9px] font-mono" style={{ color: '#6f757d' }}>{lowWorse ? 'min' : 'max'} {display(m, pk).text}</span>}
               </div>
               <div className="flex items-baseline justify-end gap-1 leading-none mt-0.5">
                 <span className="text-[24px] font-bold font-mono tabular-nums" style={{ color: col, textShadow: lv ? `0 0 10px ${col}88` : 'none' }}>{d.text}</span>

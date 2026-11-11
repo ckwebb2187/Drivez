@@ -179,6 +179,17 @@ export default function EngineSettings() {
           <button onClick={() => setObdPrefs({ show: true, layout: 'ap', metrics: { dam: true, pull: true, boost: true, afr: true, iat: true, coolant: true } })} className="flex-1 h-10 rounded-xl bg-secondary text-foreground text-xs font-bold border border-border">Accessport screen</button>
           <button onClick={() => { if (window.confirm('Forget the learned timing? It relearns over the next few drives.')) knockForget(); }} className="h-10 px-3 rounded-xl bg-secondary text-foreground text-xs font-semibold">Relearn</button>
         </div>
+        <details className="rounded-xl bg-card border border-border px-3 py-2">
+          <summary className="text-xs font-bold text-foreground cursor-pointer">What to watch (same as your Accessport)</summary>
+          <ul className="mt-2 space-y-1.5 text-[11px] text-muted-foreground">
+            <li><b className="text-foreground">DAM</b> should sit at 1.00. Anything lower means the ECU heard knock and pulled timing everywhere; amber below 1.00, red below 0.75.</li>
+            <li><b className="text-foreground">Feedback Knock</b> should read 0. An occasional −1 to −1.4 is normal; repeated −2 or more under boost (amber), or −4 (red), means back off and check fuel, plugs, intake temps.</li>
+            <li><b className="text-foreground">AF Ratio</b> under boost should be rich, about 10.5–11.5. Leaner than 11.8 under boost turns amber, 12.3 red. Cruising near 14.7 is normal.</li>
+            <li><b className="text-foreground">AF Learning 1</b> within ±8% is healthy; past ±10% points at a vacuum/boost leak or fueling issue. <b className="text-foreground">AF Correction</b> moves around more; past ±10–15% is worth a look.</li>
+            <li><b className="text-foreground">Intake Temp</b> under 120°F is happy; hot intake air makes knock more likely. <b className="text-foreground">Coolant Temp</b> around 190–215°F; amber at 220°F. <b className="text-foreground">Oil Temp</b> amber at 240°F.</li>
+            <li>DAM and Feedback Knock here are estimates from timing pulls (the real ones need Subaru's tools). Fine Knock Learn can't be read over OBD-II.</li>
+          </ul>
+        </details>
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-foreground flex-1">Gauge style</span>
           {[['bubbles', 'Bubbles'], ['ap', 'Accessport']].map(([id, t]) => (
