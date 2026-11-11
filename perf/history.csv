@@ -86,3 +86,4 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-11-10T02:18,orbs-toggle,build,530.5,985.6,,,pass
 2026-11-10T02:29,themed-fx,build,530.7,985.9,,,pass
 2026-11-11T23:22,knock-watch,build,530.7,987.4,,,pass
+2026-11-11T23:25,dam-hud,build,530.7,987.5,,,pass
