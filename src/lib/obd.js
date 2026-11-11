@@ -3,6 +3,7 @@
 // the gauge list, bubble settings, live polling and a demo mode so bubbles can be arranged without the car.
 import { useEffect, useRef, useState } from 'react';
 import { isMetric } from '@/lib/units';
+import { knockFeed } from '@/lib/knockWatch';
 
 // Values arrive in US units. kind: how to convert for metric users. warn/hot: high limits;
 // warnLow/hotLow: low limits; abs: limits apply to the size either way (fuel trims).
@@ -23,6 +24,8 @@ export const METRICS = [
   { id: 'load', g: 'engine', label: 'Load', unit: '%', min: 0, max: 100, dec: 0 },
   { id: 'absLoad', g: 'engine', label: 'Abs load', unit: '%', min: 0, max: 200, dec: 0 },
   { id: 'timing', g: 'engine', label: 'Timing', unit: '°', min: -10, max: 30, dec: 1, on: true },
+  { id: 'pull', g: 'engine', label: 'Timing pull', unit: '°', min: 0, max: 8, dec: 1, warn: 2, hot: 4, needs: ['timing', 'rpm', 'load', 'map', 'baro'] },
+  { id: 'knockScore', g: 'engine', label: 'Knock health', unit: '%', min: 0, max: 100, dec: 0, warnLow: 85, hotLow: 70, needs: ['timing', 'rpm', 'load', 'map', 'baro'] },
   { id: 'throttle', g: 'engine', label: 'Throttle', unit: '%', min: 0, max: 100, dec: 0 },
   { id: 'relThrottle', g: 'engine', label: 'Rel throttle', unit: '%', min: 0, max: 100, dec: 0 },
   { id: 'cmdThrottle', g: 'engine', label: 'Cmd throttle', unit: '%', min: 0, max: 100, dec: 0 },
@@ -173,7 +176,7 @@ function demoState() {
   return {
     status: 'demo',
     values: {
-      boost, map: 101 + boost / 0.145, baro: 101, rpm: 3600 + 2600 * pull, timing: 14 - 6 * pull, load: 55 + 40 * pull, absLoad: 70 + 60 * pull, maf,
+      boost, map: 101 + boost / 0.145, baro: 101, rpm: 3600 + 2600 * pull, timing: 14 - 6 * pull - (pull > 0.75 && Math.floor(t / 9) % 3 === 0 ? 4 : 0), load: 55 + 40 * pull, absLoad: 70 + 60 * pull, maf,
       throttle: Math.max(0, 50 + 50 * pull), relThrottle: Math.max(0, 45 + 45 * pull), cmdThrottle: Math.max(0, 48 + 48 * pull), pedal: Math.max(0, 50 + 50 * pull),
       demandTorque: 40 + 50 * pull, actualTorque: 38 + 48 * pull, runtime: t % 3600,
       lambda: 0.92 - 0.12 * Math.max(0, pull), cmdLambda: 0.9 - 0.12 * Math.max(0, pull), stft1: w(2, 4, 1.3), ltft1: w(-1.5, 1, 0.05), stft2: w(1, 4, 1.1), ltft2: w(-1, 1, 0.05),
@@ -194,6 +197,7 @@ function derive(s) {
   if (lam != null) v.afr = lam * 14.7;
   if (v.cmdLambda != null) v.cmdAfr = v.cmdLambda * 14.7;
   if (v.speed != null && v.maf > 0.5) v.mpg = Math.min(99, (v.speed * 7.718) / v.maf); // gasoline, stoich
+  if (s.status === 'live' || s.status === 'demo') knockFeed(v); // timing-pull watch (stand-in for Subaru DAM)
   return s;
 }
 

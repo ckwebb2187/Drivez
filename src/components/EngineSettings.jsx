@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useCarBluetooth } from '@/lib/carBluetooth';
 import { checkObdAuto, holdObdAuto, autoCarMatch } from '@/lib/obdAuto';
+import { knockLog, knockForget, knockLearned } from '@/lib/knockWatch';
 import { useNavigate } from 'react-router-dom';
 import { openStylePanel, fxTargetOn, toggleFxTarget, setAllFxTargets } from '@/lib/obdPrefs';
 import { Bluetooth, Loader2, RefreshCw, Play, Square, Circle, Lock, Unlock, RotateCcw, ChevronDown, Palette } from 'lucide-react';
@@ -156,6 +157,29 @@ export default function EngineSettings() {
         </Section>
       )}
 
+      <Section title="KNOCK WATCH" hint={s.values?.knockScore != null ? `${s.values.knockScore}% health` : ''}>
+        <p className="text-[11px] text-muted-foreground">Your WRX only shares the real DAM through Subaru's private tools, so this watches ignition timing instead: it learns the timing your ECU normally runs, and flags when it suddenly pulls timing under load (what it does when it hears knock). Knock health works like DAM: it drops on pulls and recovers with clean pulls.</p>
+        <div className="grid grid-cols-3 gap-1.5 text-center">
+          {[['Health', s.values?.knockScore != null ? `${s.values.knockScore}%` : '--'], ['Pulls this drive', s.values?.knockEvents ?? 0], ['Learned', `${knockLearned()} cells`]].map(([l, v]) => (
+            <div key={l} className="rounded-xl bg-card border border-border py-2"><div className="text-base font-bold text-foreground">{v}</div><div className="text-[10px] text-muted-foreground">{l}</div></div>
+          ))}
+        </div>
+        {knockLog().length > 0 && (
+          <div className="space-y-1">
+            {knockLog().slice(0, 5).map((e) => (
+              <div key={e.at} className="flex items-center justify-between text-xs rounded-lg bg-secondary/70 px-2.5 py-1.5">
+                <span className="font-semibold text-foreground">−{e.max}° pull</span>
+                <span className="text-muted-foreground">{Math.round(e.rpm / 100) * 100} rpm{e.boost != null ? ` · ${e.boost.toFixed(1)} psi` : ''} · {new Date(e.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-1.5">
+          <button onClick={() => setObdPrefs((p) => ({ show: true, metrics: { ...p.metrics, pull: true, knockScore: true } }))} className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-xs font-bold">Show on the map</button>
+          <button onClick={() => { if (window.confirm('Forget the learned timing? It relearns over the next few drives.')) knockForget(); }} className="h-10 px-3 rounded-xl bg-secondary text-foreground text-xs font-semibold">Relearn</button>
+        </div>
+        <p className="text-[10px] text-muted-foreground">Needs a few drives with some boost to learn your car first. A bigger drop or several pulls in a row is worth a closer look (fuel quality, plugs, intake temps).</p>
+      </Section>
       <Section title="GAUGES" hint={`${onCount} on`}>
         <p className="text-[11px] text-muted-foreground">Every standard OBD-II reading. Once connected, ones your car doesn't share are dimmed. Fewer bubbles = less battery.</p>
         {GROUPS.map((g) => {
