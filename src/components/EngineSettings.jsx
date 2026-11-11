@@ -176,9 +176,23 @@ export default function EngineSettings() {
         )}
         <div className="flex gap-1.5">
           <button onClick={() => setObdPrefs((p) => ({ show: true, metrics: { ...p.metrics, dam: true, pull: true } }))} className="flex-1 h-10 rounded-xl bg-primary text-primary-foreground text-xs font-bold">Show on the map</button>
-          <button onClick={() => setObdPrefs({ show: true, metrics: { dam: true, pull: true, boost: true, afr: true, iat: true, coolant: true } })} className="flex-1 h-10 rounded-xl bg-secondary text-foreground text-xs font-bold border border-border">Accessport layout</button>
+          <button onClick={() => setObdPrefs({ show: true, layout: 'ap', metrics: { dam: true, pull: true, boost: true, afr: true, iat: true, coolant: true } })} className="flex-1 h-10 rounded-xl bg-secondary text-foreground text-xs font-bold border border-border">Accessport screen</button>
           <button onClick={() => { if (window.confirm('Forget the learned timing? It relearns over the next few drives.')) knockForget(); }} className="h-10 px-3 rounded-xl bg-secondary text-foreground text-xs font-semibold">Relearn</button>
         </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-foreground flex-1">Gauge style</span>
+          {[['bubbles', 'Bubbles'], ['ap', 'Accessport']].map(([id, t]) => (
+            <button key={id} onClick={() => setObdPrefs({ layout: id })} className={`px-3 h-8 rounded-full text-xs font-semibold border ${(prefs.layout || 'bubbles') === id ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/80 text-foreground border-border'}`}>{t}</button>
+          ))}
+        </div>
+        {prefs.layout === 'ap' && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-foreground flex-1">Screen position</span>
+            {[['top', 'Top'], ['bottom', 'Bottom']].map(([id, t]) => (
+              <button key={id} onClick={() => setObdPrefs({ apPos: id })} className={`px-3 h-8 rounded-full text-xs font-semibold border ${(prefs.apPos || 'top') === id ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary/80 text-foreground border-border'}`}>{t}</button>
+            ))}
+          </div>
+        )}
         <p className="text-[10px] text-muted-foreground">Needs a few drives with some boost to learn your car first. A bigger drop or several pulls in a row is worth a closer look (fuel quality, plugs, intake temps).</p>
       </Section>
       <Section title="GAUGES" hint={`${onCount} on`}>

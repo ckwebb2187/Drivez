@@ -296,6 +296,38 @@ const GaugeStylePanel = lazy(() => import('@/components/GaugeStylePanel'));
 
 const STATUS = { off: 'OBD not connected', none: 'OBD needs the Android app', connecting: 'OBD connecting…', error: 'OBD connection lost' };
 
+// Accessport-style screen: a dark grid of readouts (label, big value, unit, and the peak this drive;
+// for DAM the lowest, since that's what you watch). Warnings turn amber / red.
+const AP_ORDER = ['dam', 'pull', 'boost', 'afr', 'iat', 'coolant', 'timing', 'rpm', 'throttle', 'load'];
+function ApScreen({ shown, s, live, best, low, pos }) {
+  const list = [...shown].sort((a, b) => (AP_ORDER.indexOf(a.id) + 1 || 99) - (AP_ORDER.indexOf(b.id) + 1 || 99)).slice(0, 8);
+  return (
+    <div className="absolute left-2 pointer-events-none" style={{ right: 96, ...(pos === 'bottom' ? { bottom: 150 } : { top: 118 }) }}>
+      <div className="grid grid-cols-2 gap-px rounded-lg overflow-hidden border border-white/15 shadow-xl" style={{ background: 'rgba(255,255,255,0.12)' }}>
+        {list.map((m, i) => {
+          const v = live ? s.values?.[m.id] : null;
+          const d = display(m, v), lv = level(m, v);
+          const pk = m.id === 'dam' ? low[m.id] : best[m.id];
+          const col = lv === 2 ? HOT : lv === 1 ? WARN : '#ffffff';
+          return (
+            <div key={m.id} className={`px-2.5 py-1.5 ${list.length % 2 && i === list.length - 1 ? 'col-span-2' : ''}`} style={{ background: 'rgba(8,9,11,0.86)' }}>
+              <div className="flex items-baseline justify-between">
+                <span className="text-[9px] font-bold tracking-wider uppercase" style={{ color: '#9aa0a8' }}>{m.label}</span>
+                {pk != null && <span className="text-[9px] font-mono" style={{ color: '#6f757d' }}>{m.id === 'dam' ? 'min' : 'max'} {display(m, pk).text}</span>}
+              </div>
+              <div className="flex items-baseline justify-end gap-1 leading-none mt-0.5">
+                <span className="text-[24px] font-bold font-mono tabular-nums" style={{ color: col, textShadow: lv ? `0 0 10px ${col}88` : 'none' }}>{d.text}</span>
+                <span className="text-[10px] font-semibold" style={{ color: '#9aa0a8' }}>{d.unit}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {!live && <div className="mt-1 text-center text-[10px] font-bold" style={{ color: '#c9ccd1', textShadow: '0 1px 2px #000' }}>{STATUS[s.status] || 'OBD not connected'}</div>}
+    </div>
+  );
+}
+
 export default function EngineBubbles({ themeKey, moving = false, calm = false }) {
   const prefs = useObdPrefs();
   const s = useObd(true, calm ? 500 : 250);
@@ -325,6 +357,8 @@ export default function EngineBubbles({ themeKey, moving = false, calm = false }
   // Highest value of each gauge this session (for the "show highest" extra).
   const best = useRef({});
   if (live && s.values) for (const [k, v] of Object.entries(s.values)) if (v != null && (best.current[k] == null || v > best.current[k])) best.current[k] = v;
+  const low = useRef({});
+  if (live && s.values) for (const [k, v] of Object.entries(s.values)) if (v != null && (low.current[k] == null || v < low.current[k])) low.current[k] = v;
   // Shift light: every bubble flashes red near redline.
   const rpmM = METRICS.find((x) => x.id === 'rpm');
   const shift = !!ex.shiftLight && live && (s.values?.rpm ?? 0) >= rpmM.warn;
@@ -369,6 +403,14 @@ export default function EngineBubbles({ themeKey, moving = false, calm = false }
   };
 
   if (!shown.length) return <div ref={box} className="absolute inset-0 pointer-events-none" />;
+  if (prefs.layout === 'ap') {
+    return (
+      <div ref={box} className="absolute inset-0 pointer-events-none z-[5]">
+        {panelOpen && <Suspense fallback={null}><GaugeStylePanel /></Suspense>}
+        <ApScreen shown={shown} s={s} live={live} best={best.current} low={low.current} pos={prefs.apPos} />
+      </div>
+    );
+  }
   const first = shown.length && dim.w ? posOf(shown[0], 0) : null;
   return (
     <div ref={box} className={`absolute inset-0 pointer-events-none z-[5] dz-b ${calm ? 'dz-calm' : ''}`}>

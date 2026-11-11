@@ -25,7 +25,7 @@ export const METRICS = [
   { id: 'absLoad', g: 'engine', label: 'Abs load', unit: '%', min: 0, max: 200, dec: 0 },
   { id: 'timing', g: 'engine', label: 'Timing', unit: '°', min: -10, max: 30, dec: 1, on: true },
   { id: 'dam', g: 'engine', label: 'DAM (est.)', unit: '', min: 0, max: 1, dec: 2, warnLow: 0.85, hotLow: 0.7, needs: ['timing', 'rpm', 'load', 'map', 'baro'] },
-  { id: 'pull', g: 'engine', label: 'FB knock (est.)', unit: '°', min: 0, max: 8, dec: 1, warn: 2, hot: 4, needs: ['timing', 'rpm', 'load', 'map', 'baro'] },
+  { id: 'pull', g: 'engine', label: 'FBK (est.)', unit: '°', min: 0, max: 8, dec: 1, warn: 2, hot: 4, needs: ['timing', 'rpm', 'load', 'map', 'baro'] },
   { id: 'knockScore', g: 'engine', label: 'Knock health', unit: '%', min: 0, max: 100, dec: 0, warnLow: 85, hotLow: 70, needs: ['timing', 'rpm', 'load', 'map', 'baro'] },
   { id: 'throttle', g: 'engine', label: 'Throttle', unit: '%', min: 0, max: 100, dec: 0 },
   { id: 'relThrottle', g: 'engine', label: 'Rel throttle', unit: '%', min: 0, max: 100, dec: 0 },
