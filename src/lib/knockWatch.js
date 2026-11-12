@@ -15,7 +15,7 @@ const CONFIRM = 2;                      // readings in a row (about half a secon
 let base = {};                          // cell -> { t: learned timing, n: samples }
 try { localStorage.removeItem('dz-knock-map'); base = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { base = {}; }
 let score = 100, events = [], cur = null, pending = 0, lastSave = 0, lastT = 0, drive = 0, lastOut = null;
-let quietUntil = 0, lastEventAt = 0;
+let quietUntil = 0, lastEventAt = 0, fbk = 0, fbkAt = 0; // fbk: live feedback-knock estimate shown on the gauge (held ~2 s)
 const hist = [];                        // last ~1.5 s of { t, rpm, thr, timing }
 
 const cellOf = (rpm, load) => `${Math.round(rpm / 250)}:${Math.round(load / 8)}`;
@@ -69,10 +69,14 @@ export function knockFeed(v) {
     }
     if (!cur) pending = 0;
   }
+  // Feedback knock, live like the Accessport: timing pulled below normal during a steady pull,
+  // small amounts included (0.7°+). Each reading holds 1.5 s, then drops back quickly.
+  const live = inPull && c.n >= 8 && deficit >= 0.7 ? deficit : 0;
+  if (live >= fbk) { fbk = live; fbkAt = now; } else if (now - fbkAt > 1500) fbk = Math.max(live, fbk - (dt || 0.25) * 3);
   // Climbs back toward 1.00 after ~10 s of driving with no knock (about a minute or two from a big drop).
   if (!cur && dt && rpm > 1000 && now - lastEventAt > 10000) score = Math.min(100, score + 0.5 * dt);
   save(now);
-  lastOut = { pull: cur ? -Math.round(Math.max(deficit, 0) * 10) / 10 : 0, knockScore: Math.round(score), dam: Math.round(score) / 100, knockEvents: drive };
+  lastOut = { pull: fbk >= 0.5 ? -Math.round(fbk * 10) / 10 : 0, knockScore: Math.round(score), dam: Math.round(score) / 100, knockEvents: drive };
   Object.assign(v, lastOut);
   return v;
 }
