@@ -26,7 +26,7 @@ import org.json.JSONObject;
 // Shows the Kaido Maps web app full screen and adds what a web page can't do on its own:
 // reading what's playing on the phone and controlling it.
 public class MainActivity extends Activity {
-    private static final int REQ_LOCATION = 1, REQ_FILE = 2, REQ_BLUETOOTH = 3, REQ_MIC = 4;
+    private static final int REQ_LOCATION = 1, REQ_FILE = 2, REQ_BLUETOOTH = 3, REQ_MIC = 4, REQ_NOTIFY = 5;
     private static final String SITE = BuildConfig.SITE;
     private static final String HOST = Uri.parse(SITE).getHost();
 
@@ -61,7 +61,7 @@ public class MainActivity extends Activity {
         bt = new CarBluetooth(this, json -> runOnUiThread(() ->
             web.evaluateJavascript("window.dispatchEvent(new CustomEvent('drivez-bt',{detail:" + json + "}))", null)));
         bt.start();
-        obd = new ObdLink(this);
+        obd = ObdLink.shared(this);
         auto = new CarAuto(this, json -> runOnUiThread(() ->
             web.evaluateJavascript("window.dispatchEvent(new CustomEvent('drivez-auto',{detail:" + json + "}))", null)));
         auto.start();
@@ -214,7 +214,7 @@ public class MainActivity extends Activity {
         media.stop();
         bt.stop();
         auto.stop();
-        obd.disconnect();
+        if (!OverlayService.isRunning()) obd.disconnect(); // the overlay keeps using the adapter
         super.onDestroy();
     }
 
@@ -299,6 +299,16 @@ public class MainActivity extends Activity {
         @JavascriptInterface public String obdLog(boolean on) { return obd.setLogging(on); }
         @JavascriptInterface public void obdResetPeak() { obd.resetPeak(); }
         @JavascriptInterface public void obdWatch(String keys) { obd.watch(keys); }
+
+        // Overlay Mode (Waze): Kaido's widgets float over Waze. Returns "permission", "nowaze" or "started".
+        @JavascriptInterface public String overlayStart() {
+            if (android.os.Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+                runOnUiThread(() -> requestPermissions(new String[]{ "android.permission.POST_NOTIFICATIONS" }, REQ_NOTIFY));
+            }
+            return OverlayService.launch(MainActivity.this);
+        }
+        @JavascriptInterface public void overlayStop() { OverlayService.stop(MainActivity.this); }
+        @JavascriptInterface public String overlayState() { return OverlayService.state(MainActivity.this); }
 
         @JavascriptInterface public void keepScreenOn(boolean on) {
             runOnUiThread(() -> {

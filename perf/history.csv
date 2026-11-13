@@ -91,3 +91,4 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-11-11T23:37,ap-names,build,530.7,989.1,,,pass
 2026-11-12T00:02,knock-v2,build,530.7,989.3,,,pass
 2026-11-12T00:05,fbk-live,build,530.7,989.3,,,pass
+2026-11-13T20:25,overlay,build,530.8,992,,,pass

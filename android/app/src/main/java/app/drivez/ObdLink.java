@@ -89,6 +89,13 @@ public class ObdLink {
 
     public ObdLink(Context ctx) { this.ctx = ctx; }
 
+    // One adapter connection for the whole app, so the gauges keep working in the Waze overlay.
+    private static ObdLink shared;
+    static synchronized ObdLink shared(Context c) {
+        if (shared == null) shared = new ObdLink(c.getApplicationContext());
+        return shared;
+    }
+
     public boolean hasPermission() {
         return Build.VERSION.SDK_INT < 31 || ctx.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED;
     }

@@ -11,6 +11,11 @@
     <!-- Knowing when the phone connects to your car's Bluetooth, so its miles count. -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Overlay Mode: Kaido's widgets float over Waze. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Lets Kaido Maps open these music apps. -->
     <queries>
@@ -26,6 +31,7 @@
         <package android:name="deezer.android.app" />
         <package android:name="com.clearchannel.iheartradio.controller" />
         <package android:name="com.discord" />
+        <package android:name="com.waze" />
         <!-- Android Auto app: read whether the phone is connected to a car screen -->
         <package android:name="com.google.android.projection.gearhead" />
         <provider android:authorities="androidx.car.app.connection" />
@@ -54,6 +60,28 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Overlay Mode: keeps Kaido's widgets floating over Waze. -->
+        <service
+            android:name=".OverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Driving gauges floating over the user's navigation app" />
+        </service>
+
+        <!-- Quick-settings tile to turn Overlay Mode on or off. -->
+        <service
+            android:name=".OverlayTile"
+            android:exported="true"
+            android:label="Kaido overlay"
+            android:icon="@android:drawable/ic_dialog_map"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
 
         <!-- Needed so Android lets Kaido Maps read what's playing (media sessions). -->
         <service

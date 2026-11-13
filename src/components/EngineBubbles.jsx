@@ -328,10 +328,11 @@ function ApScreen({ shown, s, live, best, low, pos }) {
   );
 }
 
-export default function EngineBubbles({ themeKey, moving = false, calm = false }) {
+// overlay: { editing, orient } when floating over Waze. Positions are saved separately for portrait and landscape.
+export default function EngineBubbles({ themeKey, moving = false, calm = false, overlay = null }) {
   const prefs = useObdPrefs();
   const s = useObd(true, calm ? 500 : 250);
-  const panelOpen = useStylePanel();
+  const panelOpen = useStylePanel() && !overlay;
   const box = useRef(null);
   const [dim, setDim] = useState({ w: 0, h: 0 });
   const drag = useRef(null);
@@ -363,12 +364,13 @@ export default function EngineBubbles({ themeKey, moving = false, calm = false }
   const rpmM = METRICS.find((x) => x.id === 'rpm');
   const shift = !!ex.shiftLight && live && (s.values?.rpm ?? 0) >= rpmM.warn;
   const base = SIZES[prefs.size] || SIZES[1];
-  const locked = prefs.locked || moving; // nothing to tap or drag while the car is moving
+  const locked = (overlay ? !overlay.editing : prefs.locked) || moving; // nothing to tap or drag while the car is moving
+  const posMap = overlay ? (prefs.ovlPos?.[overlay.orient] || {}) : prefs.pos;
 
   const shape = prefs.shape || 'circle';
   const sizeOf = (m) => (m.big ? Math.round(base * 1.25) : base);
   const posOf = (m, i) => {
-    const p = prefs.pos[m.id];
+    const p = posMap[m.id];
     if (p && dim.w) return { x: p.x * dim.w, y: p.y * dim.h };
     // Default: columns down the left side (the boost bubble is bigger), wrapping when full.
     const top = dim.h * 0.2, room = Math.max(base, dim.h * 0.72);
@@ -399,7 +401,9 @@ export default function EngineBubbles({ themeKey, moving = false, calm = false }
     if (!d) return;
     if (!d.moved) { if (m.id === 'boost') resetPeak(); return; }
     const x = Math.max(0, Math.min(dim.w - sd.w, d.cx)), y = Math.max(0, Math.min(dim.h - sd.h, d.cy));
-    setObdPrefs((p) => ({ pos: { ...p.pos, [m.id]: { x: x / dim.w, y: y / dim.h } } }));
+    const at = { x: x / dim.w, y: y / dim.h };
+    if (overlay) setObdPrefs((p) => ({ ovlPos: { ...p.ovlPos, [overlay.orient]: { ...(p.ovlPos?.[overlay.orient] || {}), [m.id]: at } } }));
+    else setObdPrefs((p) => ({ pos: { ...p.pos, [m.id]: at } }));
   };
 
   if (!shown.length) return <div ref={box} className="absolute inset-0 pointer-events-none" />;

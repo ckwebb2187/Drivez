@@ -3,6 +3,7 @@ import { useCarBluetooth } from '@/lib/carBluetooth';
 import { checkObdAuto, holdObdAuto, autoCarMatch } from '@/lib/obdAuto';
 import { knockLog, knockForget, knockLearned } from '@/lib/knockWatch';
 import { useNavigate } from 'react-router-dom';
+import OverlayModeCard from '@/components/OverlayModeCard';
 import { openStylePanel, fxTargetOn, toggleFxTarget, setAllFxTargets } from '@/lib/obdPrefs';
 import { Bluetooth, Loader2, RefreshCw, Play, Square, Circle, Lock, Unlock, RotateCcw, ChevronDown, Palette } from 'lucide-react';
 import { METRICS, GROUPS, BUBBLE_THEMES, BUBBLE_FX, VALUE_FX, GLOWS, EXTRAS, SHAPES, FX_TARGETS, useObd, useObdPrefs, setObdPrefs, hasNativeObd, obdDevices, obdConnect, obdDisconnect, obdLog, obdAskBluetooth, useObdDemo, setObdDemo, resetPeak } from '@/lib/obd';
@@ -86,6 +87,8 @@ export default function EngineSettings() {
         className="w-full h-10 rounded-xl bg-secondary text-sm font-semibold text-foreground flex items-center justify-center gap-2">
         {demo ? <><Square className="w-4 h-4" /> Stop demo</> : <><Play className="w-4 h-4" /> Preview with demo values</>}
       </button>
+
+      <OverlayModeCard />
 
       {native && (
         <Section title="ADAPTER" hint={s.status === 'live' ? 'Live' : prefs.device?.name || ''} open={s.status !== 'live'}>
