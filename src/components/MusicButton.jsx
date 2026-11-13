@@ -166,7 +166,7 @@ function BeatRing({ size, playing, beat }) {
 // lets us control it, so no ListenBrainz setup is needed.
 const nativeApi = () => (typeof window !== 'undefined' ? window.DrivezNative : null);
 
-function useNativeMedia() {
+export function useNativeMedia() {
   const read = () => { try { return JSON.parse(nativeApi().nowPlaying()); } catch { return null; } };
   const [media, setMedia] = useState(read);
   const [art, setArt] = useState(null);

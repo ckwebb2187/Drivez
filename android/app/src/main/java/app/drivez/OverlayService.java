@@ -41,6 +41,7 @@ public class OverlayService extends Service {
     private WebView web;
     private WindowManager.LayoutParams lp;
     private boolean editing = false;
+    private MediaWatcher media; // what's playing, for the music widget
 
     static boolean isRunning() { return running; }
 
@@ -152,6 +153,10 @@ public class OverlayService extends Service {
         lp.alpha = 0.8f;
         wm.addView(web, lp);
         web.loadUrl(BuildConfig.SITE + "/overlay");
+        media = new MediaWatcher(this, json -> web.post(() -> {
+            if (web != null) web.evaluateJavascript("window.dispatchEvent(new CustomEvent('drivez-media',{detail:" + json + "}))", null);
+        }));
+        media.start();
     }
 
     // Edit layout: the overlay takes touches so widgets can be dragged; Waze can't be tapped until Done.
@@ -176,6 +181,7 @@ public class OverlayService extends Service {
     public void onDestroy() {
         running = false;
         instance = null;
+        if (media != null) media.stop();
         if (web != null) {
             try { wm.removeView(web); } catch (Exception ignored) { }
             web.destroy();
@@ -199,6 +205,8 @@ public class OverlayService extends Service {
         @JavascriptInterface public void obdWatch(String keys) { ObdLink.shared(OverlayService.this).watch(keys); }
         @JavascriptInterface public void obdResetPeak() { ObdLink.shared(OverlayService.this).resetPeak(); }
         @JavascriptInterface public void obdConnect(String address, String name) { ObdLink.shared(OverlayService.this).connect(address, name); }
+        @JavascriptInterface public String nowPlaying() { return media == null ? "{}" : media.snapshot(); }
+        @JavascriptInterface public void control(String action) { web.post(() -> { if (media != null) media.control(action); }); }
         @JavascriptInterface public boolean overlayEditing() { return editing; }
         @JavascriptInterface public void overlayEdit(boolean on) { setEditing(on); }
         @JavascriptInterface public void overlayStop() { web.post(OverlayService.this::stopSelf); }
