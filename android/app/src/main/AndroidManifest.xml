@@ -71,6 +71,26 @@
                 android:value="Driving gauges floating over the user's navigation app" />
         </service>
 
+        <!-- Opens Waze with the Kaido overlay when the phone joins the car's Bluetooth. -->
+        <receiver android:name=".CarOverlay" android:exported="true">
+            <intent-filter>
+                <action android:name="android.bluetooth.device.action.ACL_CONNECTED" />
+                <action android:name="android.bluetooth.device.action.ACL_DISCONNECTED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Quick-settings tile: auto overlay in the car on/off. -->
+        <service
+            android:name=".OverlayAutoTile"
+            android:exported="true"
+            android:label="Kaido auto"
+            android:icon="@android:drawable/ic_menu_directions"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <!-- Quick-settings tile to turn Overlay Mode on or off. -->
         <service
             android:name=".OverlayTile"

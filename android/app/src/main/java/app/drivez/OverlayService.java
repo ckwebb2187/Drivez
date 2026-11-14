@@ -34,6 +34,7 @@ public class OverlayService extends Service {
     private static final String CHANNEL = "overlay";
     private static final String ACTION_STOP = "app.drivez.overlay.STOP";
     private static final String ACTION_EDIT = "app.drivez.overlay.EDIT";
+    private static final String ACTION_AUTO = "app.drivez.overlay.AUTO";
     private static volatile boolean running = false;
     private static OverlayService instance;
 
@@ -107,12 +108,18 @@ public class OverlayService extends Service {
         String a = intent == null ? null : intent.getAction();
         if (ACTION_STOP.equals(a)) { stopSelf(); return START_NOT_STICKY; }
         if (ACTION_EDIT.equals(a)) setEditing(!editing);
+        if (ACTION_AUTO.equals(a)) {
+            CarOverlay.setEnabled(this, !CarOverlay.enabled(this));
+            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm != null) nm.notify(1, notification());
+        }
         return START_STICKY;
     }
 
     private Notification notification() {
         PendingIntent stop = PendingIntent.getService(this, 1, new Intent(this, OverlayService.class).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         PendingIntent edit = PendingIntent.getService(this, 2, new Intent(this, OverlayService.class).setAction(ACTION_EDIT), PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent auto = PendingIntent.getService(this, 4, new Intent(this, OverlayService.class).setAction(ACTION_AUTO), PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         PendingIntent open = PendingIntent.getActivity(this, 3, new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         return new Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_dialog_map)
@@ -122,6 +129,7 @@ public class OverlayService extends Service {
             .setOngoing(true)
             .addAction(new Notification.Action.Builder(null, editing ? "Done editing" : "Edit layout", edit).build())
             .addAction(new Notification.Action.Builder(null, "Stop overlay", stop).build())
+            .addAction(new Notification.Action.Builder(null, CarOverlay.enabled(this) ? "Auto in car: ON" : "Auto in car: OFF", auto).build())
             .build();
     }
 
@@ -182,6 +190,9 @@ public class OverlayService extends Service {
         running = false;
         instance = null;
         if (media != null) media.stop();
+        // Stopped by the driver mid-trip: don't pop back up until they next get in the car.
+        if (!CarOverlay.stoppingAuto && CarOverlay.prefs(this).getBoolean("autoStarted", false)) CarOverlay.stoppedByDriver(this);
+        CarOverlay.stoppingAuto = false;
         if (web != null) {
             try { wm.removeView(web); } catch (Exception ignored) { }
             web.destroy();

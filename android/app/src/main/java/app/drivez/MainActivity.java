@@ -309,6 +309,10 @@ public class MainActivity extends Activity {
         }
         @JavascriptInterface public void overlayStop() { OverlayService.stop(MainActivity.this); }
         @JavascriptInterface public String overlayState() { return OverlayService.state(MainActivity.this); }
+        // Open Waze + overlay automatically when the phone joins the car's Bluetooth.
+        @JavascriptInterface public String overlayAuto() { return CarOverlay.state(MainActivity.this); }
+        @JavascriptInterface public void overlayAutoSet(boolean on) { CarOverlay.setEnabled(MainActivity.this, on); }
+        @JavascriptInterface public void overlayCar(String address, String name) { CarOverlay.setCar(MainActivity.this, address, name); }
 
         @JavascriptInterface public void keepScreenOn(boolean on) {
             runOnUiThread(() -> {

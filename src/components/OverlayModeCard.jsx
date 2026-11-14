@@ -51,6 +51,7 @@ export default function OverlayModeCard() {
         </span>
       </button>
       {note && <p className="text-[11px] font-semibold text-foreground">{note}</p>}
+      {nat().overlayAuto && <AutoInCar car={prefs.autoCar} canDraw={!!st?.permission} />}
       {st && !st.permission && !note && <p className="text-[11px] text-muted-foreground">First time: Android will ask you to allow Kaido Maps to display over other apps.</p>}
       <label className="flex items-center justify-between text-xs font-semibold text-foreground">
         Show speed in the overlay
@@ -107,6 +108,38 @@ function OverlayLook({ prefs, theme }) {
           <span className="absolute bottom-1 right-2 text-[9px] font-bold text-white/60">PREVIEW</span>
         </div>
       )}
+    </div>
+  );
+}
+
+// Open Waze + overlay by itself when the phone joins the car's Bluetooth (works with Kaido closed).
+// Also on the "Kaido auto" quick-settings tile and the overlay notification.
+function AutoInCar({ car, canDraw }) {
+  const read = () => { try { return JSON.parse(nat().overlayAuto()); } catch { return { on: false }; } };
+  const [auto, setAuto] = useState(read);
+  const bt = (() => { try { return JSON.parse(nat().bluetoothStatus()); } catch { return null; } })();
+  // Use the car picked for OBD auto-connect; otherwise any Bluetooth named like the Subaru.
+  useEffect(() => { try { nat().overlayCar(car?.address || '', car?.name || ''); } catch { /* old app */ } }, [car?.address, car?.name]);
+  useEffect(() => {
+    const on = () => { if (document.visibilityState === 'visible') setAuto(read()); };
+    document.addEventListener('visibilitychange', on);
+    return () => document.removeEventListener('visibilitychange', on);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const flip = () => { nat().overlayAutoSet(!auto.on); setAuto(read()); };
+  return (
+    <div className="rounded-lg border border-border bg-secondary/40 px-2.5 py-2 space-y-1.5">
+      <button onClick={flip} className="w-full flex items-center justify-between gap-3 text-left">
+        <div>
+          <div className="text-xs font-bold text-foreground">Open automatically in my car</div>
+          <div className="text-[11px] text-muted-foreground">When your phone joins {car?.name || 'your Subaru'}'s Bluetooth, Waze opens with your overlay. It closes when you leave.</div>
+        </div>
+        <span className={`shrink-0 w-10 h-6 rounded-full p-0.5 transition-colors ${auto.on ? 'bg-primary' : 'bg-secondary'}`}>
+          <span className={`block w-5 h-5 rounded-full bg-white transition-transform ${auto.on ? 'translate-x-4' : ''}`} />
+        </span>
+      </button>
+      {auto.on && !canDraw && <p className="text-[11px] font-semibold text-foreground">Turn Overlay Mode on once above so Android lets it display over Waze.</p>}
+      {auto.on && bt && !bt.permission && <button onClick={() => nat().requestBluetooth?.()} className="text-[11px] font-bold text-primary">Allow Bluetooth so Kaido can see your car</button>}
+      <p className="text-[10px] text-muted-foreground">Quick switch: add the "Kaido auto" tile to your quick settings (swipe down twice, tap the pencil). The overlay notification has an "Auto in car" button too.</p>
     </div>
   );
 }
