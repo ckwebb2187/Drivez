@@ -88,7 +88,9 @@ function MusicWidget({ orient, editing, prefs, cols }) {
   const size = 64, n = 30, r = size / 2 + 4;
   const ring = `conic-gradient(from 0deg, ${[...cols, cols[0]].join(', ')})`;
   return (
-    <Movable id="music" orient={orient} editing={editing} prefs={prefs} def={{ x: 0.66, y: orient === 'land' ? 0.18 : 0.4 }}>
+    // Default spot: bottom right, just above Waze's report (hazard) button. New id so the old spot is dropped.
+    <Movable id="music2" orient={orient} editing={editing} prefs={prefs}
+      def={orient === 'land' ? { x: (window.innerWidth - 152) / window.innerWidth, y: 0.18 } : { x: (window.innerWidth - 152) / window.innerWidth, y: Math.max(0, (window.innerHeight * 0.765 - 138) / window.innerHeight) }}>
       <div className="flex flex-col items-center" style={{ width: 150 }}>
         <div className="relative" style={{ width: size + 26, height: size + 26 }}>
           <div className={`absolute inset-0 rounded-full ${playing ? 'dz-ovl-spin' : ''}`} style={{ background: ring, filter: 'blur(10px)', opacity: playing ? 0.75 : 0.3 }} />

@@ -16,7 +16,17 @@ import android.os.IBinder;
 import android.provider.Settings;
 import android.service.quicksettings.TileService;
 import android.content.ComponentName;
+import android.content.SharedPreferences;
+import android.content.res.Configuration;
+import android.graphics.drawable.GradientDrawable;
+import android.util.TypedValue;
+import android.view.Gravity;
+import android.view.MotionEvent;
+import android.view.View;
 import android.view.WindowManager;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
@@ -43,6 +53,12 @@ public class OverlayService extends Service {
     private WindowManager.LayoutParams lp;
     private boolean editing = false;
     private MediaWatcher media; // what's playing, for the music widget
+    // Floating Kaido button: its own small window that takes taps, so the overlay can be
+    // controlled from Waze (edit, auto in car, open Kaido, stop) without the notification.
+    private LinearLayout btnWin, menu;
+    private WindowManager.LayoutParams blp;
+    private TextView editItem, autoItem;
+    private int btnLeft = -1;
 
     static boolean isRunning() { return running; }
 
@@ -100,6 +116,7 @@ public class OverlayService extends Service {
         if (Build.VERSION.SDK_INT >= 34) startForeground(1, notification(), 0x40000000); // FOREGROUND_SERVICE_TYPE_SPECIAL_USE
         else startForeground(1, notification());
         showOverlay();
+        showButton();
         refreshTile();
     }
 
@@ -112,6 +129,7 @@ public class OverlayService extends Service {
             CarOverlay.setEnabled(this, !CarOverlay.enabled(this));
             NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm != null) nm.notify(1, notification());
+            updateMenu();
         }
         return START_STICKY;
     }
@@ -178,7 +196,133 @@ public class OverlayService extends Service {
             web.evaluateJavascript("window.dispatchEvent(new CustomEvent('drivez-overlay-edit',{detail:" + on + "}))", null);
             NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm != null) nm.notify(1, notification());
+            updateMenu();
         });
+    }
+
+    private int dp(float v) { return Math.round(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, getResources().getDisplayMetrics())); }
+
+    private TextView item(String text, View.OnClickListener on) {
+        TextView t = new TextView(this);
+        t.setText(text);
+        t.setTextColor(Color.WHITE);
+        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        t.setPadding(dp(16), dp(12), dp(16), dp(12));
+        t.setOnClickListener(on);
+        menu.addView(t, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        return t;
+    }
+
+    private void updateMenu() {
+        if (editItem == null) return;
+        editItem.setText(editing ? "Done editing" : "Edit layout");
+        autoItem.setText(CarOverlay.enabled(this) ? "Auto in car: ON" : "Auto in car: OFF");
+    }
+
+    private void showButton() {
+        int size = dp(48);
+        btnWin = new LinearLayout(this);
+        btnWin.setOrientation(LinearLayout.VERTICAL);
+        ImageView icon = new ImageView(this);
+        icon.setImageResource(R.mipmap.ic_launcher);
+        GradientDrawable ring = new GradientDrawable();
+        ring.setShape(GradientDrawable.OVAL);
+        ring.setColor(0xE60A0C10);
+        ring.setStroke(dp(2), 0xFF3B82F6);
+        icon.setBackground(ring);
+        icon.setPadding(dp(5), dp(5), dp(5), dp(5));
+        icon.setClipToOutline(true);
+        btnWin.addView(icon, new LinearLayout.LayoutParams(size, size));
+        menu = new LinearLayout(this);
+        menu.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable box = new GradientDrawable();
+        box.setColor(0xF20A0C10);
+        box.setCornerRadius(dp(14));
+        box.setStroke(dp(1), 0x40FFFFFF);
+        menu.setBackground(box);
+        menu.setVisibility(View.GONE);
+        editItem = item("Edit layout", v -> { setEditing(!editing); openMenu(false); });
+        autoItem = item("Auto in car", v -> {
+            CarOverlay.setEnabled(this, !CarOverlay.enabled(this));
+            updateMenu();
+            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm != null) nm.notify(1, notification());
+        });
+        item("Open Kaido Maps", v -> { openMenu(false); try { startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Exception ignored) { } });
+        item("Stop overlay", v -> stopSelf());
+        item("Close", v -> openMenu(false));
+        LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        mlp.topMargin = dp(6);
+        btnWin.addView(menu, mlp);
+        updateMenu();
+
+        SharedPreferences p = getSharedPreferences("overlay_button", MODE_PRIVATE);
+        int sw = getResources().getDisplayMetrics().widthPixels, sh = getResources().getDisplayMetrics().heightPixels;
+        btnLeft = Math.max(0, Math.min(sw - size, p.getInt("x", sw - size - dp(10))));
+        blp = new WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT);
+        blp.gravity = Gravity.TOP | Gravity.START;
+        blp.x = btnLeft;
+        blp.y = Math.max(0, Math.min(sh - size, p.getInt("y", Math.round(sh * 0.28f))));
+        // Tap: open the menu. Drag: move the button (remembered).
+        final float[] start = new float[4];
+        final boolean[] moved = new boolean[1];
+        icon.setOnTouchListener((v, e) -> {
+            switch (e.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    start[0] = e.getRawX(); start[1] = e.getRawY(); start[2] = btnLeft; start[3] = blp.y; moved[0] = false; return true;
+                case MotionEvent.ACTION_MOVE:
+                    float dx = e.getRawX() - start[0], dy = e.getRawY() - start[1];
+                    if (!moved[0] && Math.hypot(dx, dy) < dp(8)) return true;
+                    if (!moved[0]) openMenu(false);
+                    moved[0] = true;
+                    int w = getResources().getDisplayMetrics().widthPixels, h = getResources().getDisplayMetrics().heightPixels;
+                    btnLeft = Math.max(0, Math.min(w - size, Math.round(start[2] + dx)));
+                    blp.x = btnLeft;
+                    blp.y = Math.max(0, Math.min(h - size, Math.round(start[3] + dy)));
+                    try { wm.updateViewLayout(btnWin, blp); } catch (Exception ignored) { }
+                    return true;
+                case MotionEvent.ACTION_UP:
+                    if (moved[0]) p.edit().putInt("x", btnLeft).putInt("y", blp.y).apply();
+                    else openMenu(menu.getVisibility() != View.VISIBLE);
+                    return true;
+                default: return true;
+            }
+        });
+        try { wm.addView(btnWin, blp); } catch (Exception ignored) { btnWin = null; }
+    }
+
+    // The menu opens under the button, shifted left when the button sits near the right edge.
+    private void openMenu(boolean open) {
+        if (btnWin == null) return;
+        int size = dp(48), sw = getResources().getDisplayMetrics().widthPixels;
+        if (open) {
+            updateMenu();
+            menu.setVisibility(View.VISIBLE);
+            menu.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+            int mw = Math.max(size, menu.getMeasuredWidth());
+            boolean right = btnLeft + mw > sw;
+            btnWin.setGravity(right ? Gravity.END : Gravity.START);
+            blp.x = right ? Math.max(0, btnLeft + size - mw) : btnLeft;
+        } else {
+            menu.setVisibility(View.GONE);
+            btnWin.setGravity(Gravity.START);
+            blp.x = btnLeft;
+        }
+        try { wm.updateViewLayout(btnWin, blp); } catch (Exception ignored) { }
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration c) {
+        super.onConfigurationChanged(c);
+        if (btnWin == null) return;
+        int size = dp(48), sw = getResources().getDisplayMetrics().widthPixels, sh = getResources().getDisplayMetrics().heightPixels;
+        btnLeft = Math.max(0, Math.min(sw - size, btnLeft));
+        blp.y = Math.max(0, Math.min(sh - size, blp.y));
+        openMenu(false);
     }
 
     private void refreshTile() {
@@ -193,6 +337,7 @@ public class OverlayService extends Service {
         // Stopped by the driver mid-trip: don't pop back up until they next get in the car.
         if (!CarOverlay.stoppingAuto && CarOverlay.prefs(this).getBoolean("autoStarted", false)) CarOverlay.stoppedByDriver(this);
         CarOverlay.stoppingAuto = false;
+        if (btnWin != null) { try { wm.removeView(btnWin); } catch (Exception ignored) { } btnWin = null; }
         if (web != null) {
             try { wm.removeView(web); } catch (Exception ignored) { }
             web.destroy();

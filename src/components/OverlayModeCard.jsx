@@ -138,7 +138,13 @@ function AutoInCar({ car, canDraw }) {
         </span>
       </button>
       {auto.on && !canDraw && <p className="text-[11px] font-semibold text-foreground">Turn Overlay Mode on once above so Android lets it display over Waze.</p>}
-      {auto.on && bt && !bt.permission && <button onClick={() => nat().requestBluetooth?.()} className="text-[11px] font-bold text-primary">Allow Bluetooth so Kaido can see your car</button>}
+      {auto.last && <p className="text-[10px] text-muted-foreground">Last time: {auto.last}</p>}
+      {nat().overlayAutoTest && (
+        <button onClick={() => { const r = nat().overlayAutoTest(); setTimeout(() => setAuto(read()), 300); if (r !== 'started') alert(`Couldn't start: ${r}`); }}
+          className="text-[11px] font-bold text-primary">Test it now (same as getting in the car)</button>
+      )}
+      {bt && !bt.permission && <button onClick={() => nat().requestBluetooth?.()} className="text-[11px] font-bold text-primary">Allow Bluetooth so Kaido can see your car</button>}
+      <p className="text-[10px] text-muted-foreground">Over Waze, tap the floating Kaido button for Edit layout, Auto in car, Open Kaido and Stop. Drag it anywhere.</p>
       <p className="text-[10px] text-muted-foreground">Quick switch: add the "Kaido auto" tile to your quick settings (swipe down twice, tap the pencil). The overlay notification has an "Auto in car" button too.</p>
     </div>
   );

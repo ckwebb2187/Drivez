@@ -131,6 +131,20 @@ public class MainActivity extends Activity {
         if (saved != null) web.restoreState(saved);
         else web.loadUrl(SITE + "/");
         if (!hasLocation()) requestPermissions(new String[]{ Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION }, REQ_LOCATION);
+        startOverlayIfAsked(getIntent());
+    }
+
+    // Tapped the "You're in the car" notification: start the overlay and open Waze.
+    private void startOverlayIfAsked(Intent i) {
+        if (i == null || !i.getBooleanExtra("startOverlay", false)) return;
+        i.removeExtra("startOverlay");
+        CarOverlay.start(this, true);
+    }
+
+    @Override
+    protected void onNewIntent(Intent i) {
+        super.onNewIntent(i);
+        startOverlayIfAsked(i);
     }
 
     private boolean hasLocation() {
@@ -313,6 +327,8 @@ public class MainActivity extends Activity {
         @JavascriptInterface public String overlayAuto() { return CarOverlay.state(MainActivity.this); }
         @JavascriptInterface public void overlayAutoSet(boolean on) { CarOverlay.setEnabled(MainActivity.this, on); }
         @JavascriptInterface public void overlayCar(String address, String name) { CarOverlay.setCar(MainActivity.this, address, name); }
+        // Same as getting in the car, to test it.
+        @JavascriptInterface public String overlayAutoTest() { return CarOverlay.start(MainActivity.this, false); }
 
         @JavascriptInterface public void keepScreenOn(boolean on) {
             runOnUiThread(() -> {
