@@ -95,3 +95,4 @@ date,ticket,kind,startup_kb,all_js_kb,ttfb_ms,load_ms,result
 2026-11-13T23:19,overlay-fx,build,530.9,996,,,pass
 2026-11-14T19:11,overlay-auto,build,530.9,996.4,,,pass
 2026-11-15T15:47,overlay-btn,build,530.9,996.6,,,pass
+2026-11-15T15:50,obd-first,build,531,996.7,,,pass

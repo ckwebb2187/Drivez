@@ -33,6 +33,10 @@ export default function SettingsList() {
   const ghostLocked = !!fam?.controls && !fam.controls.mapVisible;
   return (
     <div className="space-y-3">
+      {/* Engine (OBD-II) first: gauges, adapter, knock watch, Waze overlay. */}
+      <Collapsible id="engine" icon={Gauge} title="Engine gauges (OBD-II)" subtitle="Adapter, gauges, knock watch, Waze overlay">
+        <Suspense fallback={null}><EngineSettings /></Suspense>
+      </Collapsible>
       <button onClick={ghostLocked ? undefined : toggleGhostMode} disabled={ghostLocked} className="w-full bg-card rounded-2xl border border-border flex items-center gap-3 px-4 py-3 text-left">
         {user.ghostMode ? <EyeOff className="w-4 h-4 text-muted-foreground" /> : <Eye className="w-4 h-4 text-primary" />}
         <div className="flex-1">
@@ -57,9 +61,6 @@ export default function SettingsList() {
       </div>
       <Collapsible id="look" icon={Palette} title="Map look" subtitle="World theme, battery saver, Japanese names">
         <MapLookSettings />
-      </Collapsible>
-      <Collapsible id="engine" icon={Gauge} title="Engine gauges (OBD-II)" subtitle="Boost, temps and more as glowing map bubbles">
-        <Suspense fallback={null}><EngineSettings /></Suspense>
       </Collapsible>
       <Collapsible id="voice" icon={AudioLines} title="Voice & narration" subtitle="Co-driver callouts, drive recaps, Gemini voice">
         <VoiceSettings />

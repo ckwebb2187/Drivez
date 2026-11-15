@@ -2,7 +2,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { SettingsSheet } from '@/components/SettingsList';
-import { X, Clock, Star, Route as RouteIcon, Radio, Trophy, Upload, User, Settings, Navigation, Flame, CalendarDays, Wrench, Users, Lightbulb } from 'lucide-react';
+import { Gauge, X, Clock, Star, Route as RouteIcon, Radio, Trophy, Upload, User, Settings, Navigation, Flame, CalendarDays, Wrench, Users, Lightbulb } from 'lucide-react';
 import { useApp } from '@/lib/AppContext';
 import InviteButton from '@/components/InviteButton';
 import { ThemePicker } from '@/components/MapLookSettings';
@@ -46,6 +46,12 @@ export default function LeftDrawer({ open, onClose }) {
           <button onClick={onClose} className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center" aria-label="Close menu"><X className="w-4 h-4" /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          {/* OBD-II first: opens Settings with the engine section already open. */}
+          <button onClick={() => { try { sessionStorage.setItem('dz-open-engine', '1'); } catch { /* ignore */ } setSettings(true); }}
+            className="w-full bg-card rounded-2xl border border-primary/40 flex items-center gap-3 px-4 py-3 text-left">
+            <Gauge className="w-4 h-4 text-primary" />
+            <div className="flex-1"><div className="text-sm font-semibold text-foreground">Engine gauges (OBD-II)</div><div className="text-[11px] text-muted-foreground">Adapter, gauges, knock watch, Waze overlay</div></div>
+          </button>
           <button onClick={() => setSettings(true)} className="w-full bg-card rounded-2xl border border-border flex items-center gap-3 px-4 py-3 text-left">
             <Settings className="w-4 h-4 text-primary" />
             <div className="flex-1"><div className="text-sm font-semibold text-foreground">Settings</div><div className="text-[11px] text-muted-foreground">Map look, voice, Discord, privacy, app</div></div>
